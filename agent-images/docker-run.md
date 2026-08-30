@@ -16,6 +16,7 @@ docker run --rm -it \
   -v /home/dev/projects/project-name:/workspace \
   -v /home/dev/.agents:/home/dev/.agents:ro \
   -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
+  -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
   -w /workspace \
   agent-pi pi -a
 ```
@@ -32,6 +33,7 @@ docker run --rm \
   -v /home/dev/projects/project-name:/workspace \
   -v /home/dev/.agents:/home/dev/.agents:ro \
   -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
+  -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
   -w /workspace \
   agent-pi pi -p --approve "TASK"
 ```

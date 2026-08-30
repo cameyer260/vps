@@ -37,6 +37,7 @@ Key behaviors of jarvis that the dashboard must mirror or invoke:
   - `-v <project>:/workspace` (project bind mount), `-w /workspace`
   - `-v /home/dev/.agents:/home/dev/.agents:ro` (skills)
   - `-v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json` (pi auth)
+  - `-v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro` (shared defaults: provider/model/thinking level; read-only so agents can't rewrite host settings)
   - `--env-file /home/dev/.config/bx/bx.env`
   - labels: `agent.kind=pi`, `agent.project=<project-basename>` (no `--name` — multiple agents can run on one project concurrently; the dashboard should discover agents via `docker ps --filter label=agent.kind=pi` and read the project from the label, not from container names)
 - Models are accessed through the OpenRouter provider.

@@ -28,6 +28,7 @@ PROJECTS_DIR="${AGENT_PROJECTS_DIR:-/home/dev/projects}"
 AGENTS_DIR=/home/dev/.agents
 BX_ENV=/home/dev/.config/bx/bx.env
 PI_AUTH=/home/dev/.pi/agent/auth.json
+PI_SETTINGS=/home/dev/.pi/agent/settings.json
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -91,6 +92,14 @@ pi_cmd() {
     args+=( -v "$PI_AUTH:/home/dev/.pi/agent/auth.json" )
   else
     echo "jarvis: warning: $PI_AUTH missing — pi login won't persist across runs" >&2
+  fi
+  # Read-only shared defaults (provider/model/thinking level). Without this the
+  # container falls back to pi's factory defaults; ro so container-side /model
+  # saves can't rewrite the host's settings.
+  if [[ -f "$PI_SETTINGS" ]]; then
+    args+=( -v "$PI_SETTINGS:/home/dev/.pi/agent/settings.json:ro" )
+  else
+    echo "jarvis: warning: $PI_SETTINGS missing — container uses pi factory defaults" >&2
   fi
 
   if (( $# > 0 )); then
