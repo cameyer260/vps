@@ -69,17 +69,20 @@ prepare_workspace() {
 }
 
 pi_cmd() {
-  local dir name image=agent-pi
+  local dir image=agent-pi
   [[ $# -ge 1 ]] || die "usage: jarvis PROJECT [TASK]"
   dir="$(prepare_workspace "$1")"
-  name="agent-pi-$(basename "$dir")"
   shift
   require_image "$image"
 
   local args=()
   args+=( --rm \
-    --name "$name" \
     --user "$(id -u dev):$(id -g dev)" \
+    # No --name: multiple agents may run on the same project concurrently, so
+    # names would collide. Docker auto-generates a unique one; the project is
+    # discoverable via the agent.project label (what the dashboard filters on).
+    --label agent.kind=pi \
+    --label "agent.project=$(basename "$dir")" \
     -v "$dir:/workspace" \
     -v "$AGENTS_DIR:/home/dev/.agents:ro" \
     -w /workspace \

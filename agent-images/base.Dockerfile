@@ -1,8 +1,13 @@
+# syntax=docker/dockerfile:1
 # Shared base for the pi agent image.
 #
 # Provides a non-root `dev` user (matching the host's dev uid/gid via build
 # args) plus the common CLIs the skills call: git, ripgrep, fd, jq, gh, bx.
 # The playwright package lives inside the skills dir and is NOT installed here.
+#
+# Playwright's bundled Chromium comes from the host via the extra BuildKit
+# context named `ms-cache` (passed as --build-context ms-cache=<host dir> by
+# build-images.sh). No staging/copying into the repo happens at all.
 ARG UBUNTU=24.04
 FROM ubuntu:${UBUNTU}
 
@@ -78,11 +83,11 @@ USER dev
 RUN curl -fsSL https://raw.githubusercontent.com/brave/brave-search-cli/main/scripts/install.sh | sh
 USER root
 
-# Bake Playwright's bundled Chromium into the image (staged from the host's
-# ~/.cache/ms-playwright by build-images.sh into .ms-playwright-stage/). This
-# way the container never re-downloads Chromium on every run.
+# Bake Playwright's bundled Chromium into the image straight from the host's
+# ~/.cache/ms-playwright (mounted as the `ms-cache` build context), so the
+# container never re-downloads Chromium on every run.
 RUN mkdir -p /home/dev/.cache/ms-playwright
-COPY .ms-playwright-stage/ /home/dev/.cache/ms-playwright/
+COPY --from=ms-cache chromium-* chromium_headless_shell-* ffmpeg-* /home/dev/.cache/ms-playwright/
 RUN chown -R dev:dev /home/dev/.cache
 
 ENV HOME=/home/dev

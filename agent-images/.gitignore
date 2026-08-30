@@ -1,3 +1,0 @@
-# Build-time staging dir for the baked-in Playwright Chromium bundle
-# (populated from the host's ~/.cache/ms-playwright, not committed — ~630MB).
-.ms-playwright-stage/

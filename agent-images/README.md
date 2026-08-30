@@ -1,24 +1,39 @@
 # agent-images
 
-Dockerfiles for the VPS pi agent container described in `vps-plan.md` Phase 7.
+Dockerfiles and tooling for the VPS pi agent containers (original plan: Phase 7
+in `vps-plan.md`). Lives inside the `vps` monorepo — see the [root
+README](../README.md) for the full VPS/jarvis context.
 
 - `base.Dockerfile` — shared base: Ubuntu 24.04, a non-root `dev` user, and the
   CLIs the skills call (`git`, `ripgrep`, `fd`, `jq`, `gh`, `bx`).
 - `agent-pi.Dockerfile` — base + Node + `@earendil-works/pi-coding-agent`.
   Pi is an npm package and needs Node at install and runtime (`>=22.19.0`).
 - `build-images.sh` — builds the images; run as `dev` on the VPS.
+- `jarvis.sh` / `jarvis-completion.bash` — the `jarvis` CLI wrapper and its
+  bash completion.
 
 ## Layout / workflow
 
-Source of truth is this Git repo. Clone it on the VPS under
-`/home/dev/agent-images` (dev-owned, no sudo needed), then run the build script:
+Source of truth is this monorepo (`cameyer260/vps`). On the VPS it is cloned to
+`/home/dev/vps`, and the two scripts are symlinked onto the PATH:
 
 ```bash
-git clone <repo-url> /home/dev/agent-images
-cd /home/dev/agent-images
-chmod +x build-images.sh
-./build-images.sh
+git clone https://github.com/cameyer260/vps.git /home/dev/vps
+mkdir -p ~/bin
+ln -sfn /home/dev/vps/agent-images/jarvis.sh ~/bin/jarvis
+ln -sfn /home/dev/vps/agent-images/build-images.sh ~/bin/build-images.sh
+printf 'export PATH="$HOME/bin:$PATH"\n' >> ~/.bashrc
+printf 'source /home/dev/vps/agent-images/jarvis-completion.bash\n' >> ~/.bashrc
 ```
+
+Build the images (no sudo needed; `dev` is in the `docker` group):
+
+```bash
+jarvis build          # or: /home/dev/vps/agent-images/build-images.sh
+```
+
+Both scripts resolve their own directory via `realpath`, so the symlinks work
+no matter where they point.
 
 ## Credentials (never baked in)
 
@@ -52,16 +67,6 @@ pre-creates a workspace if it doesn't exist. jarvis runs as `dev`, so the mkdir
 already makes dev-owned dirs; Docker's plain `-v` on a missing dir would create
 it as root, which the container's `dev` user can't write to.
 
-Install on the VPS (put it on your PATH and add completion):
-
-```bash
-mkdir -p ~/bin
-ln -s /home/dev/agent-images/jarvis.sh ~/bin/jarvis
-ln -s /home/dev/agent-images/build-images.sh ~/bin/build-images.sh
-printf 'export PATH="$HOME/bin:$PATH"\n' >> ~/.bashrc
-printf 'source /home/dev/agent-images/jarvis-completion.bash\n' >> ~/.bashrc
-```
-
 Usage:
 
 ```bash
@@ -75,6 +80,13 @@ jarvis build                            # rebuild all images
 absolute path. A `TASK` argument switches the container to one-shot mode.
 Auth mounts (pi) are added only when the host files exist, and the
 script warns otherwise. Override the project root with `AGENT_PROJECTS_DIR`.
+
+Containers get no `--name` (multiple agents can run on one project
+concurrently) and are instead labeled `agent.kind=pi` and
+`agent.project=<basename>` — the fields the dashboard filters on.
+
+The canonical `docker run` statements (what jarvis invokes) are documented in
+`docker-run.md`.
 
 ## Versions (hardcoded in the Dockerfiles)
 
@@ -94,22 +106,21 @@ or skills dependencies.
 
 ## Playwright Chromium is baked in from the host
 
-`build-images.sh` copies the host's already-downloaded Playwright Chromium
-bundle from `/home/dev/.cache/ms-playwright/` into the image at build time
-(`chromium-<rev>`, `chromium_headless_shell-<rev>`, `ffmpeg-<rev>`). The
-Dockerfile then `COPY`s it to `/home/dev/.cache/ms-playwright/` inside the
-image — the exact path Playwright checks at runtime — so the container never
-downloads Chromium on each run.
+`build-images.sh` passes the host's already-downloaded Playwright Chromium bundle
+at `/home/dev/.cache/ms-playwright/` to the base build as an extra BuildKit
+context (`--build-context ms-cache=...`), and `base.Dockerfile` does
+`COPY --from=ms-cache chromium-* ...` directly from it. Nothing is copied into
+or staged inside the repo, and the container never downloads Chromium at runtime.
 
-**This relies on the host having Chromium installed at that location.** If the
-host doesn't have it, `build-images.sh` refuses to build with a clear error.
-If the host's bundle is stale/missing, re-run the playwright skill setup on
-the host (it downloads to `~/.cache/ms-playwright/`) and rebuild.
+**This relies on the host having Chromium installed at that location.** The
+script checks for `chromium-*` and `chromium_headless_shell-*` under the cache
+dir and refuses to build with a clear error if either is missing. If the host's
+bundle is stale/missing, re-run the playwright skill setup on the host (it
+downloads to `~/.cache/ms-playwright/`) and rebuild.
 
 **Upgrading Playwright will break this** until you rebuild. The image bakes
 in a *specific* revision (currently `chromium-1212`). If the pi-playwright
 package (mounted from `~/.agents`) is upgraded and expects a newer revision,
 the baked-in one won't match and the container will try to re-download (lost
 on `--rm`) or error "browser not installed". Fix: re-run the skill setup on
-the host so it downloads the new revision, then `build-images.sh` again —
-the script globs `chromium-*`, so no Dockerfile edit is needed.
+the host so it downloads the new revision, then `build-images.sh` again.

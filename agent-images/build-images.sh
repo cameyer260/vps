@@ -11,46 +11,27 @@ cd "$(dirname "$(realpath "$0")")"
 DEV_UID=$(id -u)
 DEV_GID=$(id -g)
 
-# Stage the host's already-downloaded Playwright Chromium bundle into the build
-# context so base.Dockerfile can COPY it into the image. Keeps the container
-# from re-downloading Chromium on every run.
-STAGE=.ms-playwright-stage
+# The host's Playwright Chromium bundle is passed to the base build as an extra
+# BuildKit context (`ms-cache`, consumed by COPY --from in base.Dockerfile), so
+# nothing is copied or staged inside the repo. Bail if a required browser dir
+# is missing (version drift vs installed pw-core).
 MS_CACHE=/home/dev/.cache/ms-playwright
-rm -rf "$STAGE"
-mkdir -p "$STAGE"
-staged=0
-for d in "$MS_CACHE"/chromium-* "$MS_CACHE"/chromium_headless_shell-* "$MS_CACHE"/ffmpeg-*; do
-  [ -e "$d" ] || continue
-  cp -r "$d" "$STAGE/$(basename "$d")"
-  staged+=1
-done
-if [[ "$staged" -eq 0 ]]; then
-  echo "build-images: no Playwright browsers found under $MS_CACHE (install Chromium first)" >&2
-  exit 1
-fi
-# Bail if a required browser dir is missing (version drift vs installed pw-core).
 for name in chromium chromium_headless_shell; do
-  matched=0
-  for d in "$STAGE"/${name}-*; do
-    if [[ -e "$d" ]]; then matched=1; break; fi
-  done
-  if [[ "$matched" -eq 0 ]]; then
-    echo "build-images: staged browsers missing '$name' — re-run Playwright install on host" >&2
+  ls -d "$MS_CACHE"/${name}-* >/dev/null 2>&1 || {
+    echo "build-images: no ${name}-* under $MS_CACHE (install Chromium first)" >&2
     exit 1
-  fi
+  }
 done
 
-echo "==> Staged Playwright Chromium bundle ($staged dirs) from $MS_CACHE"
+echo "==> Baking Playwright browsers from $MS_CACHE (ms-cache build context)"
 
 echo "==> Building agent-base (dev uid=$DEV_UID gid=$DEV_GID)"
 docker build --build-arg DEV_UID="$DEV_UID" --build-arg DEV_GID="$DEV_GID" \
+  --build-context ms-cache="$MS_CACHE" \
   -f base.Dockerfile -t agent-base .
 
 echo "==> Building agent-pi"
 docker build -f agent-pi.Dockerfile -t agent-pi .
-
-# Drop the staged bundle now that the images are built.
-rm -rf .ms-playwright-stage
 
 
 echo
