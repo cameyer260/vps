@@ -92,7 +92,7 @@ The canonical `docker run` statements (what jarvis invokes) are documented in
 
 | Tool | Where it's defined | Version |
 |---|---|---|
-| Pi agent | `agent-pi.Dockerfile` npm install | `@earendil-works/pi-coding-agent@0.84.2` |
+| Pi agent | `agent-pi.Dockerfile` npm install | `@earendil-works/pi-coding-agent@0.84.4` |
 | Node (Pi) | `agent-pi.Dockerfile` `NODE_VERSION` | `v24.19.0` (LTS) |
 | gh, bx, git, rg, fd, jq | `base.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
 
