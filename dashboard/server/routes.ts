@@ -4,7 +4,7 @@ import path from "node:path";
 import { config, notesName, projectDir } from "./config.js";
 import { containerState, listPiContainers, stopAndRemove, type AgentInfo } from "./docker.js";
 import { startAgent } from "./jarvis.js";
-import { gitPull } from "./git.js";
+import { gitCommitAllPush, gitPull, gitStatus } from "./git.js";
 import { listSessions } from "./sessions.js";
 import { bridges, ensureBridge } from "./bridge.js";
 
@@ -85,6 +85,23 @@ api.post("/agents/start", async (c) => {
 
 api.post("/agents/:id/terminate", async (c) => {
   const id = c.req.param("id");
+  const body = (await c.req.json().catch(() => ({}))) as { commit?: boolean };
+
+  // "commit & push, then close": stage everything in the agent's project,
+  // commit, push — only then stop the container.
+  if (body.commit) {
+    const summary = await listPiContainers();
+    const agent = summary.find((a) => a.id === id);
+    if (!agent) return c.json({ error: "agent not found" }, 404);
+    const dir = projectDir(agent.project);
+    if (!dir) return c.json({ error: "invalid project" }, 400);
+    const result = await gitCommitAllPush(
+      dir,
+      `dashboard: commit before closing agent (${new Date().toISOString()})`,
+    );
+    if (!result.ok) return c.json({ error: "commit & push failed", output: result.output }, 409);
+  }
+
   await stopAndRemove(id);
   bridges.get(id)?.destroy();
   return c.json({ ok: true });
@@ -114,4 +131,12 @@ api.post("/git/pull", async (c) => {
   if (!dir) return c.json({ error: "invalid project" }, 400);
   const result = await gitPull(dir);
   return c.json(result, result.ok ? 200 : 409);
+});
+
+api.get("/git/status", async (c) => {
+  const project = c.req.query("project");
+  const dir = projectDir(project ?? "");
+  if (!dir) return c.json({ error: "invalid project" }, 400);
+  const status = await gitStatus(dir);
+  return c.json(status, status.ok ? 200 : 409);
 });

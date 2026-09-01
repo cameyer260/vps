@@ -13,6 +13,14 @@ export default function App() {
   const [startOpen, setStartOpen] = useState(false);
   const [startProject, setStartProject] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notesName, setNotesName] = useState("notes");
+
+  useEffect(() => {
+    api
+      .projects()
+      .then((r) => setNotesName(r.notes))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -61,9 +69,14 @@ export default function App() {
         <div className="sidebar-body">
           <AgentsSections
             agents={agents}
+            notesName={notesName}
             compact
             onOpenChat={openChat}
             onStart={openStart}
+            onStarted={(agent) => {
+              setMenuOpen(false);
+              openChat(agent.id);
+            }}
           />
         </div>
       </aside>
@@ -73,6 +86,7 @@ export default function App() {
           <Chat
             key={shownChatAgent.id}
             agent={shownChatAgent}
+            notesName={notesName}
             onBack={() => setView({ page: "agents" })}
             onTerminated={() => setView({ page: "agents" })}
           />
@@ -84,7 +98,13 @@ export default function App() {
                 + Start agent
               </button>
             </div>
-            <AgentsSections agents={agents} onOpenChat={openChat} onStart={openStart} />
+            <AgentsSections
+              agents={agents}
+              notesName={notesName}
+              onOpenChat={openChat}
+              onStart={openStart}
+              onStarted={(agent) => openChat(agent.id)}
+            />
           </div>
         )}
       </main>
@@ -92,7 +112,7 @@ export default function App() {
       {startOpen && (
         <StartDialog
           initialProject={startProject}
-          agents={agents}
+          notesName={notesName}
           onClose={() => setStartOpen(false)}
           onStarted={(agent) => {
             setStartOpen(false);

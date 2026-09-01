@@ -764,6 +764,79 @@ details.thinking summary {
   color: var(--text-dim);
 }
 
+/* notes pinned section */
+
+.section.pinned {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+.section.pinned .section-head {
+  padding-bottom: 10px;
+}
+
+/* read-only toggle */
+
+.ro-toggle {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  background: none;
+  white-space: nowrap;
+}
+
+.ro-toggle.on {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.ro-toggle:disabled {
+  opacity: 0.5;
+}
+
+.check-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.error-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.porcelain {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 8px 0 0;
+}
+
+.error-box .porcelain {
+  margin-top: 6px;
+}
+
+/* agent card is a div with role=button */
+div.agent-card {
+  cursor: pointer;
+}
+
 /* phone */
 
 .menu-btn {

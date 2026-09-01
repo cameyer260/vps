@@ -52,4 +52,17 @@ export async function gitCommitPush(
   return { ok: true, output: [commit.output, push.output].filter(Boolean).join("\n") };
 }
 
-export { projectDir, config };
+/** Stage everything (git add -A), commit, push — used when closing an agent. */
+export async function gitCommitAllPush(dir: string, message: string): Promise<GitResult> {
+  const add = await runCommand("git", ["add", "-A"], { cwd: dir });
+  if (!add.ok) return { ok: false, output: `git add failed:\n${add.output}` };
+  const commit = await runCommand("git", ["commit", "-m", message], { cwd: dir });
+  if (!commit.ok) {
+    if (commit.output.includes("nothing to commit"))
+      return { ok: true, output: "nothing to commit (working tree clean)" };
+    return { ok: false, output: `git commit failed:\n${commit.output}` };
+  }
+  const push = await runCommand("git", ["push"], { cwd: dir, timeout: 120_000 });
+  if (!push.ok) return { ok: false, output: `committed but push failed:\n${push.output}` };
+  return { ok: true, output: [commit.output, push.output].filter(Boolean).join("\n") };
+}

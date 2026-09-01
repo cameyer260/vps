@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import type { AgentInfo } from "../types";
+import { TerminateButton } from "./TerminateButton";
+import { StartNotesButton } from "./StartNotesButton";
 
 export function statusDot(a: AgentInfo): { cls: string; label: string } {
   if (a.state !== "running") return { cls: "dead", label: a.state };
@@ -22,13 +24,19 @@ export function uptime(startedAt: string | null): string {
 
 interface Props {
   agents: AgentInfo[];
+  notesName: string;
   compact?: boolean;
   onOpenChat: (agentId: string) => void;
   onStart: (project?: string) => void;
+  onStarted?: (agent: { id: string; project: string }) => void;
 }
 
-/** Group running dashboard agents into sections by project. */
-export function AgentsSections({ agents, compact, onOpenChat, onStart }: Props) {
+/**
+ * Dashboard agents grouped into sections by project. The notes project is
+ * pinned at the top with a one-click "new conversation" — it's the everyday
+ * ChatGPT replacement.
+ */
+export function AgentsSections({ agents, notesName, compact, onOpenChat, onStart, onStarted }: Props) {
   const managed = useMemo(() => agents.filter((a) => a.origin === "dashboard"), [agents]);
   const sections = useMemo(() => {
     const map = new Map<string, AgentInfo[]>();
@@ -37,8 +45,11 @@ export function AgentsSections({ agents, compact, onOpenChat, onStart }: Props) 
       list.push(a);
       map.set(a.project, list);
     }
-    return [...map.entries()].sort(([p1], [p2]) => p1.localeCompare(p2));
-  }, [managed]);
+    // notes pinned first, rest alphabetical
+    return [...map.entries()].sort(([p1], [p2]) =>
+      p1 === notesName ? -1 : p2 === notesName ? 1 : p1.localeCompare(p2),
+    );
+  }, [managed, notesName]);
 
   if (managed.length === 0 && sections.length === 0) {
     return (
@@ -52,17 +63,30 @@ export function AgentsSections({ agents, compact, onOpenChat, onStart }: Props) 
   return (
     <div className="sections">
       {sections.map(([project, list]) => (
-        <section key={project} className="section">
+        <section key={project} className={`section${project === notesName ? " pinned" : ""}`}>
           <div className="section-head">
-            <span className="section-title">{project}</span>
+            <span className="section-title">
+              {project === notesName ? `📝 ${notesName}` : project}
+            </span>
             <span className="section-actions">
-              <button className="btn small" onClick={() => onStart(project)}>
-                + start
-              </button>
+              {project === notesName && onStarted && (
+                <StartNotesButton notesName={notesName} onStarted={onStarted} />
+              )}
+              {project !== notesName && (
+                <button className="btn small" onClick={() => onStart(project)}>
+                  + start
+                </button>
+              )}
             </span>
           </div>
           {list.map((a) => (
-            <AgentCard key={a.id} agent={a} compact={compact} onOpenChat={onOpenChat} />
+            <AgentCard
+              key={a.id}
+              agent={a}
+              notesName={notesName}
+              compact={compact}
+              onOpenChat={onOpenChat}
+            />
           ))}
         </section>
       ))}
@@ -72,17 +96,26 @@ export function AgentsSections({ agents, compact, onOpenChat, onStart }: Props) 
 
 function AgentCard({
   agent,
+  notesName,
   compact,
   onOpenChat,
 }: {
   agent: AgentInfo;
+  notesName: string;
   compact?: boolean;
   onOpenChat: (agentId: string) => void;
 }) {
   const dot = statusDot(agent);
   const title = agent.sessionName || agent.name || agent.id.slice(0, 12);
   return (
-    <button className="agent-card" onClick={() => onOpenChat(agent.id)} title={title}>
+    <div
+      className="agent-card"
+      onClick={() => onOpenChat(agent.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onOpenChat(agent.id)}
+      title={title}
+    >
       <span className={`dot ${dot.cls}`} />
       <span className="agent-main">
         <span className="agent-title">{title}</span>
@@ -97,6 +130,7 @@ function AgentCard({
         {!compact && <span className="agent-meta">{uptime(agent.startedAt)}</span>}
         <span className="agent-status">{dot.label}</span>
       </span>
-    </button>
+      <TerminateButton agent={agent} notesName={notesName} small onTerminated={() => {}} />
+    </div>
   );
 }

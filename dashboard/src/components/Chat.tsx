@@ -1,20 +1,36 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
 import { useChat } from "../chat";
 import type { AgentInfo } from "../types";
 import { MessageView, ModelPicker } from "./MessageView";
+import { TerminateButton } from "./TerminateButton";
 
 interface Props {
   agent: AgentInfo;
+  notesName: string;
   onBack: () => void;
   onTerminated: () => void;
 }
 
-export function Chat({ agent, onBack, onTerminated }: Props) {
+export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
   const chat = useChat(agent);
   const { state } = chat;
   const [input, setInput] = useState("");
-  const [confirming, setConfirming] = useState(false);
+
+  // Read-only toggle (dashboard extension): notes agents start read-only.
+  // Remember the last state per container so reattaching shows the truth as
+  // this device knows it.
+  const [readOnly, setReadOnly] = useState<boolean | null>(() => {
+    const stored = localStorage.getItem(`ro:${agent.id}`);
+    if (stored !== null) return stored === "1";
+    return agent.project === notesName ? true : false;
+  });
+  const toggleReadOnly = () => {
+    const next = !(readOnly ?? false);
+    setReadOnly(next);
+    localStorage.setItem(`ro:${agent.id}`, next ? "1" : "0");
+    chat.send(`/read-only ${next ? "on" : "off"}`);
+  };
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
 
@@ -41,15 +57,6 @@ export function Chat({ agent, onBack, onTerminated }: Props) {
     nearBottomRef.current = true;
   };
 
-  const terminate = async () => {
-    try {
-      await api.terminateAgent(agent.id);
-    } catch {
-      /* container may already be gone */
-    }
-    onTerminated();
-  };
-
   const streaming = state.status === "streaming";
 
   return (
@@ -68,6 +75,14 @@ export function Chat({ agent, onBack, onTerminated }: Props) {
           </span>
         </div>
         <div className="chat-controls">
+          <button
+            className={`ro-toggle${readOnly ? " on" : ""}`}
+            onClick={toggleReadOnly}
+            disabled={exited}
+            title="Read-only mode: edit/write tools disabled and mutating bash commands blocked (/read-only on|off)"
+          >
+            read-only {readOnly ? "on" : "off"}
+          </button>
           <ModelPicker
             models={state.models}
             current={state.model}
@@ -87,9 +102,9 @@ export function Chat({ agent, onBack, onTerminated }: Props) {
               ))}
             </select>
           )}
-          <button className="btn ghost danger" onClick={() => setConfirming(true)} aria-label="Terminate agent">
-            ✕
-          </button>
+          {!exited && (
+            <TerminateButton agent={agent} notesName={notesName} onTerminated={onTerminated} />
+          )}
         </div>
       </header>
 
@@ -141,26 +156,6 @@ export function Chat({ agent, onBack, onTerminated }: Props) {
           <button className="btn primary send" onClick={submit} disabled={!input.trim()}>
             {streaming ? "steer" : "send"}
           </button>
-        </div>
-      )}
-
-      {confirming && (
-        <div className="modal-scrim" onClick={() => setConfirming(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Terminate agent?</h2>
-            <p className="dim">
-              Stops the container and removes it. The conversation stays in pi's session
-              store and can be resumed later.
-            </p>
-            <div className="modal-actions">
-              <button className="btn" onClick={() => setConfirming(false)}>
-                cancel
-              </button>
-              <button className="btn danger" onClick={terminate}>
-                terminate
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
