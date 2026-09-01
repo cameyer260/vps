@@ -1,4 +1,4 @@
-import type { AgentInfo, SessionSummary } from "./types";
+import type { AgentInfo, SessionSummary, TreeNode } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
@@ -42,4 +42,26 @@ export const api = {
     fetch(`/api/git/status?project=${encodeURIComponent(project)}`).then((r) =>
       json<{ ok: boolean; dirty: boolean; porcelain: string; branch: string | null }>(r),
     ),
+  notesTree: () =>
+    fetch("/api/notes/tree").then((r) => json<{ tree: TreeNode[] }>(r)),
+  notesFile: (path: string) =>
+    fetch(`/api/notes/file?path=${encodeURIComponent(path)}`).then((r) =>
+      json<{ path: string; content: string; mtime: number; size: number }>(r),
+    ),
+  notesWrite: (path: string, content: string) =>
+    fetch("/api/notes/file", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, content }),
+    }).then((r) => json<{ ok: boolean; mtime: number }>(r)),
+  notesSearch: (q: string) =>
+    fetch(`/api/notes/search?q=${encodeURIComponent(q)}`).then((r) =>
+      json<{ results: { path: string; line: number; text: string }[] }>(r),
+    ),
+  notesCommit: (paths: string[], message: string) =>
+    fetch("/api/notes/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths, message }),
+    }).then((r) => json<{ ok: boolean; output: string }>(r)),
 };

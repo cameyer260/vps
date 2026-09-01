@@ -27,6 +27,7 @@ interface Props {
   notesName: string;
   compact?: boolean;
   onOpenChat: (agentId: string) => void;
+  onOpenNotes: () => void;
   onStart: (project?: string) => void;
   onStarted?: (agent: { id: string; project: string }) => void;
 }
@@ -36,7 +37,7 @@ interface Props {
  * pinned at the top with a one-click "new conversation" — it's the everyday
  * ChatGPT replacement.
  */
-export function AgentsSections({ agents, notesName, compact, onOpenChat, onStart, onStarted }: Props) {
+export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenNotes, onStart, onStarted }: Props) {
   const managed = useMemo(() => agents.filter((a) => a.origin === "dashboard"), [agents]);
   const sections = useMemo(() => {
     const map = new Map<string, AgentInfo[]>();
@@ -71,6 +72,11 @@ export function AgentsSections({ agents, notesName, compact, onOpenChat, onStart
             <span className="section-actions">
               {project === notesName && onStarted && (
                 <StartNotesButton notesName={notesName} onStarted={onStarted} />
+              )}
+              {project === notesName && (
+                <button className="btn small" onClick={onOpenNotes}>
+                  view
+                </button>
               )}
               {project !== notesName && (
                 <button className="btn small" onClick={() => onStart(project)}>

@@ -22,6 +22,15 @@ export interface SessionSummary {
   preview: string | null;
 }
 
+export interface TreeNode {
+  name: string;
+  path: string;
+  type: "dir" | "file";
+  children?: TreeNode[];
+  size?: number;
+  mtime?: number;
+}
+
 // ---- pi messages / entries ----
 
 export interface ToolCallBlock {

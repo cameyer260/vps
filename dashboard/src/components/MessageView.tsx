@@ -1,7 +1,15 @@
 import { useState } from "react";
-import Markdown from "react-markdown";
+import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Item, PiModel } from "../types";
+
+export function Markdown({ children }: { children: string }) {
+  return (
+    <div className="md">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+    </div>
+  );
+}
 
 export function MessageView({ item }: { item: Item }) {
   if (item.kind === "user") {
@@ -47,9 +55,7 @@ export function MessageView({ item }: { item: Item }) {
         />
       ))}
       {item.text.map((t, i) => (
-        <Markdown key={i} remarkPlugins={[remarkGfm]}>
-          {t}
-        </Markdown>
+        <Markdown key={i}>{t}</Markdown>
       ))}
       {!item.done && <span className="cursor" aria-hidden="true" />}
     </div>

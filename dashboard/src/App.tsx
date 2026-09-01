@@ -3,6 +3,7 @@ import { api } from "./api";
 import type { AgentInfo } from "./types";
 import { AgentsSections } from "./components/AgentsSections";
 import { Chat } from "./components/Chat";
+import { NotesViewer } from "./components/NotesViewer";
 import { StartDialog } from "./components/StartDialog";
 
 type View = { page: "agents" } | { page: "chat"; agentId: string } | { page: "notes" };
@@ -72,6 +73,10 @@ export default function App() {
             notesName={notesName}
             compact
             onOpenChat={openChat}
+            onOpenNotes={() => {
+              setView({ page: "notes" });
+              setMenuOpen(false);
+            }}
             onStart={openStart}
             onStarted={(agent) => {
               setMenuOpen(false);
@@ -90,6 +95,8 @@ export default function App() {
             onBack={() => setView({ page: "agents" })}
             onTerminated={() => setView({ page: "agents" })}
           />
+        ) : view.page === "notes" ? (
+          <NotesViewer notesName={notesName} onBack={() => setView({ page: "agents" })} />
         ) : (
           <div className="overview">
             <div className="overview-head">
@@ -102,6 +109,7 @@ export default function App() {
               agents={agents}
               notesName={notesName}
               onOpenChat={openChat}
+              onOpenNotes={() => setView({ page: "notes" })}
               onStart={openStart}
               onStarted={(agent) => openChat(agent.id)}
             />
