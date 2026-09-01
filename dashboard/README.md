@@ -173,12 +173,12 @@ because this is the everyday ChatGPT replacement:
 
 ## Future improvements
 
+- **Image/file attachments** in chat.
+- **Delete sessions from the UI.**
 - **IDE mode** — extend the notes viewer to more file formats for looking at
   coding projects.
 - **Voice mode** — push-to-talk conversation with the notes agent (speech
   recognition + TTS), interruptible.
-- **Image/file attachments** in chat.
-- **Delete sessions from the UI.**
 
 ## Phases
 
