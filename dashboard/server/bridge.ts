@@ -170,8 +170,12 @@ export class Bridge {
         // Surface it, and cancel it after a timeout so the agent never hangs.
         const timer = setTimeout(() => {
           this.dialogTimers.delete(id);
-          this.writeToPi({ type: "extension_ui_response", id, cancelled: true });
-          this.broadcast({ type: "dialog_cancelled", id });
+          try {
+            this.writeToPi({ type: "extension_ui_response", id, cancelled: true });
+            this.broadcast({ type: "dialog_cancelled", id });
+          } catch {
+            // container went away while the timer was pending
+          }
         }, config.dialogTimeoutMs);
         this.dialogTimers.set(id, timer);
       }
