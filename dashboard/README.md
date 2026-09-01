@@ -39,6 +39,9 @@ docker run -d \
   -e AGENT_UID="$(id -u dev)" \
   -e AGENT_GID="$(id -g dev)" \
   -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /home/dev/projects:/home/dev/projects \
+  -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
+  -v /home/dev/.gitconfig:/home/dev/.gitconfig:ro \
   ... dashboard
 ```
 
@@ -49,6 +52,12 @@ docker run -d \
 - `AGENT_UID`/`AGENT_GID`: inherited by every `jarvis rpc` invocation so
   agent containers get the correct `--user` (see jarvis changes below).
   The dashboard never resolves UIDs itself and never passes them per-call.
+- `/home/dev/projects` rw: host-side git operations (pull, add, commit,
+  push) and project listing.
+- `/home/dev/.pi/agent/sessions`: listing and resuming past conversations
+  in the start dialog.
+- `/home/dev/.gitconfig` ro: git needs a user.name/email for the commits
+  the dashboard makes; this provides dev's identity.
 
 ### jarvis is the single source of truth for container creation
 
@@ -58,10 +67,22 @@ The dashboard does not duplicate the `docker run` flags. `jarvis.sh` gains an
     jarvis rpc PROJECT [pi args...]
       → same flags as always (workspace, skills ro, auth, settings ro,
         bx.env, labels, dev UID), plus:
-        - detached (`docker run -d`) so the dashboard can attach later
+        - `docker run -d -i`, never `-t`: stdin must stay open so the
+          dashboard can attach and send prompts later; a TTY corrupts
+          pi's LF-framed JSONL protocol
         - main process is `pi --mode rpc` (long-lived JSONL daemon)
+        - `-a` (trust project-local files, same as TUI mode)
+        - loads the dashboard's read-only extension via `pi -e <path>`
+        - env `PI_DASHBOARD_READONLY=1` when the caller wants the agent
+          to start read-only (the extension reads it at load; notes
+          agents start with it set)
         - extra label `agent.origin=dashboard` (what the dashboard filters on)
       → prints the container ID
+
+    jarvis models
+      → runs `pi --list-models` in a throwaway container and prints the
+        result (the start dialog needs the model list before any agent
+        exists; the dashboard caches it)
 
 The dashboard shells out to this, then uses the Docker API only to
 list/inspect/attach/stop. TUI/one-shot jarvis usage is unchanged.
@@ -95,8 +116,11 @@ to the browser over a WebSocket; browser input goes back as RPC commands
 - Browser disconnects don't stop the agent. On reattach, history is
   backfilled via `get_entries` (cursor-based) and streaming resumes.
 - Multiple tabs/devices can view the same chat; events fan out to all.
-- Agents run fully auto-approved — the container boundary is the safeguard
-  (isolated container, single project mount, no host access).
+- The WS→RPC bridge must answer pi `extension_ui_request` dialogs (surface
+  them in the UI, or respond `cancelled` for a headless feel) — a dialog
+  with no timeout would otherwise hang the agent mid-turn.
+- Agents run with no approval gating — the container boundary is the
+  safeguard (isolated container, single project mount, no host access).
 
 ### Read-only mode (dashboard extension)
 
