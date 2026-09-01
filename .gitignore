@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-server/
+.pi/tmp/
+*.log
+.DS_Store

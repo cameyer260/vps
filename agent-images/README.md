@@ -63,15 +63,18 @@ You log into Pi once with the auth mounts; the Brave key is the env file.
 ## Shortcuts: `jarvis`
 
 `jarvis.sh` wraps the pi `docker run` command into one entrypoint. It
-pre-creates a workspace if it doesn't exist. jarvis runs as `dev`, so the mkdir
-already makes dev-owned dirs; Docker's plain `-v` on a missing dir would create
-it as root, which the container's `dev` user can't write to.
+pre-creates a workspace if it doesn't exist (mkdir + `git init` when there is no
+`.git` yet — dashboard agents rely on the repo existing). jarvis runs as `dev`, so
+the mkdir already makes dev-owned dirs; Docker's plain `-v` on a missing dir would
+create it as root, which the container's `dev` user can't write to.
 
 Usage:
 
 ```bash
-jarvis my-project                       # interactive pi TUI in /workspace
+jarvis my-project                       # interactive pi TUI
 jarvis my-project "refactor the auth"   # one-shot, prints and exits
+jarvis rpc my-project [--session <f>]   # headless pi RPC daemon for the dashboard;
+                                        #   prints the container ID
 jarvis projects                         # list host projects
 jarvis build                            # rebuild all images
 ```
@@ -81,9 +84,26 @@ absolute path. A `TASK` argument switches the container to one-shot mode.
 Auth mounts (pi) are added only when the host files exist, and the
 script warns otherwise. Override the project root with `AGENT_PROJECTS_DIR`.
 
+`jarvis rpc` runs `pi --mode rpc` detached (`-d -i`, never `-t`) with the extra label
+`agent.origin=dashboard`, loads the dashboard's read-only extension from the repo
+(`dashboard/pi-extension/read-only.ts`) via `pi -e`, and passes `PI_DASHBOARD_READONLY`
+into the container when set in jarvis's environment. The dashboard shells out to it and
+then talks Docker API directly; TUI/one-shot usage is unchanged.
+
 Containers get no `--name` (multiple agents can run on one project
 concurrently) and are instead labeled `agent.kind=pi` and
-`agent.project=<basename>` — the fields the dashboard filters on.
+`agent.project=<basename>` — the fields the dashboard filters on
+(`agent.origin=dashboard` marks dashboard-started ones).
+
+The dev UID/GID for `--user` resolve as `${AGENT_UID:-$(id -u dev)}`: unset (normal SSH
+use) does the `id` lookup as before. The dashboard container, which has no `dev` user
+of its own, is deployed with `AGENT_UID`/`AGENT_GID` set, and they are inherited by
+every jarvis invocation it makes.
+
+Workspaces are mounted at their real host path (`/home/dev/projects/foo`, workdir
+there) and `/home/dev/.pi/agent/sessions` is mounted rw at the same path (override
+with `PI_SESSIONS_DIR`), so sessions group under the same project as host pi sessions
+and resuming works across dashboard and SSH/TUI worlds.
 
 The canonical `docker run` statements (what jarvis invokes) are documented in
 `docker-run.md`.

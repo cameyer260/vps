@@ -7,10 +7,14 @@ _jarvis() {
   cur="${COMP_WORDS[COMP_CWORD]}"
   if (( COMP_CWORD == 1 )); then
     # Position 1: a project name (the default: runs the pi agent), or the
-    # literal subcommands projects/build/help. Resolve the projects dir the
+    # literal subcommands rpc/projects/build/help. Resolve the projects dir the
     # same way jarvis.sh does: AGENT_PROJECTS_DIR env var, else the default.
     local projects_dir="${AGENT_PROJECTS_DIR:-/home/dev/projects}"
-    COMPREPLY=( $(compgen -W "$(ls "$projects_dir" 2>/dev/null) build help projects" -- "$cur") )
+    COMPREPLY=( $(compgen -W "$(ls "$projects_dir" 2>/dev/null) rpc build help projects" -- "$cur") )
+  elif (( COMP_CWORD == 2 && "${COMP_WORDS[1]}" == rpc )); then
+    # Position 2 after `rpc`: a project name.
+    local projects_dir="${AGENT_PROJECTS_DIR:-/home/dev/projects}"
+    COMPREPLY=( $(compgen -W "$(ls "$projects_dir" 2>/dev/null)" -- "$cur") )
   fi
 }
 complete -F _jarvis jarvis
