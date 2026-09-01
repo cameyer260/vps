@@ -7,30 +7,137 @@ Access handles auth; the app has none).
 
 Read the [root README](../README.md) for VPS/jarvis context.
 
-## Goal
+## Status
 
-"ChatGPT on the go, with my notes as context, plus a control panel for headless
-pi agents working on my projects." Responsive UI that works well on desktop and
-phone; primarily used from a phone.
+Built. The three original phases shipped:
+
+1. **Core loop** — jarvis `rpc` subcommand, Docker attach, streaming chat UI,
+   session persistence + resume.
+2. **Notes section** — pinned notes UI, read-only mode, git pull on start,
+   close-time commit guard, commit/push skill.
+3. **Notes viewer** — Obsidian-style markdown viewer/editor.
 
 ## Architecture
 
     Browser (phone/desktop)
       │ HTTPS via Cloudflare tunnel + Access
       ▼
-    dashboard container (Node/TypeScript, Hono or Fastify)
+    dashboard container (Node/TypeScript, Hono)
       ├─ serves React SPA (Vite build)
-      ├─ starts agents by invoking jarvis (see below)
+      ├─ starts agents by shelling out to `jarvis rpc`
       ├─ Docker API (dockerode): list / inspect / attach / stop containers
       ├─ WebSocket per open chat, relays pi RPC JSONL both ways
       └─ host-side git operations (pull / add / commit / push)
 
-### Deployment (UID/GID quirk)
+    agent container (agent-pi image)
+      └─ pi --mode rpc, JSONL over stdin/stdout, dashboard extension loaded
 
-The dashboard runs inside a container but must act as the host `dev` user
-(git pulls/commits must be dev-owned) and reach the Docker socket. All
-identity values are resolved on the host at deploy time — never hardcoded,
-never looked up inside the container:
+### jarvis is the single source of truth for container creation
+
+The dashboard never builds `docker run` statements itself. `jarvis.sh` has an
+`rpc` subcommand:
+
+    jarvis rpc PROJECT [pi args...]
+      → same flags as every mode (workspace at real host path, skills ro,
+        auth, settings ro, bx.env, labels, dev UID), plus:
+        - `docker run -d -i`, never `-t`: stdin stays open so the dashboard
+          can attach and send prompts later; a TTY corrupts pi's LF-framed
+          JSONL protocol
+        - main process is `pi --mode rpc -a` (long-lived JSONL daemon)
+        - loads the dashboard's read-only extension via `pi -e <path>`
+          (dashboard/pi-extension/read-only.ts, mounted ro)
+        - env `PI_DASHBOARD_READONLY=1` is passed into the container when set
+          in the caller's environment (notes agents start with it set)
+        - extra label `agent.origin=dashboard` (what the dashboard filters on)
+      → prints the container ID on stdout
+
+The dashboard then uses the Docker API only to list/inspect/attach/stop.
+TUI/one-shot jarvis usage is unchanged. Workspace autocreate (mkdir +
+`git init`) lives in jarvis, so it happens exactly once for CLI and
+dashboard-launched agents alike. The dev UID/GID resolve as
+`${AGENT_UID:-$(id -u dev)}` — the dashboard container is deployed with
+`AGENT_UID`/`AGENT_GID` set (there is no dev user inside it to look up).
+
+### WS→RPC bridge (server/bridge.ts)
+
+One bridge per agent container owns the docker attach stream and fans traffic
+out to any number of browser WebSockets:
+
+- Browser commands are rewritten with an internal request id; responses are
+  routed back to the requesting client by id (original id restored). Events
+  (no id) broadcast to everyone.
+- Agent status (idle/streaming) derives from `agent_start`/`agent_settled`.
+- Browser disconnects never stop the agent. On (re)connect the client
+  backfills history via `get_entries` with a cursor (last entry id); items
+  rendered from live events are provisional and get replaced by committed
+  entries on backfill, so reconnects neither duplicate nor lose content.
+- pi `extension_ui_request` dialogs are surfaced to the UI and auto-cancelled
+  after a timeout (`DIALOG_TIMEOUT_MS`, default 120s) — a headless agent never
+  hangs mid-turn waiting for a dialog.
+- Agents run with no approval gating — the container boundary is the
+  safeguard (isolated container, single project mount, no host access).
+
+### Read-only mode (dashboard/pi-extension/read-only.ts)
+
+Loaded into every dashboard-started agent via `pi -e`. Enforcement lives in
+the harness, never in the conversation (same pattern as Claude Code plan mode
+or opencode permissions):
+
+- `PI_DASHBOARD_READONLY=1` at load → starts read-only (notes agents).
+- `/read-only on|off` toggles mid-session; the chat UI's toggle sends it as an
+  RPC `prompt`.
+- **on:** `edit`/`write` are removed from the active toolset; a `tool_call`
+  handler screens bash against a denylist of mutating patterns (redirects,
+  rm/mv/sed -i/tee, mutating git subcommands, ...). Blocked calls return the
+  reason as the tool result and the model self-corrects — it is never told to
+  "behave read-only" in chat.
+- **off:** full toolset restored.
+
+Bash screening is a policy layer, not a security boundary. The hard guarantee
+is container isolation.
+
+## Features
+
+### 1. Agents dashboard
+Running dashboard agents grouped into sections by project; the notes project
+is pinned at the top with a one-click "new conversation" (git pull first,
+read-only on). Each card shows session name, model, status and uptime, with
+terminate (stop + remove). Start dialog: pick a project (existing or new —
+autocreated by jarvis with mkdir + git init) and a conversation (new, or
+resume from pi's session store including SSH-created sessions). Model and
+thinking level are switched in the chat UI.
+
+### 2. Notes section (pinned)
+Notes agents are agents on `/home/dev/notes`, managed like every other
+project. Multiple conversations at once; sessions persist and can be resumed.
+Every notes-agent start does a host-side `git pull` first — failures are
+surfaced with copy-to-clipboard (hand them to an agent) and a "start anyway"
+override. Closing an agent with a dirty notes tree warns: "close anyway" or
+"commit & push, then close". Git policy is use-at-your-own-risk (no locks);
+agents are instructed to stage-commit-push after changes via the
+`commit-push` skill (dashboard/skills/commit-push — symlink into `~/.agents`):
+
+    ln -sfn /home/dev/vps/dashboard/skills/commit-push ~/.agents/skills/commit-push
+
+### 3. Chat UI (per agent)
+ChatGPT-style: streaming markdown responses, composer, stop (abort), steer
+(send while running), collapsible tool-call activity, thinking blocks, model /
+thinking-level switching (`set_model`, `set_thinking_level`), read-only
+toggle.
+
+### 4. Notes viewer
+Obsidian clone over `/home/dev/notes`: file tree, multiple files open as tabs,
+rendered view + raw edit toggle (edits auto-save), full-text search. Opening
+the viewer does a host-side `git pull` (errors surfaced with copy, retry,
+dismiss). "Commit & push" stages exactly the files edited in that viewer
+session — dirt from agents isn't swept up.
+
+## Deployment (UID/GID quirk)
+
+The dashboard runs inside a container but must act as the host `dev` user (git
+pulls/commits must be dev-owned) and reach the Docker socket. All identity
+values are resolved on the host at deploy time — never hardcoded, never looked
+up inside the container. `dashboard/deploy.sh` does exactly this:
 
 ```bash
 docker run -d \
@@ -39,188 +146,56 @@ docker run -d \
   -e AGENT_UID="$(id -u dev)" \
   -e AGENT_GID="$(id -g dev)" \
   -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /home/dev/vps:/home/dev/vps:ro \
   -v /home/dev/projects:/home/dev/projects \
+  -v /home/dev/notes:/home/dev/notes \
   -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
   -v /home/dev/.gitconfig:/home/dev/.gitconfig:ro \
-  ... dashboard
+  -v /home/dev/.ssh:/home/dev/.ssh:ro \
+  -p 127.0.0.1:3000:3000 \
+  dashboard
 ```
 
 - `--user`: files the dashboard creates (git operations, agent starts via
   jarvis) are dev-owned on the host.
-- `--group-add <host docker gid>`: without it, the container's user can't
-  read `/var/run/docker.sock` (it's `root:docker` on the host).
-- `AGENT_UID`/`AGENT_GID`: inherited by every `jarvis rpc` invocation so
-  agent containers get the correct `--user` (see jarvis changes below).
-  The dashboard never resolves UIDs itself and never passes them per-call.
-- `/home/dev/projects` rw: host-side git operations (pull, add, commit,
-  push) and project listing.
-- `/home/dev/.pi/agent/sessions`: listing and resuming past conversations
-  in the start dialog.
-- `/home/dev/.gitconfig` ro: git needs a user.name/email for the commits
-  the dashboard makes; this provides dev's identity.
+- `--group-add <host docker gid>`: without it the container's user can't read
+  `/var/run/docker.sock` (it's `root:docker` on the host).
+- `AGENT_UID`/`AGENT_GID`: inherited by every `jarvis rpc` invocation so agent
+  containers get the correct `--user`.
+- `/home/dev/vps` ro: jarvis.sh + the pi extension, mounted at their canonical
+  path (jarvis resolves the extension relative to its own location).
+- `/home/dev/projects` + `/home/dev/notes` rw: git operations, project
+  listing, notes viewer.
+- `/home/dev/.pi/agent/sessions`: session listing + resume.
+- `/home/dev/.gitconfig` ro: git identity for the commits the dashboard makes.
+- `/home/dev/.ssh` ro (optional): git remote auth. If remotes are HTTPS with a
+  credential helper instead, add whatever that needs.
+- `-p 127.0.0.1:...`: the only route in is the Cloudflare tunnel to localhost.
 
-### jarvis is the single source of truth for container creation
+On the VPS:
 
-The dashboard does not duplicate the `docker run` flags. `jarvis.sh` gains an
-`rpc` subcommand:
+    cd /home/dev/vps/dashboard && ./deploy.sh      # HOST_PORT=3000 default
 
-    jarvis rpc PROJECT [pi args...]
-      → same flags as always (workspace, skills ro, auth, settings ro,
-        bx.env, labels, dev UID), plus:
-        - `docker run -d -i`, never `-t`: stdin must stay open so the
-          dashboard can attach and send prompts later; a TTY corrupts
-          pi's LF-framed JSONL protocol
-        - main process is `pi --mode rpc` (long-lived JSONL daemon)
-        - `-a` (trust project-local files, same as TUI mode)
-        - loads the dashboard's read-only extension via `pi -e <path>`
-        - env `PI_DASHBOARD_READONLY=1` when the caller wants the agent
-          to start read-only (the extension reads it at load; notes
-          agents start with it set)
-        - extra label `agent.origin=dashboard` (what the dashboard filters on)
-      → prints the container ID
+Cloudflared should point at `http://localhost:$HOST_PORT`.
 
-The dashboard shells out to this, then uses the Docker API only to
-list/inspect/attach/stop. TUI/one-shot jarvis usage is unchanged.
+## Development (Mac)
 
-Related `agent-images` changes:
+```bash
+cd dashboard
+npm install
+npm run dev:server   # Hono on :3000 (Docker/jarvis paths are VPS-only; APIs fail gracefully)
+npm run dev:web      # Vite on :5173, proxies /api + /ws to :3000
+```
 
-- `prepare_workspace()` also runs `git init` when the workspace has no
-  `.git` — so project autocreate (mkdir + git init) happens exactly once,
-  for CLI and dashboard-launched agents alike. (Today jarvis only mkdirs;
-  git init was never implemented.)
-- Workspaces are mounted at their **real host path**
-  (`/home/dev/projects/foo:/home/dev/projects/foo`, workdir there) instead of
-  `/workspace`, and `/home/dev/.pi/agent/sessions` is mounted rw at the same
-  path — so sessions group under the same project as host pi sessions and
-  "resume conversation" works across dashboard and SSH/TUI worlds.
-- `AGENT_UID`/`AGENT_GID` env overrides for the dev UID. jarvis resolves
-  them as `${AGENT_UID:-$(id -u dev)}`: unset (normal SSH use) → `id`
-  lookup, exactly as today. The dashboard container is deployed with
-  `AGENT_UID`/`AGENT_GID` set (the dashboard runs inside its own container,
-  where `id -u dev` can't do the host lookup); jarvis inherits them from the
-  dashboard's environment on every invocation.
-
-### Chat relay
-
-The dashboard attaches to the agent container's stdout and relays pi RPC
-events (`message_update`/`text_delta`, tool execution, `agent_settled`, …)
-to the browser over a WebSocket; browser input goes back as RPC commands
-(`prompt`, `steer`, `abort`, `set_model`, …).
-
-- Agent status (idle / streaming / awaiting) is derived from RPC events.
-- Browser disconnects don't stop the agent. On reattach, history is
-  backfilled via `get_entries` (cursor-based) and streaming resumes.
-- Multiple tabs/devices can view the same chat; events fan out to all.
-- The WS→RPC bridge must answer pi `extension_ui_request` dialogs (surface
-  them in the UI, or respond `cancelled` for a headless feel) — a dialog
-  with no timeout would otherwise hang the agent mid-turn.
-- Agents run with no approval gating — the container boundary is the
-  safeguard (isolated container, single project mount, no host access).
-
-### Read-only mode (dashboard extension)
-
-The dashboard ships a pi extension mounted into every agent container. It
-registers the extension command `/read-only on|off`, invoked by the chat UI
-via RPC `prompt` — so the toggle is dynamic, mid-session, same container,
-same conversation.
-
-Enforcement is in the harness, not in the conversation (same pattern as
-Claude Code plan mode, Codex sandbox modes, and opencode permissions):
-
-- **on:** `pi.setActiveTools()` removes `edit`/`write` (keeps `read`, `bash`,
-  `grep`, `find`, `ls`); a `tool_call` handler screens bash commands against
-  a denylist of mutating patterns (shell redirects, `rm`, `mv`, `sed -i`,
-  `tee`, mutating `git` subcommands, etc.) and blocks them with a reason.
-- **off:** full toolset restored.
-- The model is never told via chat messages to "behave read-only". When it
-  attempts a blocked action, the block reason is returned as the tool result
-  and it self-corrects — the same mechanism the above harnesses rely on.
-
-Bash screening is a policy layer, not a security boundary. The hard guarantee
-is container isolation: an agent can only ever touch its own mounted project
-directory.
-
-## Features
-
-### 1. Agents dashboard
-The UI groups running agents into sections by project. The notes project has
-its own section pinned at the top (see below); other projects follow the same
-layout.
-
-For every project section:
-- List dashboard-managed agents (`agent.origin=dashboard`): session name,
-  model, status, uptime. Terminate (stop + remove).
-- Start agent: pick a project and a session: new or resume a past
-  conversation (from pi's session dir, includes SSH-created ones). Model
-  and thinking level are chosen in the chat UI after starting (defaults
-  come from shared pi settings). New projects are autocreated by jarvis
-  (mkdir + git init).
-
-### 2. Notes section (pinned at top)
-Notes agents are agents on `/home/dev/notes`, managed through the exact same
-UI as every other project — just pinned at the top and one-click to launch,
-because this is the everyday ChatGPT replacement:
-
-- One-click "new conversation". Multiple notes conversations at once; each
-  shows as a card until closed. Sessions persist, so old conversations can
-  be resumed like any other project.
-- **Read-only toggle** in the chat UI (default on), per the mechanism above.
-- Every notes-agent start does a host-side `git pull` first; failures are
-  surfaced (with copy-to-clipboard for handing to an agent).
-- Git policy is use-at-your-own-risk: multiple agents may write
-  concurrently; no lease, no lock. Agents are instructed (via project
-  `AGENTS.md` + a commit/push skill) to stage-commit-push after making
-  changes.
-- On closing an agent with uncommitted changes: UI warning with
-  "close anyway" / "commit & push, then close".
-- Quick stage-commit-push skill(s) added to `~/.agents` so agents can be
-  told "commit and push" from the phone.
-
-### 3. Chat UI (per agent)
-- ChatGPT-style: streaming responses (markdown), composer, stop (abort),
-  steer (send while running), collapsible tool-call activity, thinking
-  blocks when present.
-- Model / thinking-level switching mid-session (RPC `set_model`,
-  `set_thinking_level`).
-
-### 4. Notes viewer (Obsidian clone)
-- File tree over `/home/dev/notes`, rendered view + raw edit toggle, search.
-  Multiple files can be opened and edited in one viewer session.
-- On open: host-side `git pull`, errors surfaced with copy-to-clipboard.
-- Save button: stages every file edited through the viewer in that session,
-  commits, pushes (so dirt from agents isn't swept up).
-- Markdown only for now; the future IDE (below) extends this to other types.
+Builds: `npm run build` (Vite SPA → dist/, esbuild server bundle →
+dist-server/). The bundle stubs out ssh2 (dockerode's optional native dep —
+the dashboard only talks to the unix socket) so the runtime image needs no
+node_modules. Typecheck: `npm run typecheck`.
 
 ## Future improvements
 
-- **Image/file attachments** in chat.
+- **Image/file attachments** in chat (`prompt` already accepts images).
 - **Delete sessions from the UI.**
 - **IDE mode** — extend the notes viewer to more file formats for looking at
   coding projects.
-- **Voice mode** — push-to-talk conversation with the notes agent (speech
-  recognition + TTS), interruptible.
-
-## Phases
-
-1. **Core loop** — jarvis `rpc` subcommand (+ git init, host-path mounts,
-   UID overrides), dashboard shell-out + Docker attach, chat UI with
-   streaming, session persistence + resume.
-2. **Notes section** — pinned section UI, read-only toggle extension, git
-   pull on start, close-time warning, commit/push skill.
-3. **Notes viewer** — Obsidian clone.
-
-## Docs to update after implementation
-
-This README is currently a project spec, not a description of the built
-system. After implementation it should be rewritten to describe what exists,
-and the other docs need syncing:
-
-- This README — rewrite from spec to actual architecture/usage.
-- Root `README.md` — Phase 9 framing and the "Implications for the
-  dashboard" section are superseded (agent discovery is now via
-  `agent.origin=dashboard`, project autocreate including git init lives in
-  jarvis, dashboard shells out to jarvis rather than reimplementing docker
-  run flags).
-- `agent-images/README.md` and `agent-images/docker-run.md` — jarvis `rpc`
-  subcommand, git init in `prepare_workspace()`, host-path workspace mounts,
-  sessions mount, `AGENT_UID`/`AGENT_GID` overrides.
+- **Voice mode** — push-to-talk conversation with the notes agent.
