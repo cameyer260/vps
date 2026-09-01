@@ -79,11 +79,6 @@ The dashboard does not duplicate the `docker run` flags. `jarvis.sh` gains an
         - extra label `agent.origin=dashboard` (what the dashboard filters on)
       → prints the container ID
 
-    jarvis models
-      → runs `pi --list-models` in a throwaway container and prints the
-        result (the start dialog needs the model list before any agent
-        exists; the dashboard caches it)
-
 The dashboard shells out to this, then uses the Docker API only to
 list/inspect/attach/stop. TUI/one-shot jarvis usage is unchanged.
 
@@ -155,9 +150,10 @@ layout.
 For every project section:
 - List dashboard-managed agents (`agent.origin=dashboard`): session name,
   model, status, uptime. Terminate (stop + remove).
-- Start agent: pick model (defaults from shared pi settings), thinking level,
-  and session: new or resume a past conversation (from pi's session dir,
-  includes SSH-created ones). New projects are autocreated by jarvis
+- Start agent: pick a project and a session: new or resume a past
+  conversation (from pi's session dir, includes SSH-created ones). Model
+  and thinking level are chosen in the chat UI after starting (defaults
+  come from shared pi settings). New projects are autocreated by jarvis
   (mkdir + git init).
 
 ### 2. Notes section (pinned at top)
