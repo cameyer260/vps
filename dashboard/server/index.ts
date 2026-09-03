@@ -6,6 +6,7 @@ import { createNodeWebSocket } from "@hono/node-ws";
 import { config } from "./config.js";
 import { api } from "./routes.js";
 import { bridges, ensureBridge } from "./bridge.js";
+import { addEventsClient, watchDockerEvents } from "./events.js";
 import { containerLabels } from "./docker.js";
 import type { ClientHandle } from "./bridge.js";
 
@@ -51,6 +52,26 @@ app.get(
   }),
 );
 
+// ---- Global events socket (agent list push) ---------------------------------
+// Replaces /api/agents polling: clients get container lifecycle (→ refetch)
+// and per-agent status transitions (→ patch the card in place) pushed.
+
+app.get(
+  "/ws/events",
+  upgradeWebSocket(async () => {
+    let remove: (() => void) | null = null;
+    return {
+      onOpen(_event, ws) {
+        remove = addEventsClient((payload) => ws.send(payload));
+      },
+      onClose() {
+        remove?.();
+        remove = null;
+      },
+    };
+  }),
+);
+
 // ---- SPA / static files -----------------------------------------------------
 
 const MIME: Record<string, string> = {
@@ -85,6 +106,8 @@ app.get("*", async (c) => {
 });
 
 // ---- go ----------------------------------------------------------------------
+
+watchDockerEvents();
 
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   console.log(`dashboard listening on http://0.0.0.0:${info.port}`);

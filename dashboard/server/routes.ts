@@ -44,7 +44,8 @@ function decorate(a: AgentInfo): AgentInfo {
   if (bridge) {
     a.live = bridge.status;
     a.sessionName = bridge.state.sessionName ?? a.sessionName;
-    a.model = bridge.state.model ?? a.model;
+    const m = bridge.state.model;
+    if (m) a.model = `${m.provider}/${m.id}`;
     a.thinkingLevel = bridge.state.thinkingLevel ?? a.thinkingLevel;
   }
   return a;

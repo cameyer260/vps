@@ -413,13 +413,18 @@ function reducer(state: ChatState, action: Action): ChatState {
     case "backfill":
       return applyBackfill(state, action.entries, action.full);
     case "state": {
-      const model = action.data["model"] as PiModel | null | undefined;
-      return {
-        ...state,
-        model: model ? { provider: model.provider, id: model.id, name: model.name } : null,
-        thinkingLevel: (action.data["thinkingLevel"] as string | undefined) ?? null,
-        sessionName: (action.data["sessionName"] as string | undefined) ?? null,
-      };
+      // Partial merge: get_state sends everything; bridge state notices after
+      // set_model / set_thinking_level / set_session_name send one field, so
+      // all tabs of a chat stay in sync without refetching.
+      const data = action.data;
+      let { model, thinkingLevel, sessionName } = state;
+      if ("model" in data) {
+        const m = data["model"] as PiModel | null | undefined;
+        model = m ? { provider: m.provider, id: m.id, name: m.name } : null;
+      }
+      if ("thinkingLevel" in data) thinkingLevel = (data["thinkingLevel"] as string | undefined) ?? null;
+      if ("sessionName" in data) sessionName = (data["sessionName"] as string | undefined) ?? null;
+      return { ...state, model, thinkingLevel, sessionName };
     }
     case "models":
       return { ...state, models: action.models };
@@ -506,10 +511,17 @@ export function useChat(agent: AgentInfo): ChatApi {
       }
       const type = msg["type"];
       if (type === "hello") {
-        // Read-only state cached by the bridge (absent when it never observed
-        // a notify); the start-time default is off.
+        // Cached state from the bridge: read-only mode (absent when it never
+        // observed a notify — the start-time default is off) and model /
+        // thinking / session info, so a reconnecting tab renders a correct
+        // header instantly. The client's own get_state below stays the
+        // authoritative refresh.
         if (typeof msg["readOnly"] === "boolean") {
           dispatch({ type: "read_only", value: msg["readOnly"] as boolean });
+        }
+        const st = msg["state"];
+        if (st && typeof st === "object") {
+          dispatch({ type: "state", data: st as Record<string, unknown> });
         }
         return;
       }

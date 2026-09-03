@@ -1,6 +1,7 @@
 import { PassThrough } from "node:stream";
 import type { Duplex } from "node:stream";
 import { docker } from "./docker.js";
+import { broadcastEvent } from "./events.js";
 
 /**
  * A PiRpcBridge owns the stdin/stdout attachment to one `pi --mode rpc`
@@ -15,6 +16,13 @@ import { docker } from "./docker.js";
  *   and sent to new clients in `hello` (notifies are transient). Blocking
  *   dialog requests (select/confirm/input/editor) are dropped — nothing
  *   answers them headlessly.
+ * - Successful state-mutating commands (set_model / set_thinking_level /
+ *   set_session_name) refresh the cached state and broadcast a state notice,
+ *   so every tab of a chat sees model/thinking/session changes. `hello`
+ *   carries the cached state; clients still send their own get_state as the
+ *   authoritative refresh.
+ * - Status transitions are also relayed onto the global events socket
+ *   (server/events.ts) for the agent list.
  * - Browser disconnects never stop the agent; history is recovered via
  *   `get_entries` backfill from the client.
  */
@@ -37,6 +45,8 @@ interface Route {
   externalId?: string;
   /** Override delivery (used by the backfill reply repackaging). */
   deliver?: (resp: Record<string, unknown>) => void;
+  /** The rewritten command, for response-time state observation. */
+  command?: Record<string, unknown>;
 }
 
 // Notify messages announcing a read-only mode change (the extension emits
@@ -48,9 +58,9 @@ export class Bridge {
   readonly containerId: string;
   readonly project: string;
   status: LiveStatus = "idle";
-  /** Last known get_state info, for the agent list UI. */
+  /** Last known state, for the agent list UI and the `hello` handshake. */
   state: {
-    model?: string | null;
+    model?: { provider: string; id: string; name?: string } | null;
     thinkingLevel?: string | null;
     sessionName?: string | null;
     sessionFile?: string | null;
@@ -113,14 +123,53 @@ export class Bridge {
       .catch(() => {});
   }
 
+  /** Merge a partial state object into the cache. */
   private applyState(data: Record<string, unknown>): void {
-    const model = data["model"] as { provider?: string; id?: string } | null | undefined;
+    const model = data["model"] as { provider?: string; id?: string; name?: string } | null | undefined;
     this.state = {
-      model: model ? `${model.provider}/${model.id}` : null,
-      thinkingLevel: (data["thinkingLevel"] as string | undefined) ?? null,
-      sessionName: (data["sessionName"] as string | undefined) ?? null,
-      sessionFile: (data["sessionFile"] as string | undefined) ?? null,
+      model: "model" in data
+        ? model && model.provider && model.id
+          ? { provider: model.provider, id: model.id, name: model.name }
+          : null
+        : this.state.model,
+      thinkingLevel: "thinkingLevel" in data ? ((data["thinkingLevel"] as string | undefined) ?? null) : this.state.thinkingLevel,
+      sessionName: "sessionName" in data ? ((data["sessionName"] as string | undefined) ?? null) : this.state.sessionName,
+      sessionFile: "sessionFile" in data ? ((data["sessionFile"] as string | undefined) ?? null) : this.state.sessionFile,
     };
+  }
+
+  /** After a successful state-mutating command: refresh the cache and fan a
+   *  state notice out to all clients of this bridge. */
+  private observeResponse(resp: Record<string, unknown>, command?: Record<string, unknown>): void {
+    switch (resp.command) {
+      case "get_state":
+        if (typeof resp.data === "object" && resp.data !== null) {
+          this.applyState(resp.data as Record<string, unknown>);
+        }
+        return;
+      case "set_model": {
+        // Response data is the full new model object.
+        if (typeof resp.data !== "object" || resp.data === null) return;
+        const model = resp.data as Record<string, unknown>;
+        this.applyState({ model });
+        this.broadcast({ type: "state", data: { model } });
+        return;
+      }
+      case "set_thinking_level": {
+        const level = command?.["level"];
+        if (typeof level !== "string") return;
+        this.applyState({ thinkingLevel: level });
+        this.broadcast({ type: "state", data: { thinkingLevel: level } });
+        return;
+      }
+      case "set_session_name": {
+        const name = command?.["name"];
+        if (typeof name !== "string") return;
+        this.applyState({ sessionName: name });
+        this.broadcast({ type: "state", data: { sessionName: name } });
+        return;
+      }
+    }
   }
 
   // ---- stdout / RPC framing -------------------------------------------------
@@ -161,7 +210,7 @@ export class Bridge {
         };
         if (deliver) deliver(payload);
         else this.sendTo(route.client, payload);
-        if (obj.command === "get_state" && obj.success) this.applyState(obj.data as Record<string, unknown>);
+        this.observeResponse(obj, route.command);
         return;
       }
       // Unroutable response (e.g. client vanished) — drop, but log failures.
@@ -194,12 +243,14 @@ export class Bridge {
     if (this.status === status) return;
     this.status = status;
     this.broadcast({ type: "status", status });
+    broadcastEvent({ type: "agent_status", id: this.containerId, project: this.project, status });
   }
 
   private markExited(): void {
     if (this.destroyed) return;
     this.status = "exited";
     this.broadcast({ type: "exited" });
+    broadcastEvent({ type: "agent_status", id: this.containerId, project: this.project, status: "exited" });
     // Drop the bridge after a grace period so UIs can render the exit first.
     setTimeout(() => bridges.delete(this.containerId), 60_000).unref();
   }
@@ -217,11 +268,17 @@ export class Bridge {
   addClient(send: (payload: string) => void): ClientHandle {
     const client: Client = { send };
     this.clients.add(client);
+    const { model, thinkingLevel, sessionName } = this.state;
+    const cachedState: Record<string, unknown> = {};
+    if (model) cachedState["model"] = model;
+    if (thinkingLevel !== null && thinkingLevel !== undefined) cachedState["thinkingLevel"] = thinkingLevel;
+    if (sessionName !== null && sessionName !== undefined) cachedState["sessionName"] = sessionName;
     this.sendTo(client, {
       type: "hello",
       containerId: this.containerId,
       project: this.project,
       ...(this.readOnly !== null ? { readOnly: this.readOnly } : {}),
+      ...(Object.keys(cachedState).length > 0 ? { state: cachedState } : {}),
     });
     this.sendTo(client, { type: "status", status: this.status });
 
@@ -256,7 +313,7 @@ export class Bridge {
         const command = { ...(msg.command as Record<string, unknown>) };
         const externalId = typeof command.id === "string" ? command.id : undefined;
         const internalId = `c${++this.seq}`;
-        this.routes.set(internalId, { client, externalId });
+        this.routes.set(internalId, { client, externalId, command });
         command.id = internalId;
         this.writeToPi(command);
         return;

@@ -23,19 +23,68 @@ export default function App() {
       .catch(() => {});
   }, []);
 
+  // Agent list is push-based: one-shot initial fetch, then live updates via
+  // the global events socket. Container lifecycle events trigger a (debounced)
+  // refetch as the resync path; per-agent status transitions patch the cards
+  // in place. A refetch on (re)connect covers any missed events.
   useEffect(() => {
     let alive = true;
-    const poll = () => {
+    let ws: WebSocket | null = null;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let refetchDelay: ReturnType<typeof setTimeout> | null = null;
+
+    const refetch = () => {
       api
         .agents()
         .then((r) => alive && setAgents(r.agents))
         .catch(() => {});
     };
-    poll();
-    const t = setInterval(poll, 4000);
+
+    // Lifecycle events arrive in bursts (die + destroy, start waves); coalesce.
+    const scheduleRefetch = () => {
+      if (refetchDelay) return;
+      refetchDelay = setTimeout(() => {
+        refetchDelay = null;
+        refetch();
+      }, 250);
+    };
+
+    const connect = () => {
+      if (!alive) return;
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      const socket = new WebSocket(`${proto}://${location.host}/ws/events`);
+      ws = socket;
+      socket.onopen = () => refetch();
+      socket.onmessage = (e) => {
+        let msg: { type?: string; id?: string; status?: AgentInfo["live"] };
+        try {
+          msg = JSON.parse(String(e.data));
+        } catch {
+          return;
+        }
+        if (msg.type === "agents_changed") {
+          scheduleRefetch();
+        } else if (msg.type === "agent_status" && msg.id && msg.status) {
+          const { id, status } = msg;
+          setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, live: status } : a)));
+        }
+      };
+      socket.onclose = () => {
+        ws = null;
+        if (alive) retry = setTimeout(connect, 2000);
+      };
+      socket.onerror = () => socket.close();
+    };
+
+    refetch();
+    connect();
+
     return () => {
       alive = false;
-      clearInterval(t);
+      if (retry) clearTimeout(retry);
+      if (refetchDelay) clearTimeout(refetchDelay);
+      ws?.close();
+      ws = null;
     };
   }, []);
 
