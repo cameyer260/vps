@@ -38,6 +38,7 @@ docker rm -f "$NAME" >/dev/null 2>&1 || true
 
 echo "==> running on 127.0.0.1:$HOST_PORT (tunnel target)"
 exec docker run -d --name "$NAME" \
+  --restart unless-stopped \
   --user "$(id -u):$(id -g)" \
   --group-add "$DOCKER_GID" \
   -e AGENT_UID="$(id -u)" \

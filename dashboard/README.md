@@ -179,6 +179,7 @@ docker CLI, git and gh; `dashboard/deploy.sh` does the rest:
 
 ```bash
 docker run -d \
+  --restart unless-stopped \
   --user "$(id -u dev):$(id -g dev)" \
   --group-add "$(getent group docker | cut -d: -f3)" \
   -e AGENT_UID="$(id -u dev)" \
