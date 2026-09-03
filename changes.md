@@ -2,6 +2,24 @@
 
 Collected from review of the phase 1–3 implementation. Not yet implemented.
 
+Implement in three commits (in this order):
+
+1. **`deploy: git auth via gh CLI, drop ~/.ssh mount`** — changes #4 + #5.
+   Only touches `deploy.sh`/Dockerfile; independently revertable, no code
+   overlap with the rest.
+2. **`chat: read-only default off + notify-driven toggle, single send/stop
+   button, remove dialog handling`** — changes #1 + #2 + #3 + #6. All the
+   chat-session behavior changes; #6 is here because its surviving `notify`
+   pass-through is exactly what #2 builds on, so the same bridge routing code
+   is only touched once.
+3. **`feat: push live state to clients (agent events, model/thinking
+   fan-out)`** — changes #7 + #8. Both replace stale/polling state with push:
+   the global events WebSocket for agent cards, and bridge broadcast +
+   `hello` handshake for model/thinking/session state.
+4. **`docs: update documentation for all dashboard changes`** — change #9.
+   Sweep over README, deployment notes, and any architecture/runbook docs;
+   must land last since it documents the final behavior of commits 1–3.
+
 ## 1. Read-only default off
 
 New notes conversations should start with full tools (read/write enabled).
@@ -92,11 +110,22 @@ is already the choke point for every command/response, so:
   e.g. something inside the conversation altering the model — there is no
   RPC event for that). Cache for speed, `get_state` for truth.
 
-## Resolved during review — no action needed
+## 9. Documentation update
 
-- Dirty-tree warning on close already has a plain "close anyway" bypass.
-- "Commit & push, then close" and the notes viewer commit already run git
-  directly in server code (deterministic); the commit-push skill is only for
-  asking an agent in chat.
-- Event fan-out is already scoped per chat (one bridge per container;
-  broadcast reaches only that bridge's viewers).
+Sweep all project documentation so it matches the behavior after changes
+#1–#8. In particular:
+
+- Read-only default is now off; toggle state is per-session from the agent
+  (notify broadcast), not persisted in localStorage.
+- Composer has a single send/stop button; the steer feature no longer exists.
+- Extension UI dialogs (`select`/`confirm`/`input`/`editor`) are gone from the
+  bridge; the `notify` pass-through remains.
+- Git auth in the dashboard container is via gh CLI (`~/.config/gh` mount);
+  there is no `~/.ssh` mount.
+- Agent list is push-based via the global events WebSocket (`/ws/events`),
+  not 4-second polling.
+- Model/thinking/session state is broadcast by the bridge and included in the
+  `hello` handshake.
+
+Also remove any docs-only references to removed features (steer, dialog
+requests, polling interval, ssh mount) rather than just editing around them.
