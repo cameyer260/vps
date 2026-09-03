@@ -176,6 +176,10 @@ On the VPS:
 
     cd /home/dev/vps/dashboard && ./deploy.sh      # HOST_PORT=3000 default
 
+Once, symlink the commit/push skill into the agents' skills dir:
+
+    ln -sfn /home/dev/vps/dashboard/skills/commit-push ~/.agents/skills/commit-push
+
 Cloudflared should point at `http://localhost:$HOST_PORT`.
 
 ## Development (Mac)
