@@ -25,9 +25,12 @@ Built. The three original phases shipped:
     dashboard container (Node/TypeScript, Hono)
       ├─ serves React SPA (Vite build)
       ├─ starts agents by shelling out to `jarvis rpc`
-      ├─ Docker API (dockerode): list / inspect / attach / stop containers
+      ├─ Docker API (dockerode): list / inspect / attach / stop containers,
+      │    plus the daemon's event stream (container lifecycle → /ws/events)
       ├─ WebSocket per open chat, relays pi RPC JSONL both ways
-      └─ host-side git operations (pull / add / commit / push)
+      ├─ global events WebSocket (/ws/events): agent list push, no polling
+      └─ host-side git operations (pull / add / commit / push; remotes auth
+         via the gh CLI credential helper)
 
     agent container (agent-pi image)
       └─ pi --mode rpc, JSONL over stdin/stdout, dashboard extension loaded
@@ -47,7 +50,7 @@ The dashboard never builds `docker run` statements itself. `jarvis.sh` has an
         - loads the dashboard's read-only extension via `pi -e <path>`
           (dashboard/pi-extension/read-only.ts, mounted ro)
         - env `PI_DASHBOARD_READONLY=1` is passed into the container when set
-          in the caller's environment (notes agents start with it set)
+          in the caller's environment (the start dialog's read-only checkbox)
         - extra label `agent.origin=dashboard` (what the dashboard filters on)
       → prints the container ID on stdout
 
@@ -67,15 +70,41 @@ out to any number of browser WebSockets:
   routed back to the requesting client by id (original id restored). Events
   (no id) broadcast to everyone.
 - Agent status (idle/streaming) derives from `agent_start`/`agent_settled`.
+- pi `extension_ui_request` **notifies** are relayed fire-and-forget. The
+  read-only extension announces mode changes that way; the bridge parses
+  those, caches the last observed read-only state and sends it to new clients
+  in `hello` (notifies are transient, so a tab connecting after a toggle
+  would otherwise never learn the mode). Blocking dialog requests
+  (`select`/`confirm`/`input`/`editor`) are dropped — nothing answers them
+  headlessly.
+- Successful state-mutating commands (`set_model`, `set_thinking_level`,
+  `set_session_name`) refresh the bridge's cached state and are broadcast as
+  a state notice to every client of that bridge, so all tabs of a chat stay
+  in sync. The `hello` message carries the cached state (model / thinking
+  level / session name / read-only mode) for an instant correct header on
+  reconnect; clients still send their own `get_state` right after connecting
+  as the authoritative refresh.
+- Status transitions are also relayed onto the global events socket
+  (`/ws/events`) — see below.
 - Browser disconnects never stop the agent. On (re)connect the client
   backfills history via `get_entries` with a cursor (last entry id); items
   rendered from live events are provisional and get replaced by committed
   entries on backfill, so reconnects neither duplicate nor lose content.
-- pi `extension_ui_request` dialogs are surfaced to the UI and auto-cancelled
-  after a timeout (`DIALOG_TIMEOUT_MS`, default 120s) — a headless agent never
-  hangs mid-turn waiting for a dialog.
 - Agents run with no approval gating — the container boundary is the
   safeguard (isolated container, single project mount, no host access).
+
+### Global events socket (server/events.ts, /ws/events)
+
+The agent list is push-based; there is no polling:
+
+- The server subscribes to the Docker daemon's event stream (`getEvents()`,
+  filtered to `agent.kind=pi` containers, actions start/die/destroy/rename)
+  and broadcasts `agents_changed`; clients resync with a debounced refetch of
+  `GET /api/agents`. The subscription resubscribes after daemon restarts.
+- Per-agent bridges relay idle/streaming/exited transitions onto the same
+  socket as `agent_status`, so cards update in place.
+- Clients keep a one-shot initial `GET /api/agents` fetch plus a refetch on
+  (re)connect as the fallback/resync path.
 
 ### Read-only mode (dashboard/pi-extension/read-only.ts)
 
@@ -83,9 +112,14 @@ Loaded into every dashboard-started agent via `pi -e`. Enforcement lives in
 the harness, never in the conversation (same pattern as Claude Code plan mode
 or opencode permissions):
 
-- `PI_DASHBOARD_READONLY=1` at load → starts read-only (notes agents).
+- `PI_DASHBOARD_READONLY=1` at load → starts read-only. Nothing sets this by
+  default any more — new conversations start with full tools; the checkbox in
+  the start dialog opts in.
 - `/read-only on|off` toggles mid-session; the chat UI's toggle sends it as an
-  RPC `prompt`.
+  RPC `prompt` (pi executes extension commands immediately, even mid-turn).
+  The extension notifies on every change; those notifies are the UI button's
+  ground truth (relayed by the bridge, cached in `hello`) — no per-device
+  localStorage memory.
 - **on:** `edit`/`write` are removed from the active toolset; a `tool_call`
   handler screens bash against a denylist of mutating patterns (redirects,
   rm/mv/sed -i/tee, mutating git subcommands, ...). Blocked calls return the
@@ -101,11 +135,13 @@ is container isolation.
 ### 1. Agents dashboard
 Running dashboard agents grouped into sections by project; the notes project
 is pinned at the top with a one-click "new conversation" (git pull first,
-read-only on). Each card shows session name, model, status and uptime, with
-terminate (stop + remove). Start dialog: pick a project (existing or new —
-autocreated by jarvis with mkdir + git init) and a conversation (new, or
-resume from pi's session store including SSH-created sessions). Model and
-thinking level are switched in the chat UI.
+full tools). Cards update live via the `/ws/events` socket (see above). Each
+card shows session name, model, status and uptime, with terminate (stop +
+remove). Start dialog: pick a project (existing or new — autocreated by
+jarvis with mkdir + git init) and a conversation (new, or resume from pi's
+session store including SSH-created sessions); a read-only checkbox opts into
+a chat-only session (default off). Model and thinking level are switched in
+the chat UI and broadcast to every open tab.
 
 ### 2. Notes section (pinned)
 Notes agents are agents on `/home/dev/notes`, managed like every other
@@ -120,10 +156,11 @@ agents are instructed to stage-commit-push after changes via the
     ln -sfn /home/dev/vps/dashboard/skills/commit-push ~/.agents/skills/commit-push
 
 ### 3. Chat UI (per agent)
-ChatGPT-style: streaming markdown responses, composer, stop (abort), steer
-(send while running), collapsible tool-call activity, thinking blocks, model /
-thinking-level switching (`set_model`, `set_thinking_level`), read-only
-toggle.
+ChatGPT-style: streaming markdown responses, composer with a single send/stop
+button (no steering — while a turn runs the composer doesn't send; Enter is
+ignored until the turn settles), collapsible tool-call activity, thinking
+blocks, model / thinking-level switching (`set_model`, `set_thinking_level`,
+fanned out to all tabs), read-only toggle driven by the agent's own notifies.
 
 ### 4. Notes viewer
 Obsidian clone over `/home/dev/notes`: file tree, multiple files open as tabs,
@@ -137,7 +174,8 @@ session — dirt from agents isn't swept up.
 The dashboard runs inside a container but must act as the host `dev` user (git
 pulls/commits must be dev-owned) and reach the Docker socket. All identity
 values are resolved on the host at deploy time — never hardcoded, never looked
-up inside the container. `dashboard/deploy.sh` does exactly this:
+up inside the container. The runtime image (dashboard/Dockerfile) installs the
+docker CLI, git and gh; `dashboard/deploy.sh` does the rest:
 
 ```bash
 docker run -d \
@@ -151,7 +189,7 @@ docker run -d \
   -v /home/dev/notes:/home/dev/notes \
   -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
   -v /home/dev/.gitconfig:/home/dev/.gitconfig:ro \
-  -v /home/dev/.ssh:/home/dev/.ssh:ro \
+  -v /home/dev/.config/gh:/home/dev/.config/gh:ro \
   -p 127.0.0.1:3000:3000 \
   dashboard
 ```
@@ -167,9 +205,12 @@ docker run -d \
 - `/home/dev/projects` + `/home/dev/notes` rw: git operations, project
   listing, notes viewer.
 - `/home/dev/.pi/agent/sessions`: session listing + resume.
-- `/home/dev/.gitconfig` ro: git identity for the commits the dashboard makes.
-- `/home/dev/.ssh` ro (optional): git remote auth. If remotes are HTTPS with a
-  credential helper instead, add whatever that needs.
+- `/home/dev/.gitconfig` ro: git identity for the commits the dashboard makes,
+  plus the `credential.helper` line pointing git at gh.
+- `/home/dev/.config/gh` ro: gh CLI auth for git remotes (OAuth token in
+  `hosts.yml`). Tokens don't expire under normal use, so the read-only mount
+  needs no re-auth; re-authing on the host + a container restart picks up a
+  new token. There is no `~/.ssh` mount.
 - `-p 127.0.0.1:...`: the only route in is the Cloudflare tunnel to localhost.
 
 On the VPS:

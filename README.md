@@ -21,6 +21,7 @@ Any AI working in this repo should understand the following before making change
   - `/home/dev/.config/bx/bx.env` — Brave Search API key env file, passed to containers via `--env-file`.
   - `/home/dev/.pi/agent/auth.json` — pi auth tokens, mounted rw so refreshed sessions persist on the host.
   - `/home/dev/.agents` — agent skills, mounted read-only into containers.
+  - `/home/dev/.config/gh` — gh CLI auth (GitHub OAuth token); mounted read-only into the dashboard container so its git operations can push/pull remotes (git's credential helper points at gh via `~/.gitconfig`).
 
 ### jarvis (how agents actually run)
 
