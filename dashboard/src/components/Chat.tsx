@@ -16,19 +16,12 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
   const { state } = chat;
   const [input, setInput] = useState("");
 
-  // Read-only toggle (dashboard extension): notes agents start read-only.
-  // Remember the last state per container so reattaching shows the truth as
-  // this device knows it.
-  const [readOnly, setReadOnly] = useState<boolean | null>(() => {
-    const stored = localStorage.getItem(`ro:${agent.id}`);
-    if (stored !== null) return stored === "1";
-    return agent.project === notesName ? true : false;
-  });
+  // Read-only toggle (dashboard extension). Ground truth is the agent: the
+  // extension notifies on every mode change, the bridge relays those and
+  // hands its last known state to new clients in `hello`. No localStorage —
+  // per-device memory goes stale.
   const toggleReadOnly = () => {
-    const next = !(readOnly ?? false);
-    setReadOnly(next);
-    localStorage.setItem(`ro:${agent.id}`, next ? "1" : "0");
-    chat.send(`/read-only ${next ? "on" : "off"}`);
+    chat.send(`/read-only ${state.readOnly ? "off" : "on"}`);
   };
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -50,6 +43,7 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
   };
 
   const submit = () => {
+    if (streaming) return; // no steer — Enter is ignored until the turn settles
     const text = input.trim();
     if (!text) return;
     chat.send(text);
@@ -71,17 +65,17 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
             {agent.project}
             <span className={`dot ${streaming ? "streaming" : exited ? "dead" : "idle"}`} />
             {streaming ? "streaming" : exited ? "exited" : state.connected ? "idle" : "connecting…"}
-            {state.queued.steer > 0 && ` · ${state.queued.steer} queued`}
+            {state.queued.followUp > 0 && ` · ${state.queued.followUp} queued`}
           </span>
         </div>
         <div className="chat-controls">
           <button
-            className={`ro-toggle${readOnly ? " on" : ""}`}
+            className={`ro-toggle${state.readOnly ? " on" : ""}`}
             onClick={toggleReadOnly}
             disabled={exited}
             title="Read-only mode: edit/write tools disabled and mutating bash commands blocked (/read-only on|off)"
           >
-            read-only {readOnly ? "on" : "off"}
+            read-only {state.readOnly ? "on" : "off"}
           </button>
           <ModelPicker
             models={state.models}
@@ -138,7 +132,7 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
         <div className="composer">
           <textarea
             value={input}
-            placeholder={streaming ? "steer: send while it's running…" : "message the agent…"}
+            placeholder={streaming ? "agent is running — stop it to send…" : "message the agent…"}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -148,14 +142,15 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
             }}
             rows={1}
           />
-          {streaming && (
-            <button className="btn stop" onClick={() => chat.abort()} title="Abort">
-              ■ stop
+          {streaming ? (
+            <button className="btn stop send-btn" onClick={() => chat.abort()} title="Stop" aria-label="Stop">
+              ■
+            </button>
+          ) : (
+            <button className="btn primary send-btn" onClick={submit} disabled={!input.trim()} title="Send" aria-label="Send">
+              ↑
             </button>
           )}
-          <button className="btn primary send" onClick={submit} disabled={!input.trim()}>
-            {streaming ? "steer" : "send"}
-          </button>
         </div>
       )}
     </div>

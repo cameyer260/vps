@@ -11,8 +11,8 @@ interface Props {
 
 /**
  * One-click "new conversation" for the notes project: host-side git pull
- * first (failures surfaced with copy-to-clipboard), then a read-only notes
- * agent.
+ * first (failures surfaced with copy-to-clipboard), then a notes agent with
+ * full tools (read-only is opt-in via the start dialog).
  */
 export function StartNotesButton({ notesName, onStarted, label = "+ new conversation", className }: Props) {
   const [busy, setBusy] = useState(false);
@@ -23,7 +23,6 @@ export function StartNotesButton({ notesName, onStarted, label = "+ new conversa
     try {
       const res = await api.startAgent({
         project: notesName,
-        readOnly: true,
         name: `notes ${new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`,
       });
       onStarted(res);

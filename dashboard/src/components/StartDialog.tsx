@@ -18,7 +18,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [sessionPath, setSessionPath] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [readOnly, setReadOnly] = useState(true);
+  const [readOnly, setReadOnly] = useState(false); // default off: full tools; flip for a chat-only session
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pullError, setPullError] = useState<string | null>(null);
@@ -135,7 +135,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
               />
               <span>
                 start read-only{" "}
-                <span className="dim">(edit/write disabled; toggle in chat any time)</span>
+                <span className="dim">(chat-only session; edit/write disabled — toggle in chat any time)</span>
               </span>
             </label>
           </>

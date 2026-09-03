@@ -9,9 +9,6 @@ export const config = {
   sessionsDir: process.env.PI_SESSIONS_DIR ?? "/home/dev/.pi/agent/sessions",
   jarvisBin: process.env.JARVIS_BIN ?? "/home/dev/vps/agent-images/jarvis.sh",
   wwwDir: process.env.WWW_DIR ?? path.resolve(process.cwd(), "dist"),
-  // How long the WS→RPC bridge waits for a browser to answer a pi
-  // extension_ui_request dialog before cancelling it (headless feel).
-  dialogTimeoutMs: Number(process.env.DIALOG_TIMEOUT_MS ?? 120_000),
 };
 
 export function notesName(): string {

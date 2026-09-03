@@ -610,6 +610,21 @@ details.thinking summary {
   padding: 14px;
 }
 
+/* single send/stop button (ChatGPT-style) */
+
+.send-btn {
+  min-width: 44px;
+  height: 44px;
+  padding: 0 13px;
+  border-radius: 12px;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
+}
+
 /* model picker */
 
 .model-picker {

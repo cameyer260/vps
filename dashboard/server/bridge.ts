@@ -1,6 +1,5 @@
 import { PassThrough } from "node:stream";
 import type { Duplex } from "node:stream";
-import { config } from "./config.js";
 import { docker } from "./docker.js";
 
 /**
@@ -10,9 +9,12 @@ import { docker } from "./docker.js";
  * - Client commands are rewritten with an internal request id (so concurrent
  *   clients can't collide), and responses are routed back by id with the
  *   client's original id restored.
- * - Events (no id) are broadcast to everyone.
- * - pi `extension_ui_request` dialogs are surfaced to clients and auto-
- *   cancelled after a timeout so a headless agent never hangs mid-turn.
+ * - Events (no id) are broadcast to everyone. pi `extension_ui_request`
+ *   notifies are relayed fire-and-forget; the read-only extension announces
+ *   mode changes that way, and the last observed read-only state is cached
+ *   and sent to new clients in `hello` (notifies are transient). Blocking
+ *   dialog requests (select/confirm/input/editor) are dropped — nothing
+ *   answers them headlessly.
  * - Browser disconnects never stop the agent; history is recovered via
  *   `get_entries` backfill from the client.
  */
@@ -37,7 +39,10 @@ interface Route {
   deliver?: (resp: Record<string, unknown>) => void;
 }
 
-const DIALOG_METHODS = new Set(["select", "confirm", "input", "editor"]);
+// Notify messages announcing a read-only mode change (the extension emits
+// these on /read-only on|off and at session start). Everything else passes
+// through untouched.
+const READ_ONLY_RE = /read-only mode (?:is )?(on|off)\b/i;
 
 export class Bridge {
   readonly containerId: string;
@@ -51,9 +56,10 @@ export class Bridge {
     sessionFile?: string | null;
   } = {};
 
+  /** Last read-only mode observed from extension notifies; null = never seen. */
+  private readOnly: boolean | null = null;
   private clients = new Set<Client>();
   private routes = new Map<string, Route>();
-  private dialogTimers = new Map<string, NodeJS.Timeout>();
   private internalWaiters = new Map<string, (resp: Record<string, unknown>) => void>();
   private stream: Duplex | null = null;
   private stdoutBuf = "";
@@ -164,22 +170,16 @@ export class Bridge {
     }
 
     if (obj.type === "extension_ui_request") {
-      const method = obj.method as string;
-      const id = typeof obj.id === "string" ? obj.id : "";
-      if (DIALOG_METHODS.has(method) && id) {
-        // Surface it, and cancel it after a timeout so the agent never hangs.
-        const timer = setTimeout(() => {
-          this.dialogTimers.delete(id);
-          try {
-            this.writeToPi({ type: "extension_ui_response", id, cancelled: true });
-            this.broadcast({ type: "dialog_cancelled", id });
-          } catch {
-            // container went away while the timer was pending
-          }
-        }, config.dialogTimeoutMs);
-        this.dialogTimers.set(id, timer);
+      if ((obj.method as string) === "notify") {
+        const message = typeof obj.message === "string" ? obj.message : "";
+        const m = message.match(READ_ONLY_RE);
+        if (m) {
+          this.readOnly = m[1]!.toLowerCase() === "on";
+          // Structured signal for connected tabs (hello covers later ones).
+          this.broadcast({ type: "read_only", value: this.readOnly });
+        }
+        this.broadcast({ type: "agent", event: obj });
       }
-      this.broadcast({ type: "agent", event: obj });
       return;
     }
 
@@ -206,8 +206,6 @@ export class Bridge {
 
   destroy(): void {
     this.destroyed = true;
-    for (const t of this.dialogTimers.values()) clearTimeout(t);
-    this.dialogTimers.clear();
     this.routes.clear();
     this.internalWaiters.clear();
     this.stream?.destroy();
@@ -219,7 +217,12 @@ export class Bridge {
   addClient(send: (payload: string) => void): ClientHandle {
     const client: Client = { send };
     this.clients.add(client);
-    this.sendTo(client, { type: "hello", containerId: this.containerId, project: this.project });
+    this.sendTo(client, {
+      type: "hello",
+      containerId: this.containerId,
+      project: this.project,
+      ...(this.readOnly !== null ? { readOnly: this.readOnly } : {}),
+    });
     this.sendTo(client, { type: "status", status: this.status });
 
     const remove = () => {
@@ -269,20 +272,6 @@ export class Bridge {
           deliver: (resp) => this.sendBackfill(client, reqId, resp),
         });
         this.writeToPi({ ...command, id: internalId });
-        return;
-      }
-      case "extension_ui_response": {
-        const id = typeof msg.id === "string" ? msg.id : "";
-        const timer = this.dialogTimers.get(id);
-        if (timer) {
-          clearTimeout(timer);
-          this.dialogTimers.delete(id);
-        }
-        const response: Record<string, unknown> = { type: "extension_ui_response", id };
-        if ("value" in msg) response.value = msg.value;
-        if ("confirmed" in msg) response.confirmed = msg.confirmed;
-        if ("cancelled" in msg) response.cancelled = msg.cancelled;
-        this.writeToPi(response);
         return;
       }
       default:

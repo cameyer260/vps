@@ -26,6 +26,7 @@ export interface ChatState {
   entryIds: Record<string, true>;
   status: "connecting" | "idle" | "streaming" | "exited";
   connected: boolean;
+  readOnly: boolean; // agent's read-only mode (ground truth: extension notifies)
   model: PiModel | null;
   thinkingLevel: string | null;
   sessionName: string | null;
@@ -41,6 +42,7 @@ const initialState: ChatState = {
   entryIds: {},
   status: "connecting",
   connected: false,
+  readOnly: false,
   model: null,
   thinkingLevel: null,
   sessionName: null,
@@ -151,14 +153,14 @@ function stripTrailingProvisional(items: Item[]): Item[] {
 type Action =
   | { type: "connected"; value: boolean }
   | { type: "status"; value: ChatState["status"] }
+  | { type: "read_only"; value: boolean }
   | { type: "agent_event"; event: PiEvent }
   | { type: "backfill"; entries: PiEntry[]; full: boolean }
   | { type: "state"; data: Record<string, unknown> }
   | { type: "models"; models: PiModel[] }
   | { type: "thinking_levels"; levels: string[] }
   | { type: "sent_local"; text: string }
-  | { type: "notice"; text: string; level?: Notice["level"]; dialog?: string }
-  | { type: "dialog_closed"; id: string }
+  | { type: "notice"; text: string; level?: Notice["level"] }
   | { type: "exited" };
 
 function nextNoticeId(): string {
@@ -325,10 +327,6 @@ function applyEvent(state: ChatState, event: PiEvent): ChatState {
         // notify's `message` is plain text, not a pi message object
         return pushNotice(state, String(event.message ?? ""), (event.notifyType as Notice["level"]) ?? "info");
       }
-      if (["select", "confirm", "input", "editor"].includes(event.method ?? "")) {
-        const text = `agent asks: ${event.title ?? "(dialog)"}${event.options ? ` — ${event.options.join(" / ")}` : ""}`;
-        return pushNotice(state, text, "warning", event.id);
-      }
       return state;
     }
 
@@ -343,8 +341,8 @@ function applyEvent(state: ChatState, event: PiEvent): ChatState {
   }
 }
 
-function pushNotice(state: ChatState, text: string, level: Notice["level"], dialog?: string): ChatState {
-  const notice: Notice = { id: nextNoticeId(), text, level, dialog };
+function pushNotice(state: ChatState, text: string, level: Notice["level"]): ChatState {
+  const notice: Notice = { id: nextNoticeId(), text, level };
   const notices = [...state.notices, notice].slice(-20);
   return { ...state, notices };
 }
@@ -408,6 +406,8 @@ function reducer(state: ChatState, action: Action): ChatState {
       return { ...state, connected: action.value, status: action.value ? "idle" : "connecting" };
     case "status":
       return { ...state, status: action.value };
+    case "read_only":
+      return { ...state, readOnly: action.value };
     case "agent_event":
       return applyEvent(state, action.event);
     case "backfill":
@@ -431,11 +431,7 @@ function reducer(state: ChatState, action: Action): ChatState {
       return { ...state, items: [...state.items, { kind: "user", text: action.text, provisional: true }] };
     }
     case "notice":
-      return pushNotice(state, action.text, action.level ?? "info", action.dialog);
-    case "dialog_closed": {
-      const notices = state.notices.map((n) => (n.dialog === action.id ? { ...n, dialog: undefined } : n));
-      return { ...state, notices };
-    }
+      return pushNotice(state, action.text, action.level ?? "info");
     case "exited":
       return { ...state, status: "exited" };
     default:
@@ -509,6 +505,22 @@ export function useChat(agent: AgentInfo): ChatApi {
         return;
       }
       const type = msg["type"];
+      if (type === "hello") {
+        // Read-only state cached by the bridge (absent when it never observed
+        // a notify); the start-time default is off.
+        if (typeof msg["readOnly"] === "boolean") {
+          dispatch({ type: "read_only", value: msg["readOnly"] as boolean });
+        }
+        return;
+      }
+      if (type === "read_only") {
+        // The bridge derives this from the read-only extension's notifies —
+        // the button's ground truth while connected.
+        if (typeof msg["value"] === "boolean") {
+          dispatch({ type: "read_only", value: msg["value"] as boolean });
+        }
+        return;
+      }
       if (type === "backfill") {
         if (msg["reqId"] !== lastReqRef.current) return; // stale response
         const entries = (msg["entries"] as PiEntry[] | undefined) ?? [];
@@ -545,10 +557,6 @@ export function useChat(agent: AgentInfo): ChatApi {
       }
       if (type === "exited") {
         dispatch({ type: "exited" });
-        return;
-      }
-      if (type === "dialog_cancelled") {
-        dispatch({ type: "dialog_closed", id: msg["id"] as string });
         return;
       }
       if (type === "bridge_error") {
@@ -611,10 +619,13 @@ export function useChat(agent: AgentInfo): ChatApi {
     () => ({
       state,
       send: (text: string) => {
-        const streaming = stateRef.current.status === "streaming";
+        // No steering: while a turn runs the composer doesn't send. Slash
+        // commands still go through — pi executes extension commands
+        // immediately even mid-turn (that's how /read-only toggles).
+        if (stateRef.current.status === "streaming" && !text.startsWith("/")) return;
         if (!text.startsWith("/")) dispatch({ type: "sent_local", text });
-        command({ type: "prompt", message: text, ...(streaming ? { streamingBehavior: "steer" } : {}) }).catch(
-          (err) => dispatch({ type: "notice", text: String(err.message ?? err), level: "error" }),
+        command({ type: "prompt", message: text }).catch((err) =>
+          dispatch({ type: "notice", text: String(err.message ?? err), level: "error" }),
         );
       },
       abort: () => {

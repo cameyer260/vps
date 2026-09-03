@@ -83,11 +83,8 @@ export interface PiEvent {
   isError?: boolean;
   steering?: string[];
   followUp?: string[];
-  // extension_ui_request
-  id?: string;
+  // extension_ui_request (notify pass-through)
   method?: string;
-  title?: string;
-  options?: string[];
   notifyType?: string;
   error?: string;
   attempt?: number;
@@ -143,5 +140,4 @@ export interface Notice {
   id: string;
   text: string;
   level: "info" | "warning" | "error";
-  dialog?: string; // pi extension_ui_request id while open
 }
