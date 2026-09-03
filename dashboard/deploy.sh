@@ -26,6 +26,7 @@ REPO="${VPS_REPO:-/home/dev/vps}"
 [[ -d /home/dev/projects ]] || { echo "deploy: /home/dev/projects missing" >&2; exit 1; }
 [[ -d /home/dev/notes ]] || { echo "deploy: /home/dev/notes missing" >&2; exit 1; }
 [[ -f "$HOME/.gitconfig" ]] || { echo "deploy: $HOME/.gitconfig missing (git identity for commits)" >&2; exit 1; }
+[[ -d "$HOME/.config/gh" ]] || { echo "deploy: $HOME/.config/gh missing (gh CLI auth for git remotes — run 'gh auth login' on the host)" >&2; exit 1; }
 
 DOCKER_GID="$(getent group docker | cut -d: -f3)"
 [[ -n "$DOCKER_GID" ]] || { echo "deploy: docker group not found" >&2; exit 1; }
@@ -34,12 +35,6 @@ echo "==> building image"
 docker build -t dashboard .
 
 docker rm -f "$NAME" >/dev/null 2>&1 || true
-
-# Mount ~/.ssh read-only when present so HTTPS/SSH git remotes keep working.
-SSH_MOUNT=()
-if [[ -d "$HOME/.ssh" ]]; then
-  SSH_MOUNT=(-v "$HOME/.ssh:/home/dev/.ssh:ro")
-fi
 
 echo "==> running on 127.0.0.1:$HOST_PORT (tunnel target)"
 exec docker run -d --name "$NAME" \
@@ -53,6 +48,6 @@ exec docker run -d --name "$NAME" \
   -v /home/dev/notes:/home/dev/notes \
   -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
   -v "$HOME/.gitconfig:/home/dev/.gitconfig:ro" \
-  "${SSH_MOUNT[@]+"${SSH_MOUNT[@]}"}" \
+  -v "$HOME/.config/gh:/home/dev/.config/gh:ro" \
   -p "127.0.0.1:${HOST_PORT}:3000" \
   dashboard
