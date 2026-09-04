@@ -8,6 +8,11 @@
 # Publishes on 127.0.0.1 only: the dashboard is reachable from the internet
 # via a Cloudflare tunnel to localhost (Cloudflare Access handles auth).
 #
+# The git-bridge socket is mounted at its host path so jarvis's conditional
+# bridge mount (docs/jarvis.md) succeeds when jarvis runs inside this
+# container — agents get the socket because Docker resolves the bind-mount
+# source on the host, but jarvis's -S existence check runs here.
+#
 # Usage:  ./deploy.sh            (from dashboard/)
 #   HOST_PORT=3000   host port the tunnel points at   (default 3000)
 #   VPS_REPO=/home/dev/vps  repo clone mount          (jarvis + pi extension)
@@ -58,5 +63,6 @@ exec docker run -d --name "$NAME" \
   -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
   -v "$HOME/.gitconfig:/home/dev/.gitconfig:ro" \
   -v "$HOME/.config/gh:/home/dev/.config/gh:ro" \
+  -v "/run/user/$(id -u)/jarvis-git-bridge.sock:/run/user/$(id -u)/jarvis-git-bridge.sock" \
   -p "127.0.0.1:${HOST_PORT}:3000" \
   dashboard
