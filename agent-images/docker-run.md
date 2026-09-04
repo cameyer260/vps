@@ -6,6 +6,8 @@ Workspaces are bind-mounted at their **real host path** (`/home/dev/projects/pro
 workdir there — not `/workspace`), so pi sessions group under the same project as host
 runs. The host sessions dir (`/home/dev/.pi/agent/sessions`) is mounted rw at the same
 path so sessions survive `--rm` and can be resumed from SSH/TUI or the dashboard.
+The screenshots inbox (`/home/dev/screenshots`) is mounted read-only at the same
+path so a pasted host path reads verbatim inside the container.
 Create missing host dirs as `dev` before the run (plain Docker `-v` would create them
 root-owned, which the container's dev user can't write to).
 
@@ -21,6 +23,7 @@ docker run --rm -it \
   --env-file /home/dev/.config/bx/bx.env \
   -v /home/dev/projects/project-name:/home/dev/projects/project-name \
   -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
+  -v /home/dev/screenshots:/home/dev/screenshots:ro \
   -v /home/dev/.agents:/home/dev/.agents:ro \
   -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
   -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
@@ -43,6 +46,7 @@ docker run --rm -i \
   --env-file /home/dev/.config/bx/bx.env \
   -v /home/dev/projects/project-name:/home/dev/projects/project-name \
   -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
+  -v /home/dev/screenshots:/home/dev/screenshots:ro \
   -v /home/dev/.agents:/home/dev/.agents:ro \
   -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
   -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
@@ -67,6 +71,7 @@ docker run --rm -d -i \
   --env-file /home/dev/.config/bx/bx.env \
   -v /home/dev/projects/project-name:/home/dev/projects/project-name \
   -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
+  -v /home/dev/screenshots:/home/dev/screenshots:ro \
   -v /home/dev/.agents:/home/dev/.agents:ro \
   -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
   -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \

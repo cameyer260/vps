@@ -71,7 +71,11 @@ docker run -d \
   -v /home/dev/vps:/home/dev/vps:ro \
   -v /home/dev/projects:/home/dev/projects \
   -v /home/dev/notes:/home/dev/notes \
+  -v /home/dev/screenshots:/home/dev/screenshots \
   -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
+  -v /home/dev/.config/bx/bx.env:/home/dev/.config/bx/bx.env:ro \
+  -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
+  -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
   -v /home/dev/.gitconfig:/home/dev/.gitconfig:ro \
   -v /home/dev/.config/gh:/home/dev/.config/gh:ro \
   -p 127.0.0.1:3000:3000 \
@@ -88,7 +92,17 @@ docker run -d \
   path (jarvis resolves the extension relative to its own location).
 - `/home/dev/projects` + `/home/dev/notes` rw: git operations, project
   listing, notes viewer.
+- `/home/dev/screenshots` rw: the screenshots inbox the Mac tool scps to.
+  jarvis (running inside this container) can pre-create it as dev so Docker
+  never autocreates the host dir root-owned; agents get it read-only via
+  the jarvis mount (see [../docs/vps.md](../docs/vps.md)).
 - `/home/dev/.pi/agent/sessions`: session listing + resume.
+- `/home/dev/.config/bx/bx.env` ro: Brave Search key — jarvis passes it via
+  `--env-file`, which the docker CLI reads client-side, so the file must
+  exist inside this container too (fatal to agent starts otherwise).
+- `/home/dev/.pi/agent/auth.json` rw: pi auth for agents started here
+  (jarvis mounts it into every agent; rw so refreshed tokens persist).
+- `/home/dev/.pi/agent/settings.json` ro: shared pi defaults (provider/model).
 - `/home/dev/.gitconfig` ro: git identity for the commits the dashboard makes,
   plus the `credential.helper` line pointing git at gh.
 - `/home/dev/.config/gh` ro: gh CLI auth for git remotes (OAuth token in

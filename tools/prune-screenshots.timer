@@ -1,0 +1,10 @@
+[Unit]
+Description=Prune screenshots inbox daily
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=default.target

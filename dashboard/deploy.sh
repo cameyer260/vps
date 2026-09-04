@@ -25,8 +25,12 @@ REPO="${VPS_REPO:-/home/dev/vps}"
 }
 [[ -d /home/dev/projects ]] || { echo "deploy: /home/dev/projects missing" >&2; exit 1; }
 [[ -d /home/dev/notes ]] || { echo "deploy: /home/dev/notes missing" >&2; exit 1; }
+[[ -d /home/dev/screenshots ]] || { echo "deploy: /home/dev/screenshots missing (mkdir it as dev first — the screenshots inbox the Mac tool scps to)" >&2; exit 1; }
 [[ -f "$HOME/.gitconfig" ]] || { echo "deploy: $HOME/.gitconfig missing (git identity for commits)" >&2; exit 1; }
 [[ -d "$HOME/.config/gh" ]] || { echo "deploy: $HOME/.config/gh missing (gh CLI auth for git remotes — run 'gh auth login' on the host)" >&2; exit 1; }
+[[ -f /home/dev/.config/bx/bx.env ]] || { echo "deploy: /home/dev/.config/bx/bx.env missing (Brave key — jarvis --env-file is fatal without it)" >&2; exit 1; }
+[[ -f /home/dev/.pi/agent/auth.json ]] || echo "deploy: warning: /home/dev/.pi/agent/auth.json missing — pi agents will start without login" >&2
+[[ -f /home/dev/.pi/agent/settings.json ]] || echo "deploy: warning: /home/dev/.pi/agent/settings.json missing — agents use pi factory defaults" >&2
 
 DOCKER_GID="$(getent group docker | cut -d: -f3)"
 [[ -n "$DOCKER_GID" ]] || { echo "deploy: docker group not found" >&2; exit 1; }
@@ -47,7 +51,11 @@ exec docker run -d --name "$NAME" \
   -v "$REPO:/home/dev/vps:ro" \
   -v /home/dev/projects:/home/dev/projects \
   -v /home/dev/notes:/home/dev/notes \
+  -v /home/dev/screenshots:/home/dev/screenshots \
   -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
+  -v /home/dev/.config/bx/bx.env:/home/dev/.config/bx/bx.env:ro \
+  -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
+  -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
   -v "$HOME/.gitconfig:/home/dev/.gitconfig:ro" \
   -v "$HOME/.config/gh:/home/dev/.config/gh:ro" \
   -p "127.0.0.1:${HOST_PORT}:3000" \

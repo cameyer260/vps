@@ -53,6 +53,7 @@ BX_ENV=/home/dev/.config/bx/bx.env
 PI_AUTH=/home/dev/.pi/agent/auth.json
 PI_SETTINGS=/home/dev/.pi/agent/settings.json
 SESSIONS_DIR="${PI_SESSIONS_DIR:-/home/dev/.pi/agent/sessions}"
+SHOTS_DIR="${SCREENSHOTS_DIR:-/home/dev/screenshots}"
 
 HERE="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
 # Monorepo root (repo is cloned to /home/dev/vps on the VPS). Used to locate
@@ -114,6 +115,15 @@ base_args() {
   # Sessions dir must exist on the host before docker sees the bind mount,
   # or it gets created root-owned and the container's dev user can't write.
   mkdir -p "$SESSIONS_DIR"
+  # Screenshots inbox (scp target for the Mac screenshot tool). Same root-owned
+  # precaution as sessions; mounted ro at the same path so a pasted host path
+  # reads verbatim inside the container. Agents can read, never write/delete.
+  # mkdir failure is tolerated: inside the dashboard container (no screens
+  # mount, root-owned /home/dev) it would otherwise kill jarvis under set -e.
+  # Host-side runs (as dev) always succeed; if skipped, Docker autocreates the
+  # missing host source root-owned — still readable for the ro mount.
+  mkdir -p "$SHOTS_DIR" 2>/dev/null || \
+    echo "jarvis: warning: could not pre-create screenshots inbox '$SHOTS_DIR' here — continuing" >&2
   BASE_ARGS=( --rm \
     --user "$(dev_uid):$(dev_gid)" \
     # No --name: multiple agents may run on the same project concurrently, so
@@ -123,6 +133,7 @@ base_args() {
     --label "agent.project=$(basename "$dir")" \
     -v "$dir:$dir" \
     -v "$SESSIONS_DIR:$SESSIONS_DIR" \
+    -v "$SHOTS_DIR:$SHOTS_DIR:ro" \
     -v "$AGENTS_DIR:/home/dev/.agents:ro" \
     -w "$dir" \
     --env-file "$BX_ENV" )

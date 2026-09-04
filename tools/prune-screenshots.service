@@ -1,0 +1,8 @@
+[Unit]
+Description=Prune screenshots inbox (older than retention)
+
+[Service]
+Type=oneshot
+# Optional overrides: SCREENSHOTS_DIR, SCREENSHOTS_RETENTION_DAYS
+EnvironmentFile=-%h/.config/screenshots/prune.env
+ExecStart=/home/dev/vps/tools/prune-screenshots.sh

@@ -53,4 +53,34 @@ You log into Pi once with the auth mounts; the Brave key is the env file.
 | `/home/dev/projects` | agent workspaces (override with `AGENT_PROJECTS_DIR`) |
 | `/home/dev/notes` | the notes project — a git repo synced with GitHub |
 | `/home/dev/.pi/agent/sessions` | pi session store, shared between dashboard and SSH/TUI runs |
+| `/home/dev/screenshots` | screenshots inbox (scp target for the Mac screenshot tool; override with `SCREENSHOTS_DIR`) — mounted read-only into every agent at the same path, pruned daily (see below) |
 | `~/bin` | symlinks: `jarvis` → `agent-images/jarvis.sh`, `build-images.sh` → `agent-images/build-images.sh` |
+
+## Screenshots inbox
+
+The Mac screenshot tool scps captures to `/home/dev/screenshots` (override
+with `SCREENSHOTS_DIR`). `jarvis` pre-creates it as `dev` and mounts it
+read-only into every agent at the same host path, so a pasted host path
+(e.g. `/home/dev/screenshots/shot-20260904-120000.png`) reads verbatim
+inside the container. Agents can view screenshots but never write or delete
+them — same pattern as the read-only skills mount.
+
+Pruning is a daily `systemd --user` timer (linger is already enabled for
+`dev`, so it fires without any login). Units and script live in
+[`tools/`](../tools/prune-screenshots.sh):
+
+```bash
+# install (once, as dev):
+mkdir -p ~/.config/systemd/user
+ln -sfn /home/dev/vps/tools/prune-screenshots.service ~/.config/systemd/user/
+ln -sfn /home/dev/vps/tools/prune-screenshots.timer ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now prune-screenshots.timer
+
+# inspect:
+systemctl --user status prune-screenshots.timer
+journalctl --user -u prune-screenshots.service
+```
+
+Default retention is 7 days (`SCREENSHOTS_RETENTION_DAYS` overrides). The
+script exits quietly when the inbox does not exist yet.

@@ -62,6 +62,12 @@ dashboard-launched agents alike.
 - `-v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions` (rw;
   override with `PI_SESSIONS_DIR`) — sessions survive `--rm` and are shared
   across dashboard and SSH/TUI runs, so resuming works from both worlds.
+- `-v /home/dev/screenshots:/home/dev/screenshots:ro` (override with
+  `SCREENSHOTS_DIR`) — screenshots inbox (scp target for the Mac screenshot
+  tool), mounted at the same host path so a pasted host path reads verbatim
+  inside the container. Read-only so agents can view screenshots but never
+  write/delete them; pruning happens on the host via the systemd timer (see
+  docs/vps.md).
 - `-v /home/dev/.agents:/home/dev/.agents:ro` — agent skills.
 - `-v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json` — pi auth
   (mounted rw so refreshed sessions persist on the host; added only when the

@@ -9,6 +9,8 @@ Monorepo for everything agent-related on my VPS:
   repo I essentially as a digital notebook containing todos and things like that).
 - **`docs/`** — system documentation: the VPS environment and the jarvis
   contract.
+- **`tools/`** — host-side helpers (screenshots inbox prune script +
+  systemd user timer).
 
 ## Documentation map
 
