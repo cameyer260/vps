@@ -51,6 +51,6 @@ You log into Pi once with the auth mounts; the Brave key is the env file.
 |---|---|
 | `/home/dev/vps` | this monorepo (clone of `cameyer260/vps`) |
 | `/home/dev/projects` | agent workspaces (override with `AGENT_PROJECTS_DIR`) |
-| `/home/dev/notes` | the notes project — a git repo synced with GitHub; the default/always-on agent's workspace |
+| `/home/dev/notes` | the notes project — a git repo synced with GitHub |
 | `/home/dev/.pi/agent/sessions` | pi session store, shared between dashboard and SSH/TUI runs |
 | `~/bin` | symlinks: `jarvis` → `agent-images/jarvis.sh`, `build-images.sh` → `agent-images/build-images.sh` |

@@ -94,7 +94,7 @@ docker run -d \
 - `/home/dev/.config/gh` ro: gh CLI auth for git remotes (OAuth token in
   `hosts.yml`). Tokens don't expire under normal use, so the read-only mount
   needs no re-auth; re-authing on the host + a container restart picks up a
-  new token. There is no `~/.ssh` mount.
+  new token.
 - `-p 127.0.0.1:...`: the only route in is the Cloudflare tunnel to localhost.
 
 On the VPS:
