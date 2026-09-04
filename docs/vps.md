@@ -28,7 +28,7 @@ Never baked into images — mounted or passed in at runtime:
 | Path | Purpose | How it reaches containers |
 |---|---|---|
 | `/home/dev/.pi/agent/auth.json` | pi auth tokens | mounted rw so refreshed sessions persist on the host |
-| `/home/dev/.agents` | agent skills | mounted read-only |
+| `/home/dev/.agents` | agent skills | mounted read-only — the whole dir, since skill symlinks resolve into `packages/` |
 | `/home/dev/.config/bx/bx.env` | Brave Search API key | `--env-file` |
 | `/home/dev/.pi/agent/settings.json` | shared pi defaults (provider/model/thinking) | mounted read-only so agents can't rewrite host settings |
 | `/home/dev/.config/gh` | gh CLI auth (GitHub OAuth token in `hosts.yml`) | mounted read-only into the dashboard container so its git operations can push/pull remotes |
