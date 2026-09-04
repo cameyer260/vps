@@ -1,0 +1,10 @@
+[Unit]
+Description=jarvis git bridge — one push/fetch/pull request per connection
+
+[Service]
+# Spawned per connection by jarvis-git-bridge.socket (Accept=yes); the
+# connection fd is passed as stdin/stdout/stderr. The handler derives the
+# workspace from the peer container's mount table (SO_PEERCRED -> mountinfo)
+# and runs git on the host with the gh credential helper. See docs/jarvis.md.
+ExecStart=/usr/bin/python3 /home/dev/vps/tools/jarvis-git-bridge
+NoNewPrivileges=true

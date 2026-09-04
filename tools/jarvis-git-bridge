@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""jarvis git bridge — handle one push/fetch/pull request per connection.
+
+systemd spawns one instance per connection on jarvis-git-bridge.socket
+(Accept=yes) with the connection fd passed as fd 3 (standard socket
+activation; fd 0 as a fallback for manual runs). The peer is a
+jarvis agent container whose workspace is bind-mounted at its real host path
+(`-v <ws>:<ws>`). The workspace is derived from the *peer's* kernel mount
+table (SO_PEERCRED -> /proc/<pid>/mountinfo), never from anything the agent
+sends — an agent can only ever operate on the workspace its own container
+has mounted, and it cannot influence which one.
+
+Git credentials stay on the host (gh credential helper via ~/.gitconfig);
+agent containers hold no GitHub access beyond these three ops.
+
+Protocol: one line, "push" | "fetch" | "pull" (\\n-terminated).
+Reply: one JSON line {"ok": bool, "op": str, "workspace": str, "output": str}.
+All logging goes to ~/.local/state/jarvis-git-bridge/bridge.log (JSON lines);
+stdout/stderr are the socket, so nothing is ever printed to them.
+"""
+import json
+import os
+import re
+import socket
+import struct
+import subprocess
+import sys
+import time
+
+SO_PEERCRED = 17  # Linux SO_PEERCRED
+GIT_TIMEOUT = 120  # seconds per git command
+OUTPUT_CAP = 4000  # chars relayed back to the agent
+LOG_DIR = os.path.expanduser("~/.local/state/jarvis-git-bridge")
+LOG_FILE = os.path.join(LOG_DIR, "bridge.log")
+
+# The git identity is baked into the agent image (agent-pi.Dockerfile); the
+# bridge only ever runs git's remote plumbing, never a commit.
+
+
+def log(entry: dict) -> None:
+    entry["ts"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass  # logging must never break the reply
+
+
+def fail(conn: socket.socket, op: str, ws: str, message: str) -> None:
+    log({"op": op, "workspace": ws, "ok": False, "error": message})
+    conn.sendall((json.dumps({"ok": False, "op": op, "workspace": ws, "output": message}) + "\n").encode())
+    conn.close()
+    sys.exit(0)
+
+
+def mount_unescape(s: str) -> str:
+    """/proc/<pid>/mountinfo escapes space/tab/newline as \\040 \\011 \\012."""
+    return re.sub(r"\\([0-7]{3})", lambda m: chr(int(m.group(1), 8)), s)
+
+
+def workspace_of(pid: int) -> str:
+    """Derive the peer container's workspace from its kernel mount table.
+
+    jarvis mounts the workspace at its real host path (-v ws:ws), so its
+    mountinfo line has root == mountpoint. Other same-path mounts (sessions,
+    screenshots, .agents) are not git repos, so requiring a .git dir pins the
+    unique workspace. The agent cannot fake any of this: mounts come from
+    jarvis's docker run, and containers cannot add mounts.
+    """
+    try:
+        with open(f"/proc/{pid}/mountinfo", encoding="utf-8") as f:
+            lines = f.readlines()
+    except OSError as e:
+        raise RuntimeError(
+            f"cannot read peer's /proc/{pid}/mountinfo ({e}); peer must run as the same uid as this bridge"
+        ) from None
+    candidates = []
+    for line in lines:
+        fields = line.split()
+        if len(fields) < 5:
+            continue
+        root, mountpoint = mount_unescape(fields[3]), mount_unescape(fields[4])
+        if root != mountpoint or not os.path.isdir(mountpoint):
+            continue
+        if os.path.isdir(os.path.join(mountpoint, ".git")):
+            candidates.append(mountpoint)
+    unique = sorted(set(candidates))
+    if len(unique) == 0:
+        raise RuntimeError("no git workspace bind-mount found in the peer container")
+    if len(unique) > 1:
+        raise RuntimeError(f"ambiguous: multiple git workspaces mounted: {', '.join(unique)}")
+    return unique[0]
+
+
+def require_origin(ws: str) -> None:
+    url = subprocess.run(
+        ["git", "-C", ws, "config", "--get", "remote.origin.url"],
+        capture_output=True, text=True, timeout=10,
+    )
+    if url.returncode != 0 or not url.stdout.strip():
+        raise RuntimeError(f"'{ws}' has no origin remote to {OP} against")
+
+
+def require_branch(ws: str) -> str:
+    head = subprocess.run(
+        ["git", "-C", ws, "symbolic-ref", "--quiet", "--short", "HEAD"],
+        capture_output=True, text=True, timeout=10,
+    )
+    if head.returncode != 0:
+        raise RuntimeError("HEAD is detached; commit to a branch first")
+    return head.stdout.strip()
+
+
+def run_git(ws: str, cmd: list) -> tuple:
+    # GIT_TERMINAL_PROMPT=0: fail fast instead of hanging if auth ever breaks.
+    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+    started = time.monotonic()
+    try:
+        proc = subprocess.run(
+            ["git", "-C", ws, *cmd], capture_output=True, text=True,
+            timeout=GIT_TIMEOUT, env=env,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"git {OP} exceeded {GIT_TIMEOUT}s") from None
+    output = (proc.stdout + proc.stderr).strip()
+    if len(output) > OUTPUT_CAP:
+        output = output[:OUTPUT_CAP] + f"\n… (truncated after {OUTPUT_CAP} chars)"
+    return proc.returncode, output, round((time.monotonic() - started) * 1000)
+
+
+def main() -> None:
+    # systemd (Accept=yes) passes the connection fd as fd 3 (socket
+    # activation convention); fd 0 as a fallback for manual/inetd-style runs.
+    # stdout/stderr are reopened onto /dev/null so stray library output can
+    # never corrupt the protocol — the socket is the only channel we write to.
+    conn = None
+    for fd in (3, 0):
+        try:
+            conn = socket.socket(fileno=fd)
+            break
+        except OSError:
+            continue
+    if conn is None:
+        print("jarvis-git-bridge: no connection socket on fd 3 or fd 0", file=sys.stderr)
+        sys.exit(2)
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, 1)
+    os.dup2(devnull, 2)
+    os.close(devnull)
+
+    global OP
+    OP = "?"  # for error paths that run before the op is known
+
+    cred = conn.getsockopt(socket.SOL_SOCKET, SO_PEERCRED, 12)
+    peer_pid, _, _ = struct.unpack("3i", cred)
+
+    conn.settimeout(5)
+    try:
+        buf = b""
+        while not buf.endswith(b"\n") and len(buf) < 256:
+            chunk = conn.recv(256)
+            if not chunk:
+                break
+            buf += chunk
+    except (socket.timeout, OSError) as e:
+        fail(conn, "?", "?", f"no request line received ({e})")
+    op = buf.decode(errors="replace").strip()
+
+    if op not in ("push", "fetch", "pull"):
+        fail(conn, op, "?", f"unknown op {op!r} — expected 'push', 'fetch' or 'pull'")
+    OP = op
+
+    try:
+        ws = workspace_of(peer_pid)
+    except RuntimeError as e:
+        fail(conn, op, "?", str(e))
+
+    try:
+        require_origin(ws)
+        cmd = {
+            "push": lambda: ["push", "origin", "HEAD"],  # current branch -> same-name branch on origin
+            "fetch": lambda: ["fetch", "origin", "--prune"],
+            "pull": lambda: ["pull", "--ff-only", "origin", require_branch(ws)],
+        }[op]()
+    except RuntimeError as e:
+        fail(conn, op, ws, str(e))
+
+    rc, output, dur_ms = run_git(ws, cmd)
+    log({"op": op, "workspace": ws, "ok": rc == 0, "rc": rc, "dur_ms": dur_ms, "output": output[:1000]})
+    conn.sendall((json.dumps({"ok": rc == 0, "op": op, "workspace": ws, "output": output}) + "\n").encode())
+    conn.close()
+
+
+if __name__ == "__main__":
+    main()

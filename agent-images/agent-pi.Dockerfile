@@ -2,9 +2,13 @@
 # The pi agent image (single-stage; no separate base image anymore).
 #
 # Provides a non-root `dev` user (matching the host's dev uid/gid via build
-# args), the common CLIs the skills call (git, ripgrep, fd, jq, gh, bx),
+# args), the common CLIs the skills call (git, ripgrep, fd, jq, bx),
 # Playwright's bundled Chromium, Node LTS, and @earendil-works/pi-coding-agent.
 # The playwright package lives inside the skills dir and is NOT installed here.
+#
+# No GitHub credentials or gh CLI: remote git ops (push/fetch/pull) go through
+# the host-side git bridge socket — see docs/jarvis.md. Git *identity* is
+# baked below (it is not a secret).
 #
 # Provider config/auth is NOT baked in; it's mounted rw at runtime
 # (~/.pi/agent/auth.json) so the auto-refreshing OAuth session persists.
@@ -57,19 +61,11 @@ RUN userdel -r ubuntu 2>/dev/null || true \
  && groupadd -g ${DEV_GID} dev \
  && useradd -m -u ${DEV_UID} -g dev -s /bin/bash dev
 
-# GitHub CLI (gh) — official Debian/Ubuntu apt repo
-# https://github.com/cli/cli/blob/trunk/docs/install_linux.md#debian
-# Keyring SHA256 from that page (binary githubcli-archive-keyring.gpg).
-RUN install -m 0755 -d /etc/apt/keyrings \
- && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
- && echo "6084d5d7bd8e288441e0e94fc6275570895da18e6751f70f057485dc2d1a811b  /etc/apt/keyrings/githubcli-archive-keyring.gpg" \
-      | sha256sum -c - \
- && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
- && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-      > /etc/apt/sources.list.d/github-cli.list \
- && apt-get update && apt-get install -y gh \
- && rm -rf /var/lib/apt/lists/*
+# Git identity for agent commits. Not a credential — the gh token stays on
+# the host; only this identity lands in commits. Matches the host .gitconfig
+# (docs/vps.md); per-repo local config can still override.
+RUN git config --system user.name "Christopher Meyer" \
+ && git config --system user.email "cameyer06@gmail.com"
 
 # bx (Brave Search CLI) — a downloaded CLI tool the skills call from bash.
 # Runs as dev so it lands in ~/.local/bin (picked up by PATH below).

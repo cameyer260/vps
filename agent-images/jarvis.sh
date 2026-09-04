@@ -46,6 +46,17 @@
 # path, so container sessions group under the same project as host pi sessions
 # and resume works across dashboard and SSH/TUI runs.
 #
+# Git: agent containers hold no GitHub credentials, so plain git push/pull/
+# fetch cannot authenticate. Every agent gets the git-bridge extension
+# (agent-images/pi-git-bridge/git-bridge.ts, mounted ro and loaded via pi -e
+# in all modes) and — when the bridge is running on the host — the bridge
+# socket bind-mounted at /home/dev/.git-bridge.sock. Its tools
+# (push_to_origin / fetch_from_origin / pull_from_origin) ask the host-side
+# handler (tools/jarvis-git-bridge, systemd user socket jarvis-git-bridge.socket)
+# to run the op against origin; the handler derives the workspace from the
+# container's own mount, so an agent can only ever act on the workspace its
+# container has mounted. See docs/jarvis.md ("Git bridge").
+#
 # The dev UID/GID for `--user` resolves as ${AGENT_UID:-$(id -u dev)}: unset
 # (normal SSH use) means an id lookup, exactly as before. The dashboard
 # container (where no dev user exists) is deployed with AGENT_UID/AGENT_GID
@@ -64,13 +75,19 @@ SHOTS_DIR="${SCREENSHOTS_DIR:-/home/dev/screenshots}"
 # above). Deliberately factual: agents can verify each claim, and an
 # overstated prompt gets discounted once contradicted (e.g. sessions DO
 # persist outside the workspace — pi writes them there).
-AGENT_CONTEXT="You are a pi agent running in an ephemeral Docker container on the operator's VPS (Ubuntu 24.04, user dev, no sudo, no GUI), launched by jarvis. The workspace (your current directory) is your task area and your deliverable. Everything else is either read-only, pi's own bookkeeping (~/.pi/agent), or ephemeral container space that vanishes on exit — none of it is yours to use. Skills live in /home/dev/.agents (read-only); models are accessed via the OpenRouter provider. You exist to complete the task(s) assigned in this workspace; if that seems to require leaving it, report back instead."
+AGENT_CONTEXT="You are a pi agent running in an ephemeral Docker container on the operator's VPS (Ubuntu 24.04, user dev, no sudo, no GUI), launched by jarvis. The workspace (your current directory) is your task area and your deliverable. Everything else is either read-only, pi's own bookkeeping (~/.pi/agent), or ephemeral container space that vanishes on exit — none of it is yours to use. Skills live in /home/dev/.agents (read-only); models are accessed via the OpenRouter provider. You exist to complete the task(s) assigned in this workspace; if that seems to require leaving it, report back instead. Git credentials stay on the host: plain git push/pull/fetch cannot authenticate here. For remote git operations use the push_to_origin, fetch_from_origin and pull_from_origin tools — they ask the host to run the operation against origin for your workspace and return git's output."
 PI_ENV_ARGS=( --append-system-prompt "$AGENT_CONTEXT" )
+# Flags for the git-bridge extension, set by base_args (empty when the
+# extension file is missing):
+GIT_EXT_FLAGS=()
 
 HERE="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
 # Monorepo root (repo is cloned to /home/dev/vps on the VPS). Used to locate
 # the dashboard's pi extension, which gets mounted read-only into rpc agents.
 REPO_ROOT="$(cd "$HERE/.." && pwd)"
+# Git-bridge pi extension (registers push_to_origin / fetch_from_origin /
+# pull_from_origin); mounted ro into every agent container, all modes.
+GIT_BRIDGE_EXT="$REPO_ROOT/agent-images/pi-git-bridge/git-bridge.ts"
 
 die() { echo "jarvis: $*" >&2; exit 1; }
 
@@ -78,7 +95,7 @@ usage() {
   # Prints the comment header above as help text.
   # If you add or remove header comment lines, update the range here to match:
   #   from the line after shebang to the last header line.
-  sed -n '2,52p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,63p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-0}"
 }
 
@@ -162,6 +179,24 @@ base_args() {
   else
     echo "jarvis: warning: $PI_SETTINGS missing — container uses pi factory defaults" >&2
   fi
+  # Git bridge socket: lets the git-bridge extension's tools ask the host to
+  # run push/fetch/pull against origin (containers hold no credentials).
+  # Conditional like PI_AUTH: warn (don't fail) when the bridge isn't running.
+  local bridge_sock="/run/user/$(dev_uid)/jarvis-git-bridge.sock"
+  if [[ -S "$bridge_sock" ]]; then
+    BASE_ARGS+=( -v "$bridge_sock:/home/dev/.git-bridge.sock" )
+  else
+    echo "jarvis: warning: $bridge_sock missing — git push/fetch/pull tools won't work (systemctl --user enable --now jarvis-git-bridge.socket)" >&2
+  fi
+  # Git-bridge pi extension: registers the tools; conditional so agents still
+  # start if this repo is missing the file.
+  GIT_EXT_FLAGS=()
+  if [[ -f "$GIT_BRIDGE_EXT" ]]; then
+    BASE_ARGS+=( -v "$GIT_BRIDGE_EXT:/home/dev/.pi/agent/git-bridge.ts:ro" )
+    GIT_EXT_FLAGS=( -e /home/dev/.pi/agent/git-bridge.ts )
+  else
+    echo "jarvis: warning: git-bridge extension missing ($GIT_BRIDGE_EXT) — git push/fetch/pull tools unavailable" >&2
+  fi
 }
 
 pi_cmd() {
@@ -176,11 +211,11 @@ pi_cmd() {
   if (( $# > 0 )); then
     # One-shot: print the response and exit. Extra stdin is passed through.
     docker run -i "${BASE_ARGS[@]}" "$image" pi \
-      ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} -p --approve "$@"
+      ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} ${GIT_EXT_FLAGS[@]+"${GIT_EXT_FLAGS[@]}"} -p --approve "$@"
   else
     # Interactive TUI; -a trusts project-local files.
     docker run -it "${BASE_ARGS[@]}" "$image" pi \
-      ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} -a
+      ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} ${GIT_EXT_FLAGS[@]+"${GIT_EXT_FLAGS[@]}"} -a
   fi
 }
 
@@ -214,7 +249,7 @@ rpc_cmd() {
   docker run -d -i "${BASE_ARGS[@]}" \
     ${ext_mount[@]+"${ext_mount[@]}"} \
     ${ro_env[@]+"${ro_env[@]}"} \
-    "$image" pi ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} --mode rpc -a ${ext_flags[@]+"${ext_flags[@]}"} "$@"
+    "$image" pi ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} ${GIT_EXT_FLAGS[@]+"${GIT_EXT_FLAGS[@]}"} --mode rpc -a ${ext_flags[@]+"${ext_flags[@]}"} "$@"
 }
 
 list_projects() {

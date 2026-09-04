@@ -21,6 +21,8 @@ How the dashboard works inside. Usage and deployment:
 
     agent container (agent-pi image)
       └─ pi --mode rpc, JSONL over stdin/stdout, dashboard extension loaded
+      └─ git push/fetch/pull only via the host git-bridge socket
+         (no GitHub credentials in the container — docs/jarvis.md)
 
 ## jarvis is the single source of truth for container creation
 

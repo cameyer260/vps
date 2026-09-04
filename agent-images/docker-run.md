@@ -13,7 +13,12 @@ root-owned, which the container's dev user can't write to).
 
 jarvis additionally passes `--append-system-prompt "$AGENT_CONTEXT"` to every `pi`
 invocation below (environment context + workspace-only policy; text lives in
-`jarvis.sh`). Omitted from the statements here for readability.
+`jarvis.sh`), loads the git-bridge extension via `pi -e
+/home/dev/.pi/agent/git-bridge.ts` (mounted ro from
+`agent-images/pi-git-bridge/git-bridge.ts` — the `push_to_origin` /
+`fetch_from_origin` / `pull_from_origin` tools), and bind-mounts the host
+git-bridge socket when it exists (see [../docs/jarvis.md](../docs/jarvis.md),
+"Git bridge"). Omitted from the statements here for readability.
 
 ## Pi — interactive
 
@@ -31,8 +36,10 @@ docker run --rm -it \
   -v /home/dev/.agents:/home/dev/.agents:ro \
   -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
   -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
+  -v /run/user/1000/jarvis-git-bridge.sock:/home/dev/.git-bridge.sock \
+  -v /home/dev/vps/agent-images/pi-git-bridge/git-bridge.ts:/home/dev/.pi/agent/git-bridge.ts:ro \
   -w /home/dev/projects/project-name \
-  agent-pi pi -a
+  agent-pi pi -a -e /home/dev/.pi/agent/git-bridge.ts
 ```
 
 No `--name`: multiple agents can run on one project concurrently; discover them via the
@@ -54,8 +61,10 @@ docker run --rm -i \
   -v /home/dev/.agents:/home/dev/.agents:ro \
   -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
   -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
+  -v /run/user/1000/jarvis-git-bridge.sock:/home/dev/.git-bridge.sock \
+  -v /home/dev/vps/agent-images/pi-git-bridge/git-bridge.ts:/home/dev/.pi/agent/git-bridge.ts:ro \
   -w /home/dev/projects/project-name \
-  agent-pi pi -p --approve "TASK"
+  agent-pi pi -e /home/dev/.pi/agent/git-bridge.ts -p --approve "TASK"
 ```
 
 ## Pi — headless RPC daemon (what `jarvis rpc` runs for the dashboard)
@@ -79,9 +88,11 @@ docker run --rm -d -i \
   -v /home/dev/.agents:/home/dev/.agents:ro \
   -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
   -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
+  -v /run/user/1000/jarvis-git-bridge.sock:/home/dev/.git-bridge.sock \
   -v /home/dev/vps/dashboard/pi-extension/read-only.ts:/home/dev/.pi/agent/dashboard-readonly.ts:ro \
+  -v /home/dev/vps/agent-images/pi-git-bridge/git-bridge.ts:/home/dev/.pi/agent/git-bridge.ts:ro \
   -w /home/dev/projects/project-name \
-  agent-pi pi --mode rpc -a -e /home/dev/.pi/agent/dashboard-readonly.ts
+  agent-pi pi -e /home/dev/.pi/agent/git-bridge.ts --mode rpc -a -e /home/dev/.pi/agent/dashboard-readonly.ts
 ```
 
 In practice you never type these: `jarvis project-name`, `jarvis project-name "TASK"`

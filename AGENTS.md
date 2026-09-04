@@ -48,6 +48,11 @@ the flags. Rules:
   no dev user inside it to look up) and they are inherited by every jarvis
   invocation.
 - Models are accessed through the OpenRouter provider.
+- Agent containers hold **no GitHub credentials**. Remote git ops
+  (push/fetch/pull) go through the host-side git bridge
+  (`tools/jarvis-git-bridge.*`, systemd user socket; see docs/jarvis.md) —
+  the bridge derives the workspace from the container's own mounts, so an
+  agent can only ever act on the workspace it was launched with.
 - The notes project lives at `/home/dev/notes` (a git repo synced with
   GitHub). It is the default/always-on agent's workspace.
 

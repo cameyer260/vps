@@ -5,9 +5,11 @@ Dockerfiles and tooling for the VPS pi agent containers. Lives inside the
 the jarvis contract: [docs/jarvis.md](../docs/jarvis.md).
 
 - `agent-pi.Dockerfile` — the single agent image: Ubuntu 24.04, a non-root
-  `dev` user, the CLIs the skills call (`git`, `ripgrep`, `fd`, `jq`, `gh`,
+  `dev` user, the CLIs the skills call (`git`, `ripgrep`, `fd`, `jq`,
   `bx`), Playwright's bundled Chromium, Node, and
-  `@earendil-works/pi-coding-agent` (needs Node `>=22.19.0`).
+  `@earendil-works/pi-coding-agent` (needs Node `>=22.19.0`). No gh, no
+  GitHub credentials — remote git ops go through the git bridge
+  ([docs/jarvis.md](../docs/jarvis.md)).
 - `build-images.sh` — builds the images; run as `dev` on the VPS.
 - `jarvis.sh` / `jarvis-completion.bash` — the `jarvis` CLI wrapper and its
   bash completion.
@@ -72,7 +74,7 @@ policy) appended to pi's system prompt via `--append-system-prompt`.
 |---|---|---|
 | Pi agent | `agent-pi.Dockerfile` npm install | `@earendil-works/pi-coding-agent@0.85.0` |
 | Node (Pi) | `agent-pi.Dockerfile` `NODE_VERSION` | `v24.19.0` (LTS) |
-| gh, bx, git, rg, fd, jq | `agent-pi.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
+| bx, git, rg, fd, jq | `agent-pi.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
 
 Upgrade by editing the exact version in the Dockerfile and rebuilding.
 

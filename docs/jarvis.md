@@ -75,6 +75,13 @@ dashboard-launched agents alike.
   — shared defaults: provider/model/thinking level; read-only so agents
   can't rewrite host settings.
 - `--env-file /home/dev/.config/bx/bx.env` — Brave Search API key.
+- `-v /run/user/<dev-uid>/jarvis-git-bridge.sock:/home/dev/.git-bridge.sock`
+  — host git-bridge socket (push/fetch/pull); mounted only when the socket
+  exists, with a warning otherwise. See "Git bridge" below.
+- `pi -e /home/dev/.pi/agent/git-bridge.ts` (all modes) — the git-bridge
+  extension (`agent-images/pi-git-bridge/git-bridge.ts`, mounted ro), which
+  registers the `push_to_origin` / `fetch_from_origin` / `pull_from_origin`
+  tools; skipped with a warning when the file is missing.
 - `--append-system-prompt "$AGENT_CONTEXT"` (all modes) — a short
   environment-context paragraph appended to pi's system prompt: the agent is
   told it runs in an ephemeral container, that the workspace is its task area
@@ -86,3 +93,35 @@ dashboard-launched agents alike.
   `--name`** — multiple agents can run on one project concurrently;
   discover agents via labels, never container names.
 - Models are accessed through the OpenRouter provider.
+
+## Git bridge (push/fetch/pull)
+
+Agent containers hold **no GitHub credentials** (no gh login, no SSH keys, no
+token in env — `gh` isn't even installed in the image), so plain `git
+push/pull/fetch` cannot authenticate inside a container. Remote git operations
+go through a host-side bridge:
+
+- **Host side:** systemd **user** socket `tools/jarvis-git-bridge.socket`
+  (`Accept=yes`, listens on `/run/user/<dev-uid>/jarvis-git-bridge.sock`;
+  symlinked into `~/.config/systemd/user/` and `systemctl --user enable
+  --now`'d once, like `tools/prune-screenshots.*`). Each connection spawns
+  `tools/jarvis-git-bridge` (Python), which:
+  1. derives the workspace from the **peer's kernel mount table**
+     (`SO_PEERCRED` → `/proc/<peer-pid>/mountinfo`): the unique same-path bind
+     mount containing a `.git` dir. Nothing agent-controlled names the
+     workspace — an agent can only ever act on the workspace its own container
+     has mounted, and cannot fake another one;
+  2. runs exactly one of: `git push origin HEAD` (current branch → same-name
+     branch), `git fetch origin --prune`, or `git pull --ff-only origin
+     <branch>` on the host, where the gh credential helper authenticates. No
+     force-push, no other remotes, no git args, no shell.
+  - Protocol: one line (`push` | `fetch` | `pull`) in, one JSON line
+    `{ok, op, workspace, output}` out. Log (JSON lines):
+    `~/.local/state/jarvis-git-bridge/bridge.log`.
+- **Agent side:** the git-bridge extension wraps the protocol as pi tools
+  (`push_to_origin`, `fetch_from_origin`, `pull_from_origin`, no parameters);
+  `AGENT_CONTEXT` tells the model to use them for remote git operations.
+- **Commit identity** (not a credential) is baked into the image
+  (`/etc/gitconfig`, matching the host `.gitconfig`); per-repo local config
+  can override. The credential boundary is unchanged: `git push` in a
+  container still fails, and the gh token stays on the host only.

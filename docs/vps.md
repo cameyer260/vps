@@ -31,9 +31,10 @@ Never baked into images — mounted or passed in at runtime:
 | `/home/dev/.agents` | agent skills | mounted read-only — the whole dir, since skill symlinks resolve into `packages/` |
 | `/home/dev/.config/bx/bx.env` | Brave Search API key | `--env-file` |
 | `/home/dev/.pi/agent/settings.json` | shared pi defaults (provider/model/thinking) | mounted read-only so agents can't rewrite host settings |
-| `/home/dev/.config/gh` | gh CLI auth (GitHub OAuth token in `hosts.yml`) | mounted read-only into the dashboard container so its git operations can push/pull remotes |
+| `/home/dev/.config/gh` | gh CLI auth (GitHub OAuth token in `hosts.yml`) | mounted read-only into the dashboard container so its git operations can push/pull remotes. **Not** mounted into agent containers — their remote git ops go through the git bridge (see [docs/jarvis.md](jarvis.md)) |
 | `/home/dev/.gitconfig` | git identity + `credential.helper` pointing at gh | mounted read-only into the dashboard container |
 | `/home/dev/.cache/ms-playwright/` | Playwright Chromium bundle | baked into the base image at build time (BuildKit context) — see [agent-images/README.md](../agent-images/README.md) |
+| `/run/user/1000/jarvis-git-bridge.sock` | git bridge: lets agent containers run `git push/fetch/pull` on their own workspace on the host | bind-mounted into agent containers by jarvis when the socket exists (`jarvis-git-bridge.socket` user unit); see [docs/jarvis.md](jarvis.md) |
 
 Create the bx env file once on the VPS as `dev`:
 

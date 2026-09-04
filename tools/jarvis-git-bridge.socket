@@ -1,0 +1,10 @@
+[Unit]
+Description=jarvis git bridge socket (push/fetch/pull requests from agent containers)
+
+[Socket]
+ListenStream=%t/jarvis-git-bridge.sock
+Accept=yes
+RemoveOnStop=true
+
+[Install]
+WantedBy=sockets.target
