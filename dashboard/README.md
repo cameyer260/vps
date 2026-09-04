@@ -11,13 +11,7 @@ Agent context: [AGENTS.md](../AGENTS.md) · How it works inside:
 
 ## Status
 
-Built. The three original phases shipped:
-
-1. **Core loop** — jarvis `rpc` subcommand, Docker attach, streaming chat UI,
-   session persistence + resume.
-2. **Notes section** — pinned notes UI, read-only mode, git pull on start,
-   close-time commit guard, commit/push skill.
-3. **Notes viewer** — Obsidian-style markdown viewer/editor.
+Built and running on the VPS — see Deployment.
 
 ## Features
 
