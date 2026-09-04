@@ -68,7 +68,7 @@ workspace/session mounts — is documented once in
 
 | Tool | Where it's defined | Version |
 |---|---|---|
-| Pi agent | `agent-pi.Dockerfile` npm install | `@earendil-works/pi-coding-agent@0.84.4` |
+| Pi agent | `agent-pi.Dockerfile` npm install | `@earendil-works/pi-coding-agent@0.85.0` |
 | Node (Pi) | `agent-pi.Dockerfile` `NODE_VERSION` | `v24.19.0` (LTS) |
 | gh, bx, git, rg, fd, jq | `base.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
 

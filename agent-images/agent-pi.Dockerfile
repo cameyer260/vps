@@ -9,8 +9,8 @@ ARG NODE_VERSION=v24.19.0
 RUN curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz" \
       | tar -xJ -C /usr/local --strip-components=1
 
-# Pi agent package v0.84.2
-RUN npm install -g @earendil-works/pi-coding-agent@0.84.4
+# Pi agent package v0.85.0
+RUN npm install -g @earendil-works/pi-coding-agent@0.85.0
 
 # Pre-create ~/.pi owned by dev. Docker creates missing bind-mount parents as
 # root, so without this the runtime auth.json mount leaves /home/dev/.pi/agent
