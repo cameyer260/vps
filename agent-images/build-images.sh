@@ -34,6 +34,12 @@ echo "==> Building agent-pi"
 docker build -f agent-pi.Dockerfile -t agent-pi .
 
 
+# Rebuilding moves tags onto the new images, leaving the previous ones
+# dangling (untagged) on disk. Clean them up so a version bump is a single
+# command with no manual cleanup. Only untagged images are removed.
+echo "==> Pruning dangling images from previous builds"
+docker image prune -f >/dev/null
+
 echo
 echo "==> Images:"
 docker images | grep -E '^(REPOSITORY|agent-)'
