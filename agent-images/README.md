@@ -74,7 +74,7 @@ policy) appended to pi's system prompt via `--append-system-prompt`.
 |---|---|---|
 | Pi agent | `agent-pi.Dockerfile` npm install | `@earendil-works/pi-coding-agent@0.85.0` |
 | Node (Pi) | `agent-pi.Dockerfile` `NODE_VERSION` | `v24.19.0` (LTS) |
-| bx, git, rg, fd, jq | `agent-pi.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
+| bx, git, rg, fd, jq, python3 | `agent-pi.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
 
 Upgrade by editing the exact version in the Dockerfile and rebuilding.
 

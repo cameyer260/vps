@@ -2,7 +2,7 @@
 # The pi agent image (single-stage; no separate base image anymore).
 #
 # Provides a non-root `dev` user (matching the host's dev uid/gid via build
-# args), the common CLIs the skills call (git, ripgrep, fd, jq, bx),
+# args), the common CLIs the skills call (git, ripgrep, fd, jq, python3, bx),
 # Playwright's bundled Chromium, Node LTS, and @earendil-works/pi-coding-agent.
 # The playwright package lives inside the skills dir and is NOT installed here.
 #
@@ -31,6 +31,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates curl gnupg \
       git ripgrep fd-find jq unzip xz-utils \
+      python3 python3-venv \
       libasound2t64 \
       libatk-bridge2.0-0t64 \
       libcups2t64 \
@@ -82,10 +83,15 @@ USER root
 # Bake Playwright's bundled Chromium into the image straight from the host's
 # ~/.cache/ms-playwright (mounted as the `ms-cache` build context by
 # build-images.sh), so the container never re-downloads Chromium on every run.
-# No staging/copying into the repo happens at all.
-RUN mkdir -p /home/dev/.cache/ms-playwright
-COPY --from=ms-cache chromium-* chromium_headless_shell-* ffmpeg-* /home/dev/.cache/ms-playwright/
-RUN chown -R dev:dev /home/dev/.cache
+# NOTE: this must be a tar pipe, not `COPY --from=ms-cache chromium-* ...`.
+# Docker's COPY copies the *contents* of a directory when the pattern matches
+# exactly one directory, which flattens chromium-1212/… into ms-playwright/
+# and leaves playwright-core unable to find its browser (this shipped broken
+# once). tar preserves the tree exactly.
+RUN --mount=from=ms-cache,target=/ms-cache,readonly mkdir -p /home/dev/.cache/ms-playwright \
+ && cd /ms-cache && tar -cf - chromium-* chromium_headless_shell-* ffmpeg-* \
+      | tar -C /home/dev/.cache/ms-playwright -xf - \
+ && chown -R dev:dev /home/dev/.cache
 
 ENV HOME=/home/dev
 ENV PATH="/home/dev/.local/bin:$PATH"
@@ -99,8 +105,11 @@ ARG NODE_VERSION=v24.19.0
 RUN curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz" \
       | tar -xJ -C /usr/local --strip-components=1
 
-# Pi agent package v0.85.0
-RUN npm install -g @earendil-works/pi-coding-agent@0.85.0
+# Pi agent package v0.85.0. --cache keeps npm's cache out of $HOME: this RUN
+# executes as root with HOME=/home/dev, and a root-owned /home/dev/.npm breaks
+# every later `npm install` as dev.
+RUN npm install -g --cache /tmp/npm-cache @earendil-works/pi-coding-agent@0.85.0 \
+ && rm -rf /home/dev/.npm
 
 # Pre-create ~/.pi owned by dev. Docker creates missing bind-mount parents as
 # root, so without this the runtime auth.json mount leaves /home/dev/.pi/agent
