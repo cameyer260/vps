@@ -4,10 +4,10 @@ Dockerfiles and tooling for the VPS pi agent containers. Lives inside the
 `vps` monorepo — agent context and invariants: [AGENTS.md](../AGENTS.md);
 the jarvis contract: [docs/jarvis.md](../docs/jarvis.md).
 
-- `base.Dockerfile` — shared base: Ubuntu 24.04, a non-root `dev` user, and the
-  CLIs the skills call (`git`, `ripgrep`, `fd`, `jq`, `gh`, `bx`).
-- `agent-pi.Dockerfile` — base + Node + `@earendil-works/pi-coding-agent`.
-  Pi is an npm package and needs Node at install and runtime (`>=22.19.0`).
+- `agent-pi.Dockerfile` — the single agent image: Ubuntu 24.04, a non-root
+  `dev` user, the CLIs the skills call (`git`, `ripgrep`, `fd`, `jq`, `gh`,
+  `bx`), Playwright's bundled Chromium, Node, and
+  `@earendil-works/pi-coding-agent` (needs Node `>=22.19.0`).
 - `build-images.sh` — builds the images; run as `dev` on the VPS.
 - `jarvis.sh` / `jarvis-completion.bash` — the `jarvis` CLI wrapper and its
   bash completion.
@@ -26,7 +26,7 @@ printf 'export PATH="$HOME/bin:$PATH"\n' >> ~/.bashrc
 printf 'source /home/dev/vps/agent-images/jarvis-completion.bash\n' >> ~/.bashrc
 ```
 
-Build the images (no sudo needed; `dev` is in the `docker` group):
+Build the image (no sudo needed; `dev` is in the `docker` group):
 
 ```bash
 jarvis build          # or: /home/dev/vps/agent-images/build-images.sh
@@ -56,7 +56,7 @@ jarvis my-project "refactor the auth"   # one-shot, prints and exits
 jarvis rpc my-project [--session <f>]   # headless pi RPC daemon for the dashboard;
                                         #   prints the container ID
 jarvis projects                         # list host projects
-jarvis build                            # rebuild all images
+jarvis build                            # rebuild the image
 ```
 
 The full contract — modes, container flags, labels, UID/GID resolution,
@@ -70,21 +70,20 @@ workspace/session mounts — is documented once in
 |---|---|---|
 | Pi agent | `agent-pi.Dockerfile` npm install | `@earendil-works/pi-coding-agent@0.85.0` |
 | Node (Pi) | `agent-pi.Dockerfile` `NODE_VERSION` | `v24.19.0` (LTS) |
-| gh, bx, git, rg, fd, jq | `base.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
+| gh, bx, git, rg, fd, jq | `agent-pi.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
 
 Upgrade by editing the exact version in the Dockerfile and rebuilding.
 
 ## Updating
 
-To bump a tool, change its exact version in the relevant Dockerfile and re-run
-`build-images.sh`. Rebuild the base layer when you add CLIs
-or skills dependencies.
+To bump a tool, change its exact version in `agent-pi.Dockerfile` and re-run
+`build-images.sh`.
 
 ## Playwright Chromium is baked in from the host
 
 `build-images.sh` passes the host's already-downloaded Playwright Chromium bundle
-at `/home/dev/.cache/ms-playwright/` to the base build as an extra BuildKit
-context (`--build-context ms-cache=...`), and `base.Dockerfile` does
+at `/home/dev/.cache/ms-playwright/` to the build as an extra BuildKit
+context (`--build-context ms-cache=...`), and `agent-pi.Dockerfile` does
 `COPY --from=ms-cache chromium-* ...` directly from it. Nothing is copied into
 or staged inside the repo, and the container never downloads Chromium at runtime.
 

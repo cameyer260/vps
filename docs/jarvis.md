@@ -3,8 +3,7 @@
 `jarvis` is a bash wrapper (`agent-images/jarvis.sh`, symlinked onto the VPS
 PATH at `~/bin/jarvis`) around a `docker run` statement that launches **pi**
 (the `@earendil-works/pi-coding-agent` CLI) inside a container built from the
-`agent-pi` image (which stacks on a `base` image — see
-[agent-images/README.md](../agent-images/README.md)).
+`agent-pi` image (see [agent-images/README.md](../agent-images/README.md)).
 
 **This file is the single source of truth for jarvis's behavior.** The
 dashboard shells out to it and never re-derives the flags; the canonical

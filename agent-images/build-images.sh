@@ -12,7 +12,7 @@ DEV_UID=$(id -u)
 DEV_GID=$(id -g)
 
 # The host's Playwright Chromium bundle is passed to the base build as an extra
-# BuildKit context (`ms-cache`, consumed by COPY --from in base.Dockerfile), so
+# BuildKit context (`ms-cache`, consumed by COPY --from in agent-pi.Dockerfile), so
 # nothing is copied or staged inside the repo. Bail if a required browser dir
 # is missing (version drift vs installed pw-core).
 MS_CACHE=/home/dev/.cache/ms-playwright
@@ -25,13 +25,10 @@ done
 
 echo "==> Baking Playwright browsers from $MS_CACHE (ms-cache build context)"
 
-echo "==> Building agent-base (dev uid=$DEV_UID gid=$DEV_GID)"
+echo "==> Building agent-pi (dev uid=$DEV_UID gid=$DEV_GID)"
 docker build --build-arg DEV_UID="$DEV_UID" --build-arg DEV_GID="$DEV_GID" \
   --build-context ms-cache="$MS_CACHE" \
-  -f base.Dockerfile -t agent-base .
-
-echo "==> Building agent-pi"
-docker build -f agent-pi.Dockerfile -t agent-pi .
+  -f agent-pi.Dockerfile -t agent-pi .
 
 
 # Rebuilding moves tags onto the new images, leaving the previous ones
