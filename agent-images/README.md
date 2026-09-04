@@ -1,8 +1,8 @@
 # agent-images
 
-Dockerfiles and tooling for the VPS pi agent containers (original plan: Phase 7
-in `vps-plan.md`). Lives inside the `vps` monorepo — see the [root
-README](../README.md) for the full VPS/jarvis context.
+Dockerfiles and tooling for the VPS pi agent containers. Lives inside the
+`vps` monorepo — agent context and invariants: [AGENTS.md](../AGENTS.md);
+the jarvis contract: [docs/jarvis.md](../docs/jarvis.md).
 
 - `base.Dockerfile` — shared base: Ubuntu 24.04, a non-root `dev` user, and the
   CLIs the skills call (`git`, `ripgrep`, `fd`, `jq`, `gh`, `bx`).
@@ -37,36 +37,16 @@ no matter where they point.
 
 ## Credentials (never baked in)
 
-OAuth tokens are mounted rw at runtime so the auto-refreshing sessions persist
-on the host:
+Credentials live on the host and are mounted or passed into containers at
+runtime — never baked into image layers. The full table (pi auth, skills,
+bx.env, gh) lives in [docs/vps.md](../docs/vps.md), including how to create
+the `bx.env` env file once on the VPS.
 
-- Pi:      `-v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json`
-- Skills:  `-v /home/dev/.agents:/home/dev/.agents:ro`  (whole dir; skill symlinks point into `packages/`)
-
-Brave Search (`bx`) uses a host env file, not an image layer. Create it once
-on the VPS as `dev`:
-
-```bash
-mkdir -p /home/dev/.config/bx
-printf 'BRAVE_SEARCH_API_KEY=thekey\n' > /home/dev/.config/bx/bx.env
-chmod 600 /home/dev/.config/bx/bx.env
-```
-
-Pass it on every `docker run` (on `agent-pi`):
-
-```bash
---env-file /home/dev/.config/bx/bx.env
-```
-
-You log into Pi once with the auth mounts; the Brave key is the env file.
-
-## Shortcuts: `jarvis`
+## `jarvis` quick reference
 
 `jarvis.sh` wraps the pi `docker run` command into one entrypoint. It
 pre-creates a workspace if it doesn't exist (mkdir + `git init` when there is no
-`.git` yet — dashboard agents rely on the repo existing). jarvis runs as `dev`, so
-the mkdir already makes dev-owned dirs; Docker's plain `-v` on a missing dir would
-create it as root, which the container's `dev` user can't write to.
+`.git` yet — dashboard agents rely on the repo existing).
 
 Usage:
 
@@ -79,34 +59,10 @@ jarvis projects                         # list host projects
 jarvis build                            # rebuild all images
 ```
 
-`PROJECT` may be a bare name (resolved under `/home/dev/projects`) or an
-absolute path. A `TASK` argument switches the container to one-shot mode.
-Auth mounts (pi) are added only when the host files exist, and the
-script warns otherwise. Override the project root with `AGENT_PROJECTS_DIR`.
-
-`jarvis rpc` runs `pi --mode rpc` detached (`-d -i`, never `-t`) with the extra label
-`agent.origin=dashboard`, loads the dashboard's read-only extension from the repo
-(`dashboard/pi-extension/read-only.ts`) via `pi -e`, and passes `PI_DASHBOARD_READONLY`
-into the container when set in jarvis's environment. The dashboard shells out to it and
-then talks Docker API directly; TUI/one-shot usage is unchanged.
-
-Containers get no `--name` (multiple agents can run on one project
-concurrently) and are instead labeled `agent.kind=pi` and
-`agent.project=<basename>` — the fields the dashboard filters on
-(`agent.origin=dashboard` marks dashboard-started ones).
-
-The dev UID/GID for `--user` resolve as `${AGENT_UID:-$(id -u dev)}`: unset (normal SSH
-use) does the `id` lookup as before. The dashboard container, which has no `dev` user
-of its own, is deployed with `AGENT_UID`/`AGENT_GID` set, and they are inherited by
-every jarvis invocation it makes.
-
-Workspaces are mounted at their real host path (`/home/dev/projects/foo`, workdir
-there) and `/home/dev/.pi/agent/sessions` is mounted rw at the same path (override
-with `PI_SESSIONS_DIR`), so sessions group under the same project as host pi sessions
-and resuming works across dashboard and SSH/TUI worlds.
-
-The canonical `docker run` statements (what jarvis invokes) are documented in
-`docker-run.md`.
+The full contract — modes, container flags, labels, UID/GID resolution,
+workspace/session mounts — is documented once in
+[docs/jarvis.md](../docs/jarvis.md). The canonical `docker run` statements
+(what jarvis invokes) are in [docker-run.md](docker-run.md).
 
 ## Versions (hardcoded in the Dockerfiles)
 
