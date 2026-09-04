@@ -36,6 +36,11 @@
 # makes dev-owned dirs; Docker's plain -v on a missing dir would create it as
 # root, which the container's dev user cannot write to.
 #
+# Every agent gets a short environment-context prompt appended to pi's system
+# prompt (--append-system-prompt, all modes): it states that it runs in an
+# ephemeral container and that the workspace is its task area and only output
+# location. Text is defined in AGENT_CONTEXT below.
+#
 # Workspaces are mounted at their real host path (/home/dev/projects/foo,
 # workdir there) and /home/dev/.pi/agent/sessions is mounted rw at the same
 # path, so container sessions group under the same project as host pi sessions
@@ -55,6 +60,13 @@ PI_SETTINGS=/home/dev/.pi/agent/settings.json
 SESSIONS_DIR="${PI_SESSIONS_DIR:-/home/dev/.pi/agent/sessions}"
 SHOTS_DIR="${SCREENSHOTS_DIR:-/home/dev/screenshots}"
 
+# Environment context appended to every agent's system prompt (see header
+# above). Deliberately factual: agents can verify each claim, and an
+# overstated prompt gets discounted once contradicted (e.g. sessions DO
+# persist outside the workspace — pi writes them there).
+AGENT_CONTEXT="You are a pi agent running in an ephemeral Docker container on the operator's VPS (Ubuntu 24.04, user dev, no sudo, no GUI), launched by jarvis. The workspace (your current directory) is your task area and your deliverable. Everything else is either read-only, pi's own bookkeeping (~/.pi/agent), or ephemeral container space that vanishes on exit — none of it is yours to use. Skills live in /home/dev/.agents (read-only); models are accessed via the OpenRouter provider. You exist to complete the task(s) assigned in this workspace; if that seems to require leaving it, report back instead."
+PI_ENV_ARGS=( --append-system-prompt "$AGENT_CONTEXT" )
+
 HERE="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
 # Monorepo root (repo is cloned to /home/dev/vps on the VPS). Used to locate
 # the dashboard's pi extension, which gets mounted read-only into rpc agents.
@@ -66,7 +78,7 @@ usage() {
   # Prints the comment header above as help text.
   # If you add or remove header comment lines, update the range here to match:
   #   from the line after shebang to the last header line.
-  sed -n '2,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,52p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-0}"
 }
 
@@ -163,10 +175,12 @@ pi_cmd() {
 
   if (( $# > 0 )); then
     # One-shot: print the response and exit. Extra stdin is passed through.
-    docker run -i "${BASE_ARGS[@]}" "$image" pi -p --approve "$@"
+    docker run -i "${BASE_ARGS[@]}" "$image" pi \
+      ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} -p --approve "$@"
   else
     # Interactive TUI; -a trusts project-local files.
-    docker run -it "${BASE_ARGS[@]}" "$image" pi -a
+    docker run -it "${BASE_ARGS[@]}" "$image" pi \
+      ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} -a
   fi
 }
 
@@ -200,7 +214,7 @@ rpc_cmd() {
   docker run -d -i "${BASE_ARGS[@]}" \
     ${ext_mount[@]+"${ext_mount[@]}"} \
     ${ro_env[@]+"${ro_env[@]}"} \
-    "$image" pi --mode rpc -a ${ext_flags[@]+"${ext_flags[@]}"} "$@"
+    "$image" pi ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} --mode rpc -a ${ext_flags[@]+"${ext_flags[@]}"} "$@"
 }
 
 list_projects() {

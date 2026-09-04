@@ -11,6 +11,10 @@ path so a pasted host path reads verbatim inside the container.
 Create missing host dirs as `dev` before the run (plain Docker `-v` would create them
 root-owned, which the container's dev user can't write to).
 
+jarvis additionally passes `--append-system-prompt "$AGENT_CONTEXT"` to every `pi`
+invocation below (environment context + workspace-only policy; text lives in
+`jarvis.sh`). Omitted from the statements here for readability.
+
 ## Pi — interactive
 
 Drop into the TUI. `-a` / `--approve` trusts project-local files.

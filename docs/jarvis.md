@@ -75,6 +75,13 @@ dashboard-launched agents alike.
   — shared defaults: provider/model/thinking level; read-only so agents
   can't rewrite host settings.
 - `--env-file /home/dev/.config/bx/bx.env` — Brave Search API key.
+- `--append-system-prompt "$AGENT_CONTEXT"` (all modes) — a short
+  environment-context paragraph appended to pi's system prompt: the agent is
+  told it runs in an ephemeral container, that the workspace is its task area
+  and only output location, and to report back rather than leave the
+  workspace. Defined inline in `jarvis.sh` (`AGENT_CONTEXT`); deliberately
+  factual so agents can verify each claim (sessions, for instance, do persist
+  outside the workspace — pi writes them there).
 - Labels: `agent.kind=pi`, `agent.project=<project-basename>`. **No
   `--name`** — multiple agents can run on one project concurrently;
   discover agents via labels, never container names.

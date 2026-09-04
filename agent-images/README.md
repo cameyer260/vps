@@ -62,7 +62,9 @@ jarvis build                            # rebuild the image
 The full contract — modes, container flags, labels, UID/GID resolution,
 workspace/session mounts — is documented once in
 [docs/jarvis.md](../docs/jarvis.md). The canonical `docker run` statements
-(what jarvis invokes) are in [docker-run.md](docker-run.md).
+(what jarvis invokes) are in [docker-run.md](docker-run.md). Every agent also
+gets a short environment-context prompt (container awareness + workspace-only
+policy) appended to pi's system prompt via `--append-system-prompt`.
 
 ## Versions (hardcoded in the Dockerfiles)
 
