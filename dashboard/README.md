@@ -43,7 +43,7 @@ ChatGPT-style: streaming markdown responses, composer with a single send/stop
 button (no steering — while a turn runs the composer doesn't send; Enter is
 ignored until the turn settles), collapsible tool-call activity, thinking
 blocks, model / thinking-level switching (`set_model`, `set_thinking_level`,
-fanned out to all tabs), read-only toggle driven by the agent's own notifies.
+fanned out to all tabs), and a read-only toggle that mirrors the agent's live mode.
 
 ### 4. Notes viewer
 Obsidian clone over `/home/dev/notes`: file tree, multiple files open as tabs,
