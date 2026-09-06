@@ -65,6 +65,11 @@ export class Bridge {
     sessionName?: string | null;
     sessionFile?: string | null;
   } = {};
+  /** Name supplied at spawn time (`-n`), when the dashboard started this
+   *  agent with one. Sticky: overrides every later auto-generated name so
+   *  the UI never flashes pi's session_info title. Null for unnamed spawns
+   *  and attaches — those keep following live renames as before. */
+  explicitName: string | null = null;
 
   /** Last read-only mode observed from extension notifies; null = never seen. */
   private readOnly: boolean | null = null;
@@ -82,8 +87,13 @@ export class Bridge {
     this.project = project;
   }
 
-  static async create(containerId: string, project: string): Promise<Bridge> {
+  static async create(
+    containerId: string,
+    project: string,
+    opts: { explicitName?: string } = {},
+  ): Promise<Bridge> {
     const bridge = new Bridge(containerId, project);
+    if (opts.explicitName) bridge.explicitName = opts.explicitName;
     await bridge.attach();
     return bridge;
   }
@@ -136,6 +146,9 @@ export class Bridge {
       sessionName: "sessionName" in data ? ((data["sessionName"] as string | undefined) ?? null) : this.state.sessionName,
       sessionFile: "sessionFile" in data ? ((data["sessionFile"] as string | undefined) ?? null) : this.state.sessionFile,
     };
+    // The user-named session keeps its spawn name no matter what pi's
+    // auto-titling puts into session_info afterwards.
+    if (this.explicitName) this.state.sessionName = this.explicitName;
   }
 
   /** After a successful state-mutating command: refresh the cache and fan a
@@ -202,6 +215,11 @@ export class Bridge {
       const route = id ? this.routes.get(id) : undefined;
       if (route) {
         this.routes.delete(id!);
+        // Rewrite get_state bodies for user-named sessions so every client
+        // sees the spawn name, never pi's auto-generated session_info title.
+        if (obj.command === "get_state" && this.explicitName && typeof obj.data === "object" && obj.data !== null) {
+          (obj.data as Record<string, unknown>)["sessionName"] = this.explicitName;
+        }
         const { externalId, deliver } = route;
         const payload = {
           type: "response",
@@ -403,10 +421,19 @@ export class Bridge {
 
 export const bridges = new Map<string, Bridge>();
 
-export async function ensureBridge(containerId: string, project: string): Promise<Bridge> {
+export async function ensureBridge(
+  containerId: string,
+  project: string,
+  opts: { explicitName?: string } = {},
+): Promise<Bridge> {
   const existing = bridges.get(containerId);
-  if (existing) return existing;
-  const bridge = await Bridge.create(containerId, project);
+  if (existing) {
+    // A just-started agent's first list/attach may race the start route;
+    // either way the spawn name must stick.
+    if (opts.explicitName && !existing.explicitName) existing.explicitName = opts.explicitName;
+    return existing;
+  }
+  const bridge = await Bridge.create(containerId, project, opts);
   bridges.set(containerId, bridge);
   return bridge;
 }

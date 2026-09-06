@@ -93,7 +93,10 @@ async function summarize(
     } catch {
       continue;
     }
-    if (entry.type === "session_info" && entry.name) name = entry.name;
+    // First session_info wins: it's the spawn-time name (user-supplied or
+    // pi's initial title). Later auto-generated session_info renames must
+    // not mask what the conversation was created as.
+    if (!name && entry.type === "session_info" && entry.name) name = entry.name;
     if (!preview && entry.type === "message" && entry.message?.role === "user") {
       preview = truncate(messageText(entry.message.content), 140);
     }

@@ -88,7 +88,9 @@ api.post("/agents/start", async (c) => {
   const name = body.name?.trim().slice(0, 200) || undefined;
 
   const containerId = await startAgent({ project: dir, sessionPath, name, readOnly: !!body.readOnly });
-  await ensureBridge(containerId, project).catch(() => undefined);
+  // Pass the spawn name so the bridge can pin it: pi's auto-generated
+  // session_info titles must never override a user-provided name.
+  await ensureBridge(containerId, project, { explicitName: name }).catch(() => undefined);
   return c.json({ id: containerId, project });
 });
 
