@@ -1,4 +1,4 @@
-import type { AgentInfo, PiModel, SessionSummary, SkillInfo, TreeNode } from "./types";
+import type { AgentInfo, PiModel, SessionSummary, SkillInfo, TreeNode, UploadedFile } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
@@ -17,6 +17,11 @@ export const api = {
     ),
   allModels: () => fetch("/api/models").then((r) => json<{ models: PiModel[] }>(r)),
   skills: () => fetch("/api/skills").then((r) => json<{ skills: SkillInfo[] }>(r)),
+  upload: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return fetch("/api/upload", { method: "POST", body: fd }).then((r) => json<UploadedFile>(r));
+  },
   startAgent: (body: {
     project: string;
     sessionPath?: string;

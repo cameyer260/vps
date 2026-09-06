@@ -172,6 +172,40 @@ api.get("/git/status", async (c) => {
 
 // ---- notes viewer --------------------------------------------------------
 
+// ---- chat attachments -----------------------------------------------------
+
+const UPLOAD_MAX_BYTES = 10 << 20; // 10 MiB per file
+
+/** Stateless upload: validates the size cap server-side and hands the bytes
+ *  (base64) back for embedding in the RPC `prompt` (images) or the message
+ *  text (text-like files). Nothing is persisted. */
+api.post("/upload", async (c) => {
+  const declared = c.req.header("content-length");
+  if (declared && Number(declared) > UPLOAD_MAX_BYTES * 1.34 + 4096) {
+    return c.json({ error: `file too large (max ${Math.floor(UPLOAD_MAX_BYTES / (1 << 20))} MiB)` }, 413);
+  }
+  const body = await c.req.parseBody();
+  const file = body["file"];
+  if (!(file instanceof File)) {
+    return c.json({ error: "multipart field 'file' is required" }, 400);
+  }
+  if (file.size > UPLOAD_MAX_BYTES) {
+    return c.json({ error: `file too large (max ${Math.floor(UPLOAD_MAX_BYTES / (1 << 20))} MiB)` }, 413);
+  }
+  if (file.size === 0) {
+    return c.json({ error: "empty file" }, 400);
+  }
+  const buf = Buffer.from(await file.arrayBuffer());
+  const mimeType = file.type || "application/octet-stream";
+  return c.json({
+    name: file.name || "file",
+    mimeType,
+    size: file.size,
+    image: mimeType.startsWith("image/"),
+    data: buf.toString("base64"),
+  });
+});
+
 api.get("/notes/tree", async (c) => {
   return c.json({ tree: await notesTree() });
 });

@@ -5,6 +5,19 @@ export interface SkillInfo {
   description: string;
 }
 
+/** Chat attachment as shown on a sent message. */
+export interface AttachmentView {
+  name: string;
+  mimeType: string;
+  size?: number;
+  image?: boolean;
+}
+
+/** Result of POST /api/upload. */
+export interface UploadedFile extends AttachmentView {
+  data: string; // base64
+}
+
 export interface AgentInfo {
   id: string;
   name: string;
@@ -48,6 +61,7 @@ export interface ToolCallBlock {
 export type ContentBlock =
   | { type: "text"; text: string }
   | { type: "thinking"; thinking: string }
+  | { type: "image"; data?: string; mimeType?: string }
   | ToolCallBlock;
 
 export interface PiMessage {
@@ -59,6 +73,7 @@ export interface PiMessage {
   toolCallId?: string;
   toolName?: string;
   isError?: boolean;
+  attachments?: Array<{ fileName?: string; mimeType?: string; size?: number }>;
 }
 
 export interface PiEntry {
@@ -127,7 +142,7 @@ export interface ToolView {
 }
 
 export type Item =
-  | { kind: "user"; text: string; provisional: boolean }
+  | { kind: "user"; text: string; provisional: boolean; attachments?: AttachmentView[] }
   | {
       kind: "assistant";
       text: string[];

@@ -4,6 +4,12 @@ import remarkGfm from "remark-gfm";
 import { api } from "../api";
 import type { Item, PiModel } from "../types";
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1 << 20) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1 << 20)).toFixed(1)} MB`;
+}
+
 export function Markdown({ children }: { children: string }) {
   return (
     <div className="md">
@@ -16,7 +22,30 @@ export function MessageView({ item }: { item: Item }) {
   if (item.kind === "user") {
     return (
       <div className="msg user">
-        <div className="bubble">{item.text}</div>
+        <div className="bubble">
+          {item.attachments && item.attachments.length > 0 && (
+            <div className="att-chips">
+              {item.attachments.map((a, i) => (
+                <span key={i} className="att-chip" title={`${a.name} (${a.mimeType})`}>
+                  {a.image ? (
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="M21 15l-5-5L5 21" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  )}
+                  <span className="att-name">{a.name}</span>
+                  {typeof a.size === "number" && <span className="att-size">{formatSize(a.size)}</span>}
+                </span>
+              ))}
+            </div>
+          )}
+          {item.text}
+        </div>
       </div>
     );
   }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef } from "react";
 import type {
   AgentInfo,
   AssistantMessageEvent,
+  AttachmentView,
   ContentBlock,
   Item,
   Notice,
@@ -101,6 +102,25 @@ function blocksToText(content: unknown): string {
     .join("\n\n");
 }
 
+/** Attachment chips derivable from a pi user message (live echo or
+ *  committed entry): image content blocks + the message's attachments list. */
+function userAttachments(msg: PiMessage): AttachmentView[] | undefined {
+  const out: AttachmentView[] = [];
+  if (Array.isArray(msg.content)) {
+    for (const b of msg.content as ContentBlock[]) {
+      if (b.type === "image") {
+        out.push({ name: "image", mimeType: (b as { mimeType?: string }).mimeType ?? "image/png", image: true });
+      }
+    }
+  }
+  for (const a of msg.attachments ?? []) {
+    const image = (a.mimeType ?? "").startsWith("image/");
+    if (image && out.some((x) => x.image && x.name === (a.fileName ?? "image"))) continue;
+    out.push({ name: a.fileName ?? (image ? "image" : "file"), mimeType: a.mimeType ?? "application/octet-stream", size: a.size, image });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
 function resultText(content: unknown): string {
   if (!Array.isArray(content)) return "";
   return (content as Array<{ type: string; text?: string }>)
@@ -162,7 +182,7 @@ type Action =
   | { type: "state"; data: Record<string, unknown> }
   | { type: "models"; models: PiModel[] }
   | { type: "thinking_levels"; levels: string[] }
-  | { type: "sent_local"; text: string }
+  | { type: "sent_local"; text: string; attachments?: AttachmentView[] }
   | { type: "notice"; text: string; level?: Notice["level"] }
   | { type: "exited" };
 
@@ -198,7 +218,10 @@ function applyEvent(state: ChatState, event: PiEvent): ChatState {
         if (!text || text.startsWith("/")) return state;
         const last = state.items[state.items.length - 1];
         if (last?.kind === "user" && last.text === text) return state;
-        return { ...state, items: [...state.items, { kind: "user", text, provisional: true }] };
+        return {
+          ...state,
+          items: [...state.items, { kind: "user", text, provisional: true, attachments: userAttachments(msg) }],
+        };
       }
       return state;
     }
@@ -382,7 +405,8 @@ function entryToItems(state: ChatState, entry: PiEntry): { items: Item[]; id?: s
       const keptProvisional = state.items.some(
         (it) => it.kind === "user" && it.provisional && it.text === text,
       );
-      if (text && !keptProvisional) items.push({ kind: "user", text, provisional: false });
+      if (text && !keptProvisional)
+        items.push({ kind: "user", text, provisional: false, attachments: userAttachments(msg) });
     } else if (msg.role === "assistant") {
       items.push({
         kind: "assistant",
@@ -462,7 +486,10 @@ function reducer(state: ChatState, action: Action): ChatState {
     case "sent_local": {
       const last = state.items[state.items.length - 1];
       if (last?.kind === "user" && last.text === action.text) return state;
-      return { ...state, items: [...state.items, { kind: "user", text: action.text, provisional: true }] };
+      return {
+        ...state,
+        items: [...state.items, { kind: "user", text: action.text, provisional: true, attachments: action.attachments }],
+      };
     }
     case "notice":
       return pushNotice(state, action.text, action.level ?? "info");
@@ -475,12 +502,20 @@ function reducer(state: ChatState, action: Action): ChatState {
 
 // ---- hook --------------------------------------------------------------------
 
+export interface PromptImage {
+  type: "image";
+  data: string; // base64
+  mimeType: string;
+}
+
 interface ChatApi {
   state: ChatState;
-  send: (text: string) => void;
+  send: (text: string, images?: PromptImage[], attachments?: AttachmentView[]) => void;
   abort: () => void;
   setModel: (provider: string, modelId: string) => void;
   setThinkingLevel: (level: string) => void;
+  /** Push a client-side notice into the chat's notice rail. */
+  notice: (text: string, level?: Notice["level"]) => void;
 }
 
 export function useChat(agent: AgentInfo): ChatApi {
@@ -659,13 +694,17 @@ export function useChat(agent: AgentInfo): ChatApi {
   const api = useMemo<ChatApi>(
     () => ({
       state,
-      send: (text: string) => {
+      send: (text: string, images?: PromptImage[], attachments?: AttachmentView[]) => {
         // No steering: while a turn runs the composer doesn't send. Slash
         // commands still go through — pi executes extension commands
         // immediately even mid-turn (that's how /read-only toggles).
         if (stateRef.current.status === "streaming" && !text.startsWith("/")) return;
-        if (!text.startsWith("/")) dispatch({ type: "sent_local", text });
-        command({ type: "prompt", message: text }).catch((err) =>
+        if (!text.startsWith("/")) dispatch({ type: "sent_local", text, attachments });
+        command({
+          type: "prompt",
+          message: text,
+          ...(images && images.length > 0 ? { images } : {}),
+        }).catch((err) =>
           dispatch({ type: "notice", text: String(err.message ?? err), level: "error" }),
         );
       },
@@ -692,6 +731,8 @@ export function useChat(agent: AgentInfo): ChatApi {
           })
           .catch(() => {});
       },
+      notice: (text: string, level?: Notice["level"]) =>
+        dispatch({ type: "notice", text, level }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state],

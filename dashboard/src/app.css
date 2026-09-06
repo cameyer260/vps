@@ -681,6 +681,111 @@ details.thinking summary {
   min-height: 44px;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.attach-btn {
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* pending attachments row (above the input) */
+.pending-files {
+  order: -1;
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+
+.pending-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 4px 8px;
+  font-size: 12.5px;
+  max-width: 260px;
+}
+
+.pending-thumb {
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.pending-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.pending-size {
+  color: var(--text-dim);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.pending-remove {
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+.pending-remove:hover {
+  color: var(--red);
+}
+
+/* attachment chips on sent messages */
+.att-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 7px;
+}
+
+.att-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(76, 141, 255, 0.12);
+  border: 1px solid rgba(76, 141, 255, 0.35);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 12px;
+  max-width: 220px;
+}
+
+.att-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.att-size {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
 .composer textarea:focus {
   outline: none;
   border-color: var(--accent);

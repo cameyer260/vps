@@ -1,9 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "../chat";
 import { api } from "../api";
-import type { AgentInfo, SkillInfo } from "../types";
+import type { AgentInfo, AttachmentView, SkillInfo } from "../types";
+import type { PromptImage } from "../chat";
 import { MessageView, ModelPicker } from "./MessageView";
 import { TerminateButton } from "./TerminateButton";
+
+interface PendingFile {
+  id: string;
+  file: File;
+  previewUrl?: string; // object URL for images
+}
+
+const TEXT_FILE_RE = /^(text\/|application\/json|application\/xml|application\/javascript|application\/x-yaml|application\/toml)/i;
+const TEXT_EXT_RE = /\.(md|txt|json|csv|tsv|ya?ml|toml|xml|html?|css|js|jsx|ts|tsx|py|rb|go|rs|java|kt|c|h|cpp|hpp|sh|bash|zsh|sql|ini|cfg|conf|env|log|diff|patch)$/i;
+
+function isImageFile(f: File): boolean {
+  return f.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(f.name);
+}
+
+function isTextFile(f: File): boolean {
+  return TEXT_FILE_RE.test(f.type) || TEXT_EXT_RE.test(f.name) || f.type === "";
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1 << 20) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1 << 20)).toFixed(1)} MB`;
+}
+
+function base64ToUtf8(b64: string): string {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
 
 interface Props {
   agent: AgentInfo;
@@ -23,6 +54,18 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
   const [skills, setSkills] = useState<SkillInfo[] | null>(null);
   const [skillIdx, setSkillIdx] = useState(0);
   const [dismissedToken, setDismissedToken] = useState<string | null>(null);
+  // Attachments: picked files are uploaded on send (server enforces the size
+  // cap); images ride the RPC prompt's images field, text-like files are
+  // inlined as fenced blocks so model and UI see the same content.
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [preparing, setPreparing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    return () => {
+      for (const p of pendingFiles) if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     api
       .skills()
@@ -75,11 +118,68 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
     nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
 
-  const submit = () => {
-    if (streaming) return; // no steer — Enter is ignored until the turn settles
+  const addFiles = (files: FileList | null) => {
+    if (!files) return;
+    const next: PendingFile[] = [];
+    for (const file of files) {
+      if (!isImageFile(file) && !isTextFile(file)) continue; // silently skip unsupported
+      next.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        previewUrl: isImageFile(file) ? URL.createObjectURL(file) : undefined,
+      });
+    }
+    if (next.length === 0) return;
+    setPendingFiles((p) => [...p, ...next]);
+  };
+
+  const removePending = (id: string) => {
+    setPendingFiles((p) => {
+      const hit = p.find((f) => f.id === id);
+      if (hit?.previewUrl) URL.revokeObjectURL(hit.previewUrl);
+      return p.filter((f) => f.id !== id);
+    });
+  };
+
+  const submit = async () => {
+    if (streaming || preparing) return; // no steer — Enter is ignored until the turn settles
     const text = input.trim();
-    if (!text) return;
-    chat.send(text);
+    if (!text && pendingFiles.length === 0) return;
+
+    if (pendingFiles.length === 0) {
+      chat.send(text);
+    } else {
+      setPreparing(true);
+      try {
+        const uploads = await Promise.all(pendingFiles.map((p) => api.upload(p.file)));
+        const images: PromptImage[] = [];
+        let message = text;
+        for (const u of uploads) {
+          if (u.image) {
+            images.push({ type: "image", data: u.data, mimeType: u.mimeType });
+          } else {
+            message += `\n\n[attached file: ${u.name}]\n\`\`\`\n${base64ToUtf8(u.data)}\n\`\`\``;
+          }
+        }
+        const attachments: AttachmentView[] = uploads.map((u) => ({
+          name: u.name,
+          mimeType: u.mimeType,
+          size: u.size,
+          image: u.image,
+        }));
+        chat.send(message || "(see attachments)", images.length > 0 ? images : undefined, attachments);
+        for (const p of pendingFiles) if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+        setPendingFiles([]);
+        setInput("");
+        setDismissedToken(null);
+        nearBottomRef.current = true;
+      } catch (err) {
+        chat.notice(`upload failed: ${String((err as Error).message ?? err)}`, "error");
+      } finally {
+        setPreparing(false);
+      }
+      return;
+    }
     setInput("");
     setDismissedToken(null);
     nearBottomRef.current = true;
@@ -112,7 +212,7 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      submit();
+      void submit();
     }
   };
 
@@ -213,11 +313,67 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
               ))}
             </div>
           )}
+          {pendingFiles.length > 0 && (
+            <div className="pending-files">
+              {pendingFiles.map((p) => (
+                <span key={p.id} className="pending-file">
+                  {p.previewUrl ? (
+                    <img src={p.previewUrl} alt={p.file.name} className="pending-thumb" />
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  )}
+                  <span className="pending-name" title={p.file.name}>{p.file.name}</span>
+                  <span className="pending-size">{formatSize(p.file.size)}</span>
+                  <button
+                    type="button"
+                    className="pending-remove"
+                    onClick={() => removePending(p.id)}
+                    aria-label={`Remove ${p.file.name}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.md,.txt,.json,.csv,.tsv,.yaml,.yml,.toml,.xml,.html,.css,.js,.jsx,.ts,.tsx,.py,.rb,.go,.rs,.java,.c,.h,.cpp,.sh,.sql,.log,.diff,.patch"
+            className="visually-hidden"
+            tabIndex={-1}
+            onChange={(e) => {
+              addFiles(e.target.files);
+              e.target.value = ""; // allow re-picking the same file
+            }}
+          />
+          <button
+            type="button"
+            className="btn ghost attach-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={streaming || preparing}
+            title="Attach images or text files"
+            aria-label="Attach files"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </button>
           <textarea
             value={input}
             placeholder={streaming ? "agent is running — stop it to send…" : "message the agent… ( / for skills)"}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onComposerKeyDown}
+            onPaste={(e) => {
+              const files = Array.from(e.clipboardData.files);
+              if (files.length > 0) {
+                e.preventDefault();
+                addFiles(e.clipboardData.files);
+              }
+            }}
             rows={1}
           />
           {streaming ? (
@@ -225,8 +381,14 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
               ■
             </button>
           ) : (
-            <button className="btn primary send-btn" onClick={submit} disabled={!input.trim()} title="Send" aria-label="Send">
-              ↑
+            <button
+              className="btn primary send-btn"
+              onClick={() => void submit()}
+              disabled={(!input.trim() && pendingFiles.length === 0) || preparing}
+              title={preparing ? "Uploading…" : "Send"}
+              aria-label={preparing ? "Uploading" : "Send"}
+            >
+              {preparing ? "…" : "↑"}
             </button>
           )}
         </div>
