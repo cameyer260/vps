@@ -220,7 +220,9 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
     <div className="chat">
       <header className="chat-head">
         <button className="btn ghost back" onClick={onBack} aria-label="Back">
-          ←
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M19 12H5m7-7-7 7 7 7" />
+          </svg>
         </button>
         <div className="chat-title">
           <span className="chat-name">{state.sessionName || agent.sessionName || agent.name || "agent"}</span>
@@ -378,7 +380,9 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
           />
           {streaming ? (
             <button className="btn stop send-btn" onClick={() => chat.abort()} title="Stop" aria-label="Stop">
-              ■
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
             </button>
           ) : (
             <button
@@ -388,7 +392,13 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
               title={preparing ? "Uploading…" : "Send"}
               aria-label={preparing ? "Uploading" : "Send"}
             >
-              {preparing ? "…" : "↑"}
+              {preparing ? (
+                "…"
+              ) : (
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 19V5m-7 7 7-7 7 7" />
+                </svg>
+              )}
             </button>
           )}
         </div>

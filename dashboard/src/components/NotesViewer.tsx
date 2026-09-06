@@ -88,14 +88,29 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
     <div className="notes">
       <header className="notes-head">
         <button className="btn ghost back" onClick={onBack} aria-label="Back">
-          ←
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M19 12H5m7-7-7 7 7 7" />
+          </svg>
         </button>
         <button className="btn ghost tree-btn" onClick={() => setTreeOpen(true)} aria-label="Files">
-          ☰
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M9 4v16" />
+          </svg>
         </button>
-        <span className="notes-title">📝 {notesName}</span>
+        <span className="notes-title">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+            <path d="M14 3v5h5" />
+          </svg>
+          {notesName}
+        </span>
         <button className="btn ghost" onClick={() => setSearchOpen(true)}>
-          🔍 search
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }}>
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          search
         </button>
         <button
           className="btn primary"

@@ -55,6 +55,14 @@ export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenN
   if (managed.length === 0 && sections.length === 0) {
     return (
       <div className="empty">
+        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <rect x="4" y="7" width="16" height="12" rx="3" />
+          <path d="M12 7V4" />
+          <circle cx="12" cy="3" r="1" fill="currentColor" stroke="none" />
+          <circle cx="9" cy="12.5" r="1" fill="currentColor" stroke="none" />
+          <circle cx="15" cy="12.5" r="1" fill="currentColor" stroke="none" />
+          <path d="M9.5 16h5" />
+        </svg>
         <p>No dashboard agents running.</p>
         <p className="dim">Start one to chat with pi on one of your projects.</p>
         <button className="btn primary" onClick={() => onStart()}>
@@ -70,7 +78,13 @@ export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenN
         <section key={project} className={`section${project === notesName ? " pinned" : ""}`}>
           <div className="section-head">
             <span className="section-title">
-              {project === notesName ? `📝 ${notesName}` : project}
+              {project === notesName && (
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 3v5h5" />
+                </svg>
+              )}
+              {project === notesName ? notesName : project}
             </span>
             <span className="section-actions">
               {project === notesName && onStarted && (

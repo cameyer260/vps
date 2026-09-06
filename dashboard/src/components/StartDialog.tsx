@@ -97,7 +97,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
             }}
             className="select"
           >
-            <option value={notesName}>📝 {notesName} (pinned)</option>
+            <option value={notesName}>{notesName} (pinned)</option>
             {projects.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -121,7 +121,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
             setPullError(null);
           }}
         >
-          {mode === "existing" ? "+ new project…" : "← pick an existing project"}
+          {mode === "existing" ? "+ new project…" : "↩ pick an existing project"}
         </button>
 
         {isNotes && (

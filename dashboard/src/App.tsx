@@ -111,7 +111,12 @@ export default function App() {
       {menuOpen && <div className="scrim" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar${menuOpen ? " open" : ""}`}>
         <div className="sidebar-head">
-          <span className="brand">jarvis</span>
+          <span className="brand">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <path d="M13 2 4.8 13.2c-.3.5 0 1.1.6 1.1h4.9l-1.6 7.2c-.1.6.6.9 1 .4L18 10.6c.3-.5 0-1.1-.6-1.1h-4.9l1.5-6.9c.1-.6-.6-.9-1-.6z" />
+            </svg>
+            dashboard
+          </span>
           <button className="btn primary" onClick={() => openStart()}>
             + New agent
           </button>
@@ -179,7 +184,9 @@ export default function App() {
       )}
 
       <button className="menu-btn" onClick={() => setMenuOpen(true)} aria-label="Open menu">
-        ☰
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
       </button>
     </div>
   );
