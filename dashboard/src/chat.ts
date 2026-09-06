@@ -135,6 +135,9 @@ function stripTrailingProvisional(items: Item[]): Item[] {
   let end = items.length;
   while (end > 0) {
     const item = items[end - 1];
+    // An in-flight assistant message is still receiving live deltas — the
+    // backfill must not strip it, or streaming text vanishes mid-turn.
+    if (item.kind === "assistant" && !item.done) break;
     if (
       (item.kind === "user" || item.kind === "assistant" || item.kind === "toolresult") &&
       "provisional" in item &&
@@ -203,10 +206,30 @@ function applyEvent(state: ChatState, event: PiEvent): ChatState {
     case "message_update": {
       const e = event.assistantMessageEvent as AssistantMessageEvent | undefined;
       if (!e) return state;
-      const found = streamingAssistant(state.items);
-      if (!found) return state;
-      const items = [...state.items];
+      let found = streamingAssistant(state.items);
+      let items = state.items;
+      if (!found) {
+        // Attached mid-turn (or the streaming item was lost in a reconnect):
+        // synthesize the in-flight assistant item on a block start so deltas
+        // keep streaming instead of being dropped until message_end. Stray
+        // deltas without a block start have nothing to attach to.
+        if (e.type !== "text_start" && e.type !== "thinking_start" && e.type !== "toolcall_start") {
+          return state;
+        }
+        const created: Extract<Item, { kind: "assistant" }> = {
+          kind: "assistant",
+          text: [],
+          thinking: [],
+          tools: [],
+          done: false,
+          model: null,
+          provisional: true,
+        };
+        items = [...items, created];
+        found = { item: created, index: items.length - 1 };
+      }
       const item = { ...found.item, text: [...found.item.text], thinking: [...found.item.thinking], tools: [...found.item.tools] };
+      items = [...items];
       items[found.index] = item;
       switch (e.type) {
         case "text_start":
@@ -353,7 +376,13 @@ function entryToItems(state: ChatState, entry: PiEntry): { items: Item[]; id?: s
     const msg = entry.message;
     if (msg.role === "user") {
       const text = blocksToText(msg.content).trim();
-      if (text) items.push({ kind: "user", text, provisional: false });
+      // A reconnect keeps the in-flight turn's provisional user message (it
+      // precedes the still-streaming assistant item); skip the committed copy
+      // so the backfill doesn't duplicate it.
+      const keptProvisional = state.items.some(
+        (it) => it.kind === "user" && it.provisional && it.text === text,
+      );
+      if (text && !keptProvisional) items.push({ kind: "user", text, provisional: false });
     } else if (msg.role === "assistant") {
       items.push({
         kind: "assistant",
