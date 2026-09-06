@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "../chat";
 import { api } from "../api";
-import type { AgentInfo, AttachmentView, SkillInfo } from "../types";
+import type { AgentInfo, AttachmentView, SkillInfo, UploadedFile } from "../types";
 import type { PromptImage } from "../chat";
 import { MessageView, ModelPicker } from "./MessageView";
 import { TerminateButton } from "./TerminateButton";
@@ -122,7 +122,10 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
     if (!files) return;
     const next: PendingFile[] = [];
     for (const file of files) {
-      if (!isImageFile(file) && !isTextFile(file)) continue; // silently skip unsupported
+      if (!isImageFile(file) && !isTextFile(file)) {
+        chat.notice(`unsupported file: ${file.name} — attach images or text files`, "error");
+        continue;
+      }
       next.push({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         file,
@@ -151,7 +154,20 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
     } else {
       setPreparing(true);
       try {
-        const uploads = await Promise.all(pendingFiles.map((p) => api.upload(p.file)));
+        // Upload per-file so a failure can name the file. Nothing is sent
+        // unless every upload succeeds — pending chips and typed text survive.
+        const results = await Promise.allSettled(pendingFiles.map((p) => api.upload(p.file)));
+        const failures = results
+          .map((r, i) => ({ r, file: pendingFiles[i]!.file }))
+          .filter((x) => x.r.status === "rejected");
+        if (failures.length > 0) {
+          for (const { r, file } of failures) {
+            const reason = (r as PromiseRejectedResult).reason;
+            chat.notice(`upload failed: ${file.name} — ${String((reason as Error)?.message ?? reason)}`, "error");
+          }
+          return;
+        }
+        const uploads = (results as PromiseFulfilledResult<UploadedFile>[]).map((r) => r.value);
         const images: PromptImage[] = [];
         let message = text;
         for (const u of uploads) {
@@ -174,7 +190,7 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
         setDismissedToken(null);
         nearBottomRef.current = true;
       } catch (err) {
-        chat.notice(`upload failed: ${String((err as Error).message ?? err)}`, "error");
+        chat.notice(`failed to send message: ${String((err as Error).message ?? err)}`, "error");
       } finally {
         setPreparing(false);
       }
