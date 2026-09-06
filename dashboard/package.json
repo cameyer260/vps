@@ -25,8 +25,10 @@
     "@tiptap/pm": "^2.27.3",
     "@tiptap/react": "^2.27.3",
     "@tiptap/starter-kit": "^2.27.3",
+    "@types/papaparse": "^5.5.2",
     "dockerode": "^4.0.2",
     "hono": "^4.6.14",
+    "papaparse": "^5.7.0",
     "tiptap-markdown": "^0.8.10",
     "ws": "^8.18.0"
   },

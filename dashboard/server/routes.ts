@@ -7,7 +7,7 @@ import { startAgent } from "./jarvis.js";
 import { gitCommitAllPush, gitCommitPush, gitPull, gitStatus } from "./git.js";
 import { notesTree, readNote, searchNotes, writeNote } from "./notes.js";
 
-const MD_EXT_SAFE = /\.md$/i;
+const EDITABLE_EXT_SAFE = /\.(md|csv)$/i;
 function safeRel(rel: string): boolean {
   const abs = path.resolve(config.notesDir, rel);
   const r = path.relative(config.notesDir, abs);
@@ -234,7 +234,7 @@ api.get("/notes/search", async (c) => {
 
 api.post("/notes/commit", async (c) => {
   const body = (await c.req.json()) as { paths?: string[]; message?: string };
-  const paths = (body.paths ?? []).filter((p) => typeof p === "string" && MD_EXT_SAFE.test(p) && safeRel(p));
+  const paths = (body.paths ?? []).filter((p) => typeof p === "string" && EDITABLE_EXT_SAFE.test(p) && safeRel(p));
   if (paths.length === 0) return c.json({ error: "no valid note paths given" }, 400);
   const message = (body.message ?? "").trim().slice(0, 300) || "notes update via dashboard";
   const result = await gitCommitPush(config.notesDir, paths, message);

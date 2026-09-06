@@ -3,10 +3,13 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 
-// Notes viewer file operations over /home/dev/notes. Markdown only for now.
-// All paths are relative to the notes root and validated against traversal.
+// Notes viewer file operations over /home/dev/notes. Markdown + CSV (the
+// CSVs get the spreadsheet-style editor). Paths relative to the notes root
+// and validated against traversal.
 
 const MD_EXT = /\.md$/i;
+const CSV_EXT = /\.csv$/i;
+const EDITABLE_EXT = /\.(md|csv)$/i;
 const SKIP_DIRS = new Set([".git", "node_modules", ".obsidian", ".trash"]);
 const MAX_FILE_BYTES = 2 << 20; // 2 MiB per file
 const MAX_SEARCH_RESULTS = 120;
@@ -43,10 +46,10 @@ export async function notesTree(): Promise<TreeNode[]> {
           type: "dir",
           children: await walk(childAbs, childRel),
         });
-      } else if (e.isFile() && MD_EXT.test(e.name)) {
+      } else if (e.isFile() && EDITABLE_EXT.test(e.name)) {
         const st = await fsp.stat(childAbs).catch(() => null);
         nodes.push({
-          name: e.name.replace(MD_EXT, ""),
+          name: e.name.replace(MD_EXT, "").replace(CSV_EXT, ""),
           path: childRel,
           type: "file",
           size: st?.size,
@@ -70,7 +73,7 @@ export interface NoteFile {
 }
 
 export async function readNote(rel: string): Promise<NoteFile | null> {
-  if (!MD_EXT.test(rel)) return null;
+  if (!EDITABLE_EXT.test(rel)) return null;
   const abs = safeResolve(rel);
   if (!abs) return null;
   const st = await fsp.stat(abs).catch(() => null);
@@ -80,7 +83,7 @@ export async function readNote(rel: string): Promise<NoteFile | null> {
 }
 
 export async function writeNote(rel: string, content: string): Promise<number | null> {
-  if (!MD_EXT.test(rel)) return null;
+  if (!EDITABLE_EXT.test(rel)) return null;
   if (typeof content !== "string" || Buffer.byteLength(content, "utf8") > MAX_FILE_BYTES) {
     return null;
   }
@@ -117,7 +120,7 @@ export async function searchNotes(query: string): Promise<SearchHit[]> {
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) {
         await walk(childAbs, childRel);
-      } else if (e.isFile() && MD_EXT.test(e.name) && e.name) {
+      } else if (e.isFile() && EDITABLE_EXT.test(e.name) && e.name) {
         let stat;
         try {
           stat = await fsp.stat(childAbs);

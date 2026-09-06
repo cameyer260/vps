@@ -4,6 +4,7 @@ import type { TreeNode } from "../types";
 import { CopyButton } from "./CopyButton";
 import { Markdown } from "./MessageView";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { CsvEditor } from "./CsvEditor";
 
 /**
  * Notes viewer — an Obsidian clone over /home/dev/notes.
@@ -181,12 +182,21 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
                       {activeDirty && <span className="dim">unsaved…</span>}
                     </span>
                   </div>
-                  <MarkdownEditor
-                    key={activeTab.path}
-                    path={activeTab.path}
-                    content={activeTab.content}
-                    onChange={(md) => updateTab(activeTab.path, md)}
-                  />
+                  {activeTab.path.toLowerCase().endsWith(".csv") ? (
+                    <CsvEditor
+                      key={activeTab.path}
+                      path={activeTab.path}
+                      content={activeTab.content}
+                      onChange={(csv) => updateTab(activeTab.path, csv)}
+                    />
+                  ) : (
+                    <MarkdownEditor
+                      key={activeTab.path}
+                      path={activeTab.path}
+                      content={activeTab.content}
+                      onChange={(md) => updateTab(activeTab.path, md)}
+                    />
+                  )}
                 </div>
               )}
             </>

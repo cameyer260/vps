@@ -1308,6 +1308,94 @@ div.agent-card {
   border-color: var(--accent);
 }
 
+/* ---- CSV grid editor ---- */
+
+.csv-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 14px 12px;
+}
+
+.csv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px 8px;
+}
+
+.csv-meta {
+  font-size: 12.5px;
+}
+
+.raw-status.inline {
+  min-height: 0;
+  padding: 0;
+}
+
+.csv-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.csv-grid {
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.csv-grid td {
+  border: 1px solid var(--border);
+  padding: 0;
+}
+
+.csv-grid input {
+  width: 100%;
+  min-width: 110px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  padding: 6px 9px;
+  outline: none;
+}
+
+.csv-grid input:focus {
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  border-radius: 2px;
+}
+
+.csv-grid .csv-head-cell {
+  font-weight: 600;
+  background: var(--bg-2);
+}
+
+.csv-rownum {
+  color: var(--text-dim);
+  font-size: 11.5px;
+  text-align: right;
+  padding: 4px 6px !important;
+  background: var(--bg-2);
+  white-space: nowrap;
+  min-width: 34px;
+}
+
+.csv-rowdel {
+  color: var(--text-dim);
+  margin-left: 4px;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+.csv-rowdel:hover {
+  color: var(--red);
+}
+
 .raw-status {
   padding: 6px 4px 0;
   font-size: 12px;
