@@ -1,11 +1,39 @@
 # Dashboard work list
 
-Instructions for an agent implementing dashboard changes. Work through the
-phases in order, top to bottom — several tasks touch the same files
-(`app.css`, `NotesViewer.tsx`, `chat.ts`), so do not parallelize across
-phases on one project. Read `AGENTS.md`, `dashboard/ARCHITECTURE.md`, and
-`docs/jarvis.md` before starting. After each task, run `npm run typecheck`
-in `dashboard/`, rebuild, and redeploy per `dashboard/README.md`.
+Instructions for an agent implementing dashboard changes. The goal: when
+pointed at this file and told "begin", work through the phases in order,
+top to bottom — several tasks touch the same files (`app.css`,
+`NotesViewer.tsx`, `chat.ts`), so do not parallelize across phases on one
+project. Read `AGENTS.md`, `dashboard/ARCHITECTURE.md`, and
+`docs/jarvis.md` before starting.
+
+## How to work
+
+- **Branch discipline.** Work only in the branch you were started in. Never
+  touch `main`, never touch the live dashboard (it mounts this repo
+  read-only and serves built output — your edits can't and must not affect
+  it). Commit in small chunks, one task (or a tight group) per commit with
+  a descriptive message.
+- **You cannot and must not deploy.** Your container deliberately has no
+  Docker access, so building images, restarting the dashboard container,
+  and anything in `deploy.sh` / the README's Deployment section are out of
+  scope. Never attempt them. Deployment and final visual sign-off are the
+  user's job.
+- **Verify inside your own container instead.** Run the dev servers
+  directly (`npm run dev:server`, `npm run dev:web`), run
+  `npm run typecheck` and `npm run build` after every task, and use
+  Playwright (headless Chromium) against your own dev server to visually
+  validate UI work — screenshots for layout, empty states, popups,
+  rendered-mode editing, etc.
+- **Stub what you can't reach.** The Docker-backed APIs (agent list/start,
+  bridges, session resume) fail gracefully in your container. Where a task
+  needs that data to see the UI, mock or stub it at the dev level so you
+  can exercise the interface. Mimic lower-level behavior where real access
+  is impossible from inside the container.
+- **Report back fully.** When done (or when stopping), report everything
+  you did, and explicitly call out what you could not verify, validate, or
+  build due to container limitations — so the user knows exactly what to
+  check after deploying.
 
 Do not implement anything in "Future improvements" — that section is
 context only.
