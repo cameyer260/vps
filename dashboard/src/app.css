@@ -107,6 +107,8 @@ button {
 
 .section-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
 }
 
@@ -730,9 +732,15 @@ details.thinking summary {
   word-break: break-word;
 }
 
+/* Conversations list (StartDialog). Scrolls on every surface: bounded
+ * against the viewport (not a fixed px cap, so short phones still see a
+ * useful list), with contained scrolling so it doesn't fight the modal's
+ * own scroll on touch devices. */
 .session-list {
-  max-height: 240px;
+  max-height: clamp(200px, 42dvh, 420px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 8px;
 }

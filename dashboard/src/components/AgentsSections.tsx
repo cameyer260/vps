@@ -71,7 +71,20 @@ export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenN
             </span>
             <span className="section-actions">
               {project === notesName && onStarted && (
-                <StartNotesButton notesName={notesName} onStarted={onStarted} />
+                <StartNotesButton
+                  notesName={notesName}
+                  onStarted={onStarted}
+                  label={compact ? "+ new" : undefined}
+                />
+              )}
+              {project === notesName && (
+                <button
+                  className="btn small"
+                  onClick={() => onStart(notesName)}
+                  title="Pick an existing conversation to resume"
+                >
+                  resume…
+                </button>
               )}
               {project === notesName && (
                 <button className="btn small" onClick={onOpenNotes}>
