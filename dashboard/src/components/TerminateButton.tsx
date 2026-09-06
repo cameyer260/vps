@@ -60,21 +60,35 @@ export function TerminateButton({ agent, notesName, small, onTerminated }: Props
   return (
     <>
       <button
-        className={`btn ghost danger${small ? " small" : ""}`}
-        title="Terminate agent"
+        className={`btn ghost stop-agent${small ? " small" : ""}`}
+        title="Stop agent — shuts down and removes the container"
+        aria-label="Stop agent"
         disabled={busy}
         onClick={(e) => {
           e.stopPropagation();
           void open();
         }}
       >
-        ✕
+        <svg
+          className="power-icon"
+          viewBox="0 0 24 24"
+          width="15"
+          height="15"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3v8" />
+          <path d="M6.3 6.5a8 8 0 1 0 11.4 0" />
+        </svg>
       </button>
 
       {stage === "confirm" && (
         <div className="modal-scrim" onClick={close}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Terminate agent?</h2>
+            <h2>Stop agent?</h2>
             <p className="dim">
               Stops the container and removes it. The conversation stays in pi's session
               store and can be resumed later.
@@ -84,7 +98,7 @@ export function TerminateButton({ agent, notesName, small, onTerminated }: Props
                 cancel
               </button>
               <button className="btn danger" disabled={busy} onClick={() => terminate(false)}>
-                {busy ? "terminating…" : "terminate"}
+                {busy ? "stopping…" : "stop agent"}
               </button>
             </div>
           </div>
@@ -96,7 +110,7 @@ export function TerminateButton({ agent, notesName, small, onTerminated }: Props
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Uncommitted changes in {agent.project}</h2>
             <pre className="porcelain">{porcelain}</pre>
-            <p className="dim">Close anyway, or commit &amp; push everything before closing?</p>
+            <p className="dim">Stop anyway, or commit &amp; push everything before stopping?</p>
             <div className="modal-actions">
               <CopyButton text={porcelain} label="copy status" />
               <span style={{ flex: 1 }} />
@@ -104,7 +118,7 @@ export function TerminateButton({ agent, notesName, small, onTerminated }: Props
                 cancel
               </button>
               <button className="btn" disabled={busy} onClick={() => terminate(false)}>
-                close anyway
+                stop anyway
               </button>
               <button
                 className="btn primary"
@@ -112,7 +126,7 @@ export function TerminateButton({ agent, notesName, small, onTerminated }: Props
                 onClick={() => terminate(true)}
                 title="git add -A, commit, push, then stop the agent"
               >
-                {busy ? "committing…" : "commit & push, then close"}
+                {busy ? "committing…" : "commit & push, then stop"}
               </button>
             </div>
           </div>
@@ -132,7 +146,7 @@ export function TerminateButton({ agent, notesName, small, onTerminated }: Props
                 cancel
               </button>
               <button className="btn danger" disabled={busy} onClick={() => terminate(false)}>
-                close anyway
+                stop anyway
               </button>
             </div>
           </div>

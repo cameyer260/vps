@@ -860,6 +860,30 @@ div.agent-card {
   cursor: pointer;
 }
 
+/* stop-agent control: neutral until intent, red only on hover/confirm */
+.btn.stop-agent {
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 9px;
+}
+
+.btn.stop-agent.small {
+  padding: 3px 7px;
+}
+
+.btn.stop-agent:hover:not(:disabled),
+.btn.stop-agent:focus-visible {
+  color: var(--red);
+  border-color: var(--red);
+  background: rgba(229, 96, 94, 0.08);
+}
+
+.btn.stop-agent .power-icon {
+  display: block;
+}
+
 /* ---- notes viewer ---- */
 
 .notes {
