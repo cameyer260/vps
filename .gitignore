@@ -4,3 +4,4 @@ dist-server/
 .pi/tmp/
 *.log
 .DS_Store
+tasks.md
