@@ -114,8 +114,8 @@ context only.
 
 12. Full visual redesign of the dashboard. It currently looks bland.
     - Use the `ui-ux-pro-max` skill to drive the restyle.
-    - Study the T3 chat repo (open source: https://github.com/t3dotgg/
-      t3chat — verify the exact URL) and web sources for its design
+    - Study the T3 chat repo (open source: https://github.com/pingdotgg/t3code)
+      and web sources for its design
       language: dark palette, accent blue, radii, typography, spacing,
       message layout.
     - Keep the black-and-blue scheme but make it feel like a modern agent
