@@ -15,6 +15,7 @@ function safeRel(rel: string): boolean {
 }
 import { listSessions } from "./sessions.js";
 import { listAllModels } from "./piModels.js";
+import { listSkills } from "./skills.js";
 import { bridges, ensureBridge } from "./bridge.js";
 
 export const api = new Hono();
@@ -143,6 +144,12 @@ api.get("/models", async (c) => {
   } catch (err) {
     return c.json({ error: String(err instanceof Error ? err.message : err) }, 502);
   }
+});
+
+// ---- skills (composer autocomplete) ----------------------------------------
+
+api.get("/skills", async (c) => {
+  return c.json({ skills: await listSkills() });
 });
 
 // ---- git ------------------------------------------------------------------

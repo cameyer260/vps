@@ -1,5 +1,10 @@
 // Shared frontend types (pi RPC JSONL shapes, agent/session models).
 
+export interface SkillInfo {
+  name: string;
+  description: string;
+}
+
 export interface AgentInfo {
   id: string;
   name: string;

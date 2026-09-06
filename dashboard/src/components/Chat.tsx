@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "../chat";
-import type { AgentInfo } from "../types";
+import { api } from "../api";
+import type { AgentInfo, SkillInfo } from "../types";
 import { MessageView, ModelPicker } from "./MessageView";
 import { TerminateButton } from "./TerminateButton";
 
@@ -15,6 +16,38 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
   const chat = useChat(agent);
   const { state } = chat;
   const [input, setInput] = useState("");
+
+  // Skill autocomplete: typing "/" as the first token lists available
+  // skills (name + one-line description) so users never have to know exact
+  // skill names upfront. Inserted as `/skill:<name>` — pi expands it.
+  const [skills, setSkills] = useState<SkillInfo[] | null>(null);
+  const [skillIdx, setSkillIdx] = useState(0);
+  const [dismissedToken, setDismissedToken] = useState<string | null>(null);
+  useEffect(() => {
+    api
+      .skills()
+      .then((r) => setSkills(r.skills))
+      .catch(() => setSkills([]));
+  }, []);
+
+  const skillMatches = useMemo(() => {
+    if (!input.startsWith("/") || /\s/.test(input)) return null;
+    if (input === dismissedToken) return null;
+    const q = input.slice(1).toLowerCase();
+    const list = (skills ?? []).filter(
+      (s) =>
+        s.name.toLowerCase().startsWith(q) ||
+        s.name.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q),
+    );
+    return list.slice(0, 8);
+  }, [input, skills, dismissedToken]);
+  useEffect(() => setSkillIdx(0), [input, skills]);
+
+  const acceptSkill = (name: string) => {
+    setInput(`/skill:${name} `);
+    setDismissedToken(null);
+  };
 
   // Read-only toggle (dashboard extension). Ground truth is the agent: the
   // extension notifies on every mode change, the bridge relays those and
@@ -48,10 +81,40 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
     if (!text) return;
     chat.send(text);
     setInput("");
+    setDismissedToken(null);
     nearBottomRef.current = true;
   };
 
   const streaming = state.status === "streaming";
+
+  const onComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (skillMatches && skillMatches.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSkillIdx((i) => (i + 1) % skillMatches.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSkillIdx((i) => (i - 1 + skillMatches.length) % skillMatches.length);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setDismissedToken(input);
+        return;
+      }
+      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+        e.preventDefault();
+        acceptSkill(skillMatches[Math.min(skillIdx, skillMatches.length - 1)]!.name);
+        return;
+      }
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
+  };
 
   return (
     <div className="chat">
@@ -130,16 +193,31 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
         </div>
       ) : (
         <div className="composer">
+          {skillMatches && skillMatches.length > 0 && (
+            <div className="skill-pop" role="listbox" aria-label="Skill suggestions">
+              <div className="skill-pop-head">skills — Tab/Enter to insert, Esc to dismiss</div>
+              {skillMatches.map((s, i) => (
+                <button
+                  key={s.name}
+                  type="button"
+                  className={`skill-row${i === Math.min(skillIdx, skillMatches.length - 1) ? " active" : ""}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    acceptSkill(s.name);
+                  }}
+                  onMouseEnter={() => setSkillIdx(i)}
+                >
+                  <span className="skill-name">/{s.name}</span>
+                  <span className="skill-desc">{s.description || "skill"}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <textarea
             value={input}
-            placeholder={streaming ? "agent is running — stop it to send…" : "message the agent…"}
+            placeholder={streaming ? "agent is running — stop it to send…" : "message the agent… ( / for skills)"}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                submit();
-              }
-            }}
+            onKeyDown={onComposerKeyDown}
             rows={1}
           />
           {streaming ? (
