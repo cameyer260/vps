@@ -17,15 +17,18 @@ Built and running on the VPS — see Deployment.
 
 ### 1. Agents dashboard
 Running dashboard agents grouped into sections by project; the notes project
-is pinned at the top with a one-click "new conversation" (git pull first,
-full tools). Cards update live via the `/ws/events` socket (see
-[ARCHITECTURE.md](ARCHITECTURE.md)). Each card shows session name, model,
-status and uptime, with terminate (stop + remove). Start dialog: pick a
+is pinned at the top with one-click "new conversation" (git pull first,
+full tools) plus a "resume…" conversation picker. Rows update live via the
+`/ws/events` socket (see [ARCHITECTURE.md](ARCHITECTURE.md)). Each row shows
+session name, model, status and uptime, with a stop control (stops and
+removes the container; red only on hover/confirm). Start dialog: pick a
 project (existing or new — autocreated by jarvis with mkdir + git init) and a
 conversation (new, or resume from pi's session store including SSH-created
 sessions); a read-only checkbox opts into a chat-only session (default off).
-Model and thinking level are switched in the chat UI and broadcast to every
-open tab.
+Model picker (scoped to the agent, or the full pi catalog) and thinking level
+are switched in the chat UI and broadcast to every open tab. Sessions spawned
+with a user-supplied name keep that name — pi's auto-generated titles never
+override it. Installable as a PWA ("Admin Dashboard").
 
 ### 2. Notes section (pinned)
 Notes agents are agents on `/home/dev/notes`, managed like every other
@@ -39,18 +42,24 @@ agents are instructed to stage-commit-push after changes via the
 `~/.agents` — see Deployment).
 
 ### 3. Chat UI (per agent)
-ChatGPT-style: streaming markdown responses, composer with a single send/stop
-button (no steering — while a turn runs the composer doesn't send; Enter is
-ignored until the turn settles), collapsible tool-call activity, thinking
-blocks, model / thinking-level switching (`set_model`, `set_thinking_level`,
-fanned out to all tabs), and a read-only toggle that mirrors the agent's live mode.
+ChatGPT-style: streaming markdown responses, composer with attachments
+(images ride pi's prompt `images`; text files inline as fenced blocks),
+"/"-triggered skill autocomplete (name + description, from `GET /api/skills`),
+a single send/stop button (no steering — while a turn runs the composer
+doesn't send; Enter is ignored until the turn settles), collapsible tool-call
+activity, thinking blocks, model / thinking-level switching (`set_model`,
+`set_thinking_level`, fanned out to all tabs), and a read-only toggle that
+mirrors the agent's live mode. Streaming survives reconnects and mid-turn
+attaches (provisional items are preserved across backfills).
 
 ### 4. Notes viewer
 Obsidian clone over `/home/dev/notes`: file tree, multiple files open as tabs,
-rendered view + raw edit toggle (edits auto-save), full-text search. Opening
-the viewer does a host-side `git pull` (errors surfaced with copy, retry,
-dismiss). "Commit & push" stages exactly the files edited in that viewer
-session — dirt from agents isn't swept up.
+live-preview markdown editing (TipTap — the rendered document IS the editor;
+de bounces autosave to `PUT /api/notes/file`), a spreadsheet-style CSV grid
+editor (papaparse), full-text search. Opening the viewer does a host-side
+`git pull` (errors surfaced with copy, retry, dismiss). "Commit & push"
+stages exactly the files edited in that viewer session — dirt from agents
+isn't swept up.
 
 ## Deployment (UID/GID quirk)
 
@@ -58,7 +67,9 @@ The dashboard runs inside a container but must act as the host `dev` user (git
 pulls/commits must be dev-owned) and reach the Docker socket. All identity
 values are resolved on the host at deploy time — never hardcoded, never looked
 up inside the container. The runtime image (dashboard/Dockerfile) installs the
-docker CLI, git and gh; `dashboard/deploy.sh` does the rest:
+docker CLI, git, gh and the pi CLI (the `/api/models` route runs
+`pi --list-models`); `dashboard/deploy.sh` mounts the skills dir read-only
+(`GET /api/skills`) and does the rest:
 
 ```bash
 docker run -d \

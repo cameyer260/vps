@@ -122,8 +122,21 @@ is container isolation.
 
 ## Future improvements
 
-- **Image/file attachments** in chat (`prompt` already accepts images).
+- **Mobile preview URLs**: let an agent expose a localhost server it started
+  (e.g. a dev site) at a URL the user can open on their phone to review the
+  work. Preferred approach: a dashboard-side reverse proxy
+  (`/preview/:agent/:port`) riding the existing Cloudflare tunnel + Access
+  auth. Alternative (worse): per-agent `cloudflared` quick tunnels —
+  public URLs that bypass Access.
+- **Bare-metal pi agent option**: spawn a regular pi agent directly on the
+  host (no jarvis/container) and drive it from the dashboard UI. This
+  punches through the container-isolation model the jarvis contract is
+  built on; it would need a host-side socket-activated bridge service
+  (like `jarvis-git-bridge`), an args/project whitelist, its own doc in
+  `docs/`, and an explicit decision on the isolation tradeoff. Note
+  jarvis already accepts absolute project paths, which covers most of the
+  motivating use case.
+- **More file formats in the notes IDE** (the markdown live editor and the
+  CSV grid shipped; further formats ride the same editor shell).
 - **Delete sessions from the UI.**
-- **IDE mode** — extend the notes viewer to more file formats for looking at
-  coding projects.
 - **Voice mode** — push-to-talk conversation with the notes agent.

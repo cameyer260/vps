@@ -58,6 +58,7 @@ exec docker run -d --name "$NAME" \
   -v /home/dev/notes:/home/dev/notes \
   -v /home/dev/screenshots:/home/dev/screenshots \
   -v /home/dev/.pi/agent/sessions:/home/dev/.pi/agent/sessions \
+  -v /home/dev/.agents:/home/dev/.agents:ro \
   -v /home/dev/.config/bx/bx.env:/home/dev/.config/bx/bx.env:ro \
   -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
   -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
