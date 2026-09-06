@@ -35,6 +35,11 @@ RUN install -m 0755 -d /etc/apt/keyrings \
  && apt-get update && apt-get install -y gh \
  && rm -rf /var/lib/apt/lists/*
 
+# pi CLI — the /api/models route runs `pi --list-models` for the model
+# picker's "all models" source. Pinned to the agent-pi image's version.
+RUN npm install -g @earendil-works/pi-coding-agent@0.85.0 \
+ && npm cache clean --force
+
 WORKDIR /app
 ENV NODE_ENV=production \
     HOME=/home/dev \

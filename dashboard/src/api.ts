@@ -1,4 +1,4 @@
-import type { AgentInfo, SessionSummary, TreeNode } from "./types";
+import type { AgentInfo, PiModel, SessionSummary, TreeNode } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
@@ -15,6 +15,7 @@ export const api = {
     fetch(`/api/sessions?project=${encodeURIComponent(project)}`).then((r) =>
       json<{ sessions: SessionSummary[] }>(r),
     ),
+  allModels: () => fetch("/api/models").then((r) => json<{ models: PiModel[] }>(r)),
   startAgent: (body: {
     project: string;
     sessionPath?: string;

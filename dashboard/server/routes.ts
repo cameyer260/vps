@@ -14,6 +14,7 @@ function safeRel(rel: string): boolean {
   return !r.startsWith("..") && !path.isAbsolute(r);
 }
 import { listSessions } from "./sessions.js";
+import { listAllModels } from "./piModels.js";
 import { bridges, ensureBridge } from "./bridge.js";
 
 export const api = new Hono();
@@ -132,6 +133,16 @@ api.get("/sessions", async (c) => {
   if (!dir) return c.json({ error: `invalid project name: ${project}` }, 400);
   const sessions = await listSessions(dir);
   return c.json({ sessions });
+});
+
+// ---- models (picker "all" source) -----------------------------------------
+
+api.get("/models", async (c) => {
+  try {
+    return c.json({ models: await listAllModels() });
+  } catch (err) {
+    return c.json({ error: String(err instanceof Error ? err.message : err) }, 502);
+  }
 });
 
 // ---- git ------------------------------------------------------------------

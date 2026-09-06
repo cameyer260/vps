@@ -8,6 +8,8 @@ export const config = {
   notesDir: process.env.NOTES_DIR ?? "/home/dev/notes",
   sessionsDir: process.env.PI_SESSIONS_DIR ?? "/home/dev/.pi/agent/sessions",
   jarvisBin: process.env.JARVIS_BIN ?? "/home/dev/vps/agent-images/jarvis.sh",
+  piBin: process.env.PI_BIN ?? "pi",
+  skillsDir: process.env.AGENT_SKILLS_DIR ?? "/home/dev/.agents",
   wwwDir: process.env.WWW_DIR ?? path.resolve(process.cwd(), "dist"),
 };
 
