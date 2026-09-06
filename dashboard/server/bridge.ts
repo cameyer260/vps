@@ -274,7 +274,13 @@ export class Bridge {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
     this.destroyed = true;
+    // markExited() is a no-op once destroyed, so a dashboard-initiated stop
+    // would otherwise tear the bridge down silently: chats open in other
+    // tabs/devices would stay "idle" forever. Tell everyone first.
+    this.broadcast({ type: "exited" });
+    broadcastEvent({ type: "agent_status", id: this.containerId, project: this.project, status: "exited" });
     this.routes.clear();
     this.internalWaiters.clear();
     this.stream?.destroy();

@@ -669,13 +669,19 @@ export function useChat(agent: AgentInfo): ChatApi {
           .catch(() => {});
       };
       ws.onmessage = (e) => handleMessage(String(e.data));
-      ws.onclose = () => {
+      ws.onclose = (e) => {
         wsRef.current = null;
         for (const [, waiter] of pendingRef.current) waiter({ success: false, error: "disconnected" });
         pendingRef.current.clear();
-        if (aliveRef.current) {
-          retry = setTimeout(connect, 2000);
+        if (!aliveRef.current) return;
+        if (e.code === 1008) {
+          // The server refused the attach: the container is gone (or was
+          // never a pi agent). Retrying can never succeed — surface the
+          // terminal state instead of spinning on "connecting…".
+          dispatch({ type: "exited" });
+          return;
         }
+        retry = setTimeout(connect, 2000);
       };
       ws.onerror = () => ws.close();
     };

@@ -30,6 +30,35 @@ export function gitStatus(dir: string): Promise<GitStatus> {
 }
 
 /**
+ * Push the current branch to origin. `push origin HEAD` mirrors the host
+ * git-bridge (current branch → same-name branch): it never depends on an
+ * upstream being configured. If the remote moved ahead — agents push from
+ * their containers mid-session, other machines push too — fetch, rebase the
+ * local commits onto the upstream and retry once, so "commit & push, then
+ * close" self-heals instead of failing. On any failure the full git output
+ * comes back so the UI can show the real cause, not just a status code.
+ */
+async function pushOrigin(dir: string): Promise<GitResult> {
+  const first = await runCommand("git", ["push", "origin", "HEAD"], { cwd: dir, timeout: 120_000 });
+  if (first.ok) return { ok: true, output: first.output };
+  await runCommand("git", ["fetch", "origin", "--prune"], { cwd: dir, timeout: 120_000 });
+  const rebase = await runCommand("git", ["rebase", "@{upstream}"], { cwd: dir, timeout: 120_000 });
+  if (!rebase.ok) {
+    // Either nothing to rebase onto (no upstream — the push output says why)
+    // or a genuine conflict. Abort any half-started rebase; on a repo that
+    // never entered rebase state this errors harmlessly and is ignored.
+    await runCommand("git", ["rebase", "--abort"], { cwd: dir, timeout: 30_000 });
+    return {
+      ok: false,
+      output: `${first.output}\n\n(auto-rebase also failed:\n${rebase.output})`,
+    };
+  }
+  const second = await runCommand("git", ["push", "origin", "HEAD"], { cwd: dir, timeout: 120_000 });
+  if (!second.ok) return { ok: false, output: second.output };
+  return { ok: true, output: [rebase.output, second.output].filter(Boolean).join("\n") };
+}
+
+/**
  * Stage only the given paths, commit, push. Used by the notes viewer and the
  * close-agent flow so dirt from agents isn't swept up.
  */
@@ -47,7 +76,7 @@ export async function gitCommitPush(
     if (nothing) return { ok: true, output: "nothing to commit (working tree clean for staged paths)" };
     return { ok: false, output: `git commit failed:\n${commit.output}` };
   }
-  const push = await runCommand("git", ["push"], { cwd: dir, timeout: 120_000 });
+  const push = await pushOrigin(dir);
   if (!push.ok) return { ok: false, output: `committed but push failed:\n${push.output}` };
   return { ok: true, output: [commit.output, push.output].filter(Boolean).join("\n") };
 }
@@ -62,7 +91,7 @@ export async function gitCommitAllPush(dir: string, message: string): Promise<Gi
       return { ok: true, output: "nothing to commit (working tree clean)" };
     return { ok: false, output: `git commit failed:\n${commit.output}` };
   }
-  const push = await runCommand("git", ["push"], { cwd: dir, timeout: 120_000 });
+  const push = await pushOrigin(dir);
   if (!push.ok) return { ok: false, output: `committed but push failed:\n${push.output}` };
   return { ok: true, output: [commit.output, push.output].filter(Boolean).join("\n") };
 }

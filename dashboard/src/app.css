@@ -116,7 +116,9 @@ button {
 
 .app {
   display: flex;
-  height: 100dvh;
+  /* --app-h tracks the visual viewport (see main.tsx) so the shell shrinks
+     when the mobile keyboard opens; 100dvh is the fallback. */
+  height: var(--app-h, 100dvh);
   overflow: hidden;
 }
 
@@ -466,7 +468,7 @@ button {
 .chat {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: var(--app-h, 100dvh);
 }
 
 .chat-head {
@@ -500,8 +502,17 @@ button {
 .chat-sub {
   font-size: 12px;
   color: var(--text-dim);
-  display: flex;
-  align-items: center;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the status dot rides inline inside the truncating sub line */
+.chat-sub .dot {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 4px 2px;
 }
 
 .chat-controls {
@@ -772,9 +783,15 @@ details.thinking summary {
   border-radius: 14px;
   color: var(--text);
   font: inherit;
+  /* 16px: below that iOS Safari zooms the page when the input is focused */
+  font-size: 16px;
+  line-height: 1.45;
   padding: 10px 14px;
-  max-height: 180px;
+  /* grows with content (Chat.tsx sets height from scrollHeight); at the cap
+     it scrolls internally instead of clipping text */
   min-height: 44px;
+  max-height: min(220px, 32dvh);
+  overflow-y: auto;
   transition: border-color 0.15s var(--ease);
 }
 
@@ -1292,7 +1309,7 @@ div.agent-card {
 .notes {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: var(--app-h, 100dvh);
 }
 
 .notes-head {
@@ -1872,6 +1889,72 @@ div.agent-card {
 
   .chat-head {
     padding-left: 56px;
+    padding-right: 10px;
+    gap: 6px;
+    min-height: 48px;
+  }
+
+  /* compact controls so the header fits beside the title on a phone */
+  .chat-head .btn.ghost:not(.back) {
+    padding: 5px 8px;
+    font-size: 12.5px;
+  }
+
+  .ro-toggle {
+    padding: 3px 8px;
+    font-size: 11.5px;
+  }
+
+  .chat-head .select.small {
+    padding: 4px 6px;
+    font-size: 12px;
+    max-width: 118px;
+  }
+
+  .chat-name {
+    font-size: 14.5px;
+  }
+
+  .chat-sub {
+    font-size: 11px;
+  }
+
+  /* tight row: title never fully collapses, the model button ellipsizes
+     instead of pushing the power button off-screen */
+  .chat-title {
+    min-width: 72px;
+  }
+
+  .chat-controls {
+    min-width: 0;
+  }
+
+  /* .model-picker (not its button) is the flex item — without min-width:0
+     its max-content floor keeps the row overflowing the screen */
+  .chat-controls .model-picker {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .chat-controls .btn.ghost {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-controls .ro-toggle,
+  .chat-controls .select.small,
+  .chat-controls .stop-agent {
+    flex-shrink: 0;
+  }
+
+  /* tiny phones: the thinking level goes first, so the model picker keeps
+     a tappable width */
+  @media (max-width: 360px) {
+    .chat-controls .select.small {
+      display: none;
+    }
   }
 
   .chat-head .back {

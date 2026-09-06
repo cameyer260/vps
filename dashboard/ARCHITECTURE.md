@@ -74,6 +74,9 @@ out to any number of browser WebSockets:
   level / session name / read-only mode) for an instant correct header on
   reconnect; clients still send their own `get_state` right after connecting
   as the authoritative refresh.
+- A bridge teardown (`destroy()`, the terminate route's path) broadcasts
+  `exited` to its clients first — a dashboard-initiated stop must be visible
+  in every open chat on every device, not just in the sidebar.
 - Status transitions are also relayed onto the global events socket
   (`/ws/events`) — see below.
 - Browser disconnects never stop the agent. On (re)connect the client
@@ -95,6 +98,10 @@ The agent list is push-based; there is no polling:
   socket as `agent_status`, so cards update in place.
 - Clients keep a one-shot initial `GET /api/agents` fetch plus a refetch on
   (re)connect as the fallback/resync path.
+- When a refetch shows that the open chat's agent container is gone
+  (terminated — possibly from another device), the client closes the chat
+  and returns to the agents overview; a chat whose container merely exited
+  stays open in its exited state.
 
 ## Read-only mode (dashboard/pi-extension/read-only.ts)
 

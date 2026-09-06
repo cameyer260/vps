@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../api";
+import { ApiError, api } from "../api";
 import type { AgentInfo } from "../types";
 import { CopyButton } from "./CopyButton";
 
@@ -18,7 +18,7 @@ interface Props {
 export function TerminateButton({ agent, notesName, small, onTerminated }: Props) {
   const [stage, setStage] = useState<"confirm" | "dirty" | "commitError" | null>(null);
   const [porcelain, setPorcelain] = useState("");
-  const [commitError, setCommitError] = useState<string | null>(null);
+  const [commitError, setCommitError] = useState<{ message: string; output: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const open = async () => {
@@ -46,7 +46,13 @@ export function TerminateButton({ agent, notesName, small, onTerminated }: Props
       await api.terminateAgent(agent.id, commitFirst);
       onTerminated();
     } catch (e) {
-      setCommitError(String((e as Error).message ?? e));
+      // A 409 here is a failed commit & push; the body carries the raw git
+      // output — show it, or the modal says nothing useful.
+      const err = e as ApiError;
+      setCommitError({
+        message: String(err.message ?? e),
+        output: String(err.body?.["output"] ?? ""),
+      });
       setStage("commitError");
       setBusy(false);
     }
@@ -137,10 +143,10 @@ export function TerminateButton({ agent, notesName, small, onTerminated }: Props
         <div className="modal-scrim" onClick={close}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Commit &amp; push failed</h2>
-            <pre className="porcelain">{commitError}</pre>
+            <pre className="porcelain">{commitError.output || commitError.message}</pre>
             <p className="dim">Fix it (e.g. hand the error to an agent) or close anyway.</p>
             <div className="modal-actions">
-              <CopyButton text={commitError} />
+              <CopyButton text={commitError.output || commitError.message} />
               <span style={{ flex: 1 }} />
               <button className="btn" onClick={close}>
                 cancel

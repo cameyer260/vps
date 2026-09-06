@@ -100,11 +100,30 @@ export default function App() {
 
   const chatAgent =
     view.page === "chat" ? agents.find((a) => a.id === view.agentId) : undefined;
-  // Keep the last known info around so an exiting/removed agent doesn't kick
-  // the user out of the chat; the Chat itself shows the exited state.
+  // Keep the last known info around so a brief die→refetch window doesn't
+  // flash the overview; once the refetch confirms the container is really
+  // gone (terminated — possibly from another device), the effect below
+  // closes the chat instead of showing a dead one forever.
   const lastChatAgentRef = useRef<AgentInfo | null>(null);
   if (chatAgent) lastChatAgentRef.current = chatAgent;
   const shownChatAgent = chatAgent ?? lastChatAgentRef.current;
+
+  // Close the open chat when its agent container disappears from the agent
+  // list (removed after terminate — on any device). Only once the id has been
+  // seen in a refetch: a just-started agent isn't in the first list yet, and
+  // closing then would bounce the user straight out of the new chat.
+  const everSeenRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const a of agents) everSeenRef.current.add(a.id);
+    if (
+      view.page === "chat" &&
+      everSeenRef.current.has(view.agentId) &&
+      !agents.some((a) => a.id === view.agentId)
+    ) {
+      lastChatAgentRef.current = null;
+      setView({ page: "agents" });
+    }
+  }, [agents, view]);
 
   return (
     <div className="app">

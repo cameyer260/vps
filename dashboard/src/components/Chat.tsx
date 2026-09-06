@@ -47,6 +47,17 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
   const chat = useChat(agent);
   const { state } = chat;
   const [input, setInput] = useState("");
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow composer (ChatGPT-style): the textarea grows with its content
+  // up to the CSS max-height, then scrolls internally instead of clipping.
+  useEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+    el.style.overflowY = el.scrollHeight > el.clientHeight + 1 ? "auto" : "hidden";
+  }, [input]);
 
   // Skill autocomplete: typing "/" as the first token lists available
   // skills (name + one-line description) so users never have to know exact
@@ -381,6 +392,7 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
             </svg>
           </button>
           <textarea
+            ref={taRef}
             value={input}
             placeholder={streaming ? "agent is running — stop it to send…" : "message the agent… ( / for skills)"}
             onChange={(e) => setInput(e.target.value)}

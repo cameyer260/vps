@@ -1,9 +1,20 @@
 import type { AgentInfo, PiModel, SessionSummary, SkillInfo, TreeNode, UploadedFile } from "./types";
 
+/** Error with the full API response body attached — callers that need more
+ *  than the message (e.g. the git output in a 409) read `body`. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly body: Record<string, unknown>;
+  constructor(status: number, body: Record<string, unknown>) {
+    super(String(body["error"] ?? `request failed (${status})`));
+    this.status = status;
+    this.body = body;
+  }
+}
+
 async function json<T>(res: Response): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok && body?.error) throw new Error(body.error);
-  if (!res.ok) throw new Error(`request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, body as Record<string, unknown>);
   return body;
 }
 
