@@ -473,7 +473,7 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
   min-height: 52px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-2) 78%, transparent);
@@ -1066,7 +1066,8 @@ details.thinking summary {
   align-items: center;
   justify-content: center;
   z-index: 50;
-  padding: 16px;
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 }
 
 .modal {
@@ -1298,7 +1299,7 @@ div.agent-card {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
   min-height: 52px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-2) 78%, transparent);
@@ -1803,6 +1804,10 @@ div.agent-card {
     transform: translateX(0);
   }
 
+  .notes-tree {
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+
   .notes-head {
     padding-left: 56px;
   }
@@ -1828,7 +1833,7 @@ div.agent-card {
 .menu-btn {
   display: none;
   position: fixed;
-  top: 10px;
+  top: calc(10px + env(safe-area-inset-top));
   left: 10px;
   z-index: 20;
   background: var(--bg-3);
@@ -1856,6 +1861,11 @@ div.agent-card {
     transform: translateX(0);
   }
 
+  /* drawer reaches the top of the screen; clear the notch */
+  .sidebar .sidebar-head {
+    padding-top: calc(14px + env(safe-area-inset-top));
+  }
+
   .menu-btn {
     display: inline-flex;
   }
@@ -1869,7 +1879,8 @@ div.agent-card {
   }
 
   .overview {
-    padding-top: 64px;
+    /* clears the fixed ☰ menu-btn, which itself sits below the notch */
+    padding-top: calc(64px + env(safe-area-inset-top));
   }
 
   .chat-messages {
