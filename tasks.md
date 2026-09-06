@@ -125,6 +125,34 @@ context only.
     - Do this phase last so it lands on top of the fixed UX from phases
       1–3.
 
+## Phase 5 — post-deploy validation (live on the VPS)
+
+Run after deploying `dashboard-rework` to the live dashboard
+(admin.christophermeyer.dev). These are the paths an implementing agent
+could not verify from inside its container (no Docker access) — everything
+else was validated with dev servers, mocks, and Playwright.
+
+13. Spawn an agent from the UI (scratch project or notes). Confirm the
+    container starts via `jarvis rpc` and its card appears live over
+    `/ws/events` with name, model, status, uptime.
+14. Hold one real conversation: streaming arrives incrementally,
+    tool-call activity collapses/expands, thinking blocks render.
+15. Model picker: scoped vs. all toggle works ("all" exercises
+    `GET /api/models` → `pi --list-models` inside the runtime image);
+    thinking-level switch applies mid-chat and fans out to all tabs.
+16. Skill autocomplete: `/` opens the popup against the real
+    `/home/dev/.agents` mount; Enter/Tab inserts; Esc dismisses.
+17. Attachments: pick and paste-to-attach an image and a text file; they
+    reach the agent and show as chips in the sent message.
+18. Notes viewer: edit a markdown note in the live-preview editor →
+    autosave lands in `/home/dev/notes`; open a CSV in the grid editor
+    and edit cells; full-text search works; "Commit & push" stages only
+    the files edited in that viewer session.
+19. Terminate the test agent(s) from the UI — container stops and is
+    removed; card disappears live.
+20. PWA: install prompt appears, service worker registers, app opens
+    standalone from the home screen with correct name/icon/theme.
+
 ## Future improvements (do not implement now)
 
 These are planned but explicitly out of scope for now. Do not build them;
