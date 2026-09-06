@@ -3,21 +3,22 @@ import { api } from "../api";
 import type { TreeNode } from "../types";
 import { CopyButton } from "./CopyButton";
 import { Markdown } from "./MessageView";
+import { MarkdownEditor } from "./MarkdownEditor";
 
 /**
  * Notes viewer — an Obsidian clone over /home/dev/notes.
  *
- * Multiple files open at once (tabs), rendered markdown vs raw edit toggle,
- * full-text search. Edits auto-save to disk (debounced) and every file edited
- * in this viewer session is staged by the "commit & push" button — so dirt
- * from agents isn't swept up. Opening the viewer does a host-side git pull.
+ * Multiple files open at once (tabs), live-preview markdown editing (the
+ * document is rendered while you edit — no raw-text mode), full-text search.
+ * Edits auto-save to disk (debounced) and every file edited in this viewer
+ * session is staged by the "commit & push" button — so dirt from agents
+ * isn't swept up. Opening the viewer does a host-side git pull.
  */
 
 interface Tab {
   path: string;
   content: string; // current editor content
   saved: string; // last written content
-  raw: boolean;
 }
 
 export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: () => void }) {
@@ -57,7 +58,7 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
     }
     try {
       const file = await api.notesFile(path);
-      setTabs((ts) => [...ts, { path, content: file.content, saved: file.content, raw: false }]);
+      setTabs((ts) => [...ts, { path, content: file.content, saved: file.content }]);
       setActive(path);
     } catch (e) {
       setPullError(String((e as Error).message ?? e));
@@ -178,39 +179,14 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
                     <span className="dim note-path">{activeTab.path}</span>
                     <span className="banner-actions">
                       {activeDirty && <span className="dim">unsaved…</span>}
-                      <button
-                        className={`btn small${activeTab.raw ? "" : " primary"}`}
-                        onClick={() =>
-                          setTabs((ts) =>
-                            ts.map((t) =>
-                              t.path === activeTab.path ? { ...t, raw: false } : t,
-                            ),
-                          )
-                        }
-                      >
-                        rendered
-                      </button>
-                      <button
-                        className={`btn small${activeTab.raw ? " primary" : ""}`}
-                        onClick={() =>
-                          setTabs((ts) =>
-                            ts.map((t) =>
-                              t.path === activeTab.path ? { ...t, raw: true } : t,
-                            ),
-                          )
-                        }
-                      >
-                        raw edit
-                      </button>
                     </span>
                   </div>
-                  {activeTab.raw ? (
-                    <RawEditor tab={activeTab} onChange={updateTab} />
-                  ) : (
-                    <div className="note-render">
-                      <Markdown>{activeTab.content || "*(empty note)*"}</Markdown>
-                    </div>
-                  )}
+                  <MarkdownEditor
+                    key={activeTab.path}
+                    path={activeTab.path}
+                    content={activeTab.content}
+                    onChange={(md) => updateTab(activeTab.path, md)}
+                  />
                 </div>
               )}
             </>
@@ -240,56 +216,7 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
   );
 }
 
-/** Debounced raw editor: writes through to disk as you type. */
-function RawEditor({
-  tab,
-  onChange,
-}: {
-  tab: Tab;
-  onChange: (path: string, content: string) => void;
-}) {
-  const [text, setText] = useState(tab.content);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latest = useRef(text);
-
-  // Resync only when switching between files; live edits flow back through
-  // onChange so resetting on tab.content would clobber the status display.
-  useEffect(() => {
-    setText(tab.content);
-    setStatus("idle");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab.path]);
-
-  const handleChange = (v: string) => {
-    setText(v);
-    latest.current = v;
-    onChange(tab.path, v);
-    setStatus("saving");
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      api
-        .notesWrite(tab.path, latest.current)
-        .then(() => setStatus("saved"))
-        .catch(() => setStatus("error"));
-    }, 600);
-  };
-
-  return (
-    <div className="raw-editor">
-      <textarea
-        value={text}
-        onChange={(e) => handleChange(e.target.value)}
-        spellCheck={false}
-      />
-      <div className="raw-status dim">
-        {status === "saving" && "saving…"}
-        {status === "saved" && "saved ✓"}
-        {status === "error" && "save failed"}
-      </div>
-    </div>
-  );
-}
+/** Debounced save lives in MarkdownEditor; the viewer tracks dirty state. */
 
 function Tree({
   nodes,
