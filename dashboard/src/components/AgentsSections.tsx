@@ -57,6 +57,9 @@ export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenN
       <div className="empty">
         <p>No dashboard agents running.</p>
         <p className="dim">Start one to chat with pi on one of your projects.</p>
+        <button className="btn primary" onClick={() => onStart()}>
+          + Start agent
+        </button>
       </div>
     );
   }
