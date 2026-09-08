@@ -34,9 +34,9 @@ export function gitStatus(dir: string): Promise<GitStatus> {
  * git-bridge (current branch → same-name branch): it never depends on an
  * upstream being configured. If the remote moved ahead — agents push from
  * their containers mid-session, other machines push too — fetch, rebase the
- * local commits onto the upstream and retry once, so "commit & push, then
- * close" self-heals instead of failing. On any failure the full git output
- * comes back so the UI can show the real cause, not just a status code.
+ * local commits onto the upstream and retry once, so a notes-viewer commit
+ * self-heals instead of failing. On any failure the full git output comes
+ * back so the UI can show the real cause, not just a status code.
  */
 async function pushOrigin(dir: string): Promise<GitResult> {
   const first = await runCommand("git", ["push", "origin", "HEAD"], { cwd: dir, timeout: 120_000 });
@@ -59,8 +59,8 @@ async function pushOrigin(dir: string): Promise<GitResult> {
 }
 
 /**
- * Stage only the given paths, commit, push. Used by the notes viewer and the
- * close-agent flow so dirt from agents isn't swept up.
+ * Stage only the given paths, commit, push. Used by the notes viewer so dirt
+ * from agents isn't swept up.
  */
 export async function gitCommitPush(
   dir: string,
@@ -74,21 +74,6 @@ export async function gitCommitPush(
   if (!commit.ok) {
     const nothing = commit.output.includes("nothing to commit");
     if (nothing) return { ok: true, output: "nothing to commit (working tree clean for staged paths)" };
-    return { ok: false, output: `git commit failed:\n${commit.output}` };
-  }
-  const push = await pushOrigin(dir);
-  if (!push.ok) return { ok: false, output: `committed but push failed:\n${push.output}` };
-  return { ok: true, output: [commit.output, push.output].filter(Boolean).join("\n") };
-}
-
-/** Stage everything (git add -A), commit, push — used when closing an agent. */
-export async function gitCommitAllPush(dir: string, message: string): Promise<GitResult> {
-  const add = await runCommand("git", ["add", "-A"], { cwd: dir });
-  if (!add.ok) return { ok: false, output: `git add failed:\n${add.output}` };
-  const commit = await runCommand("git", ["commit", "-m", message], { cwd: dir });
-  if (!commit.ok) {
-    if (commit.output.includes("nothing to commit"))
-      return { ok: true, output: "nothing to commit (working tree clean)" };
     return { ok: false, output: `git commit failed:\n${commit.output}` };
   }
   const push = await pushOrigin(dir);

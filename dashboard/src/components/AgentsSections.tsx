@@ -119,7 +119,6 @@ export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenN
             <AgentCard
               key={a.id}
               agent={a}
-              notesName={notesName}
               compact={compact}
               onOpenChat={onOpenChat}
             />
@@ -132,12 +131,10 @@ export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenN
 
 function AgentCard({
   agent,
-  notesName,
   compact,
   onOpenChat,
 }: {
   agent: AgentInfo;
-  notesName: string;
   compact?: boolean;
   onOpenChat: (agentId: string) => void;
 }) {
@@ -166,7 +163,7 @@ function AgentCard({
         {!compact && <span className="agent-meta">{uptime(agent.startedAt)}</span>}
         <span className="agent-status">{dot.label}</span>
       </span>
-      <TerminateButton agent={agent} notesName={notesName} small onTerminated={() => {}} />
+      <TerminateButton agent={agent} small onTerminated={() => {}} />
     </div>
   );
 }

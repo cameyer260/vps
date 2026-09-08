@@ -4,7 +4,7 @@ import path from "node:path";
 import { config, notesName, projectDir } from "./config.js";
 import { containerState, listPiContainers, stopAndRemove, type AgentInfo } from "./docker.js";
 import { startAgent } from "./jarvis.js";
-import { gitCommitAllPush, gitCommitPush, gitPull, gitStatus } from "./git.js";
+import { gitCommitPush, gitPull, gitStatus } from "./git.js";
 import { notesTree, readNote, searchNotes, writeNote } from "./notes.js";
 
 const EDITABLE_EXT_SAFE = /\.(md|csv)$/i;
@@ -98,23 +98,9 @@ api.post("/agents/start", async (c) => {
 
 api.post("/agents/:id/terminate", async (c) => {
   const id = c.req.param("id");
-  const body = (await c.req.json().catch(() => ({}))) as { commit?: boolean };
-
-  // "commit & push, then close": stage everything in the agent's project,
-  // commit, push — only then stop the container.
-  if (body.commit) {
-    const summary = await listPiContainers();
-    const agent = summary.find((a) => a.id === id);
-    if (!agent) return c.json({ error: "agent not found" }, 404);
-    const dir = projectDir(agent.project);
-    if (!dir) return c.json({ error: "invalid project" }, 400);
-    const result = await gitCommitAllPush(
-      dir,
-      `dashboard: commit before closing agent (${new Date().toISOString()})`,
-    );
-    if (!result.ok) return c.json({ error: "commit & push failed", output: result.output }, 409);
-  }
-
+  // Plain stop + remove. Uncommitted work is the user's call: the UI warns
+  // on a dirty tree and they direct the agent to commit & push in the chat —
+  // the dashboard never commits on their behalf.
   await stopAndRemove(id);
   bridges.get(id)?.destroy();
   return c.json({ ok: true });

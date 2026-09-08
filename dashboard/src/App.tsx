@@ -164,7 +164,6 @@ export default function App() {
           <Chat
             key={shownChatAgent.id}
             agent={shownChatAgent}
-            notesName={notesName}
             onBack={() => setView({ page: "agents" })}
             onTerminated={() => setView({ page: "agents" })}
           />

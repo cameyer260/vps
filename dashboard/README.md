@@ -35,9 +35,10 @@ Notes agents are agents on `/home/dev/notes`, managed like every other
 project. Multiple conversations at once; sessions persist and can be resumed.
 Every notes-agent start does a host-side `git pull` first — failures are
 surfaced with copy-to-clipboard (hand them to an agent) and a "start anyway"
-override. Closing an agent with a dirty notes tree warns: "close anyway" or
-"commit & push, then close". Git policy is use-at-your-own-risk (no locks);
-agents are instructed to stage-commit-push after changes via the
+override. Closing any agent with a dirty project tree warns first — "back to
+chat" (ask the agent to commit & push) or "stop anyway" — but the dashboard
+never commits on the user's behalf. Git policy is use-at-your-own-risk (no
+locks); agents are instructed to stage-commit-push after changes via the
 `commit-push` skill (`dashboard/skills/commit-push`, symlinked into
 `~/.agents` — see Deployment).
 

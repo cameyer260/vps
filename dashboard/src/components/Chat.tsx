@@ -38,12 +38,11 @@ function base64ToUtf8(b64: string): string {
 
 interface Props {
   agent: AgentInfo;
-  notesName: string;
   onBack: () => void;
   onTerminated: () => void;
 }
 
-export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
+export function Chat({ agent, onBack, onTerminated }: Props) {
   const chat = useChat(agent);
   const { state } = chat;
   const [input, setInput] = useState("");
@@ -288,9 +287,7 @@ export function Chat({ agent, notesName, onBack, onTerminated }: Props) {
               ))}
             </select>
           )}
-          {!exited && (
-            <TerminateButton agent={agent} notesName={notesName} onTerminated={onTerminated} />
-          )}
+          {!exited && <TerminateButton agent={agent} onTerminated={onTerminated} />}
         </div>
       </header>
 

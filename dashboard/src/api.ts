@@ -44,11 +44,11 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).then((r) => json<{ id: string; project: string }>(r)),
-  terminateAgent: (id: string, commitFirst = false) =>
+  terminateAgent: (id: string) =>
     fetch(`/api/agents/${id}/terminate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commit: commitFirst }),
+      body: JSON.stringify({}),
     }).then((r) => json<{ ok: boolean }>(r)),
   gitPull: (project: string) =>
     fetch("/api/git/pull", {
