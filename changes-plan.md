@@ -259,11 +259,10 @@ resume/`cwd` note above):
   agent_settled` → `set_model` broadcasts a state notice. Kills the server
   and exits non-zero on any failure. This is the fast loop and the
   contract test.
-- `scripts/assert-stream.mjs` (Playwright, see the `playwright-browser`
-  skill for invocation; `BASE_URL` env, default `http://localhost:5173`): opens the `chat-streaming` scenario, sends a
-  prompt, samples the rendered assistant text on a timer, and reports the
-  chunk-size distribution — the oracle for the tasks.md streaming item
-  ("tokens one by one" ⇔ small median chunk + many intermediate paints).
+- Streaming is verified manually via the `playwright-browser` skill against
+  the `chat-streaming` scenario (send a prompt, watch the reply stream in
+  `char` mode) — no scripted oracle; the smoke test's turn-event assertions
+  (`agent_start … agent_settled`, stable tool id) cover the protocol side.
 - `docs/testing.md`: the loop doc — two terminals (`dev:mock` + `dev:web`,
   Playwright targets Vite at :5173) → run smoke → Playwright
   flows **including iPhone device emulation for the mobile backlog** →

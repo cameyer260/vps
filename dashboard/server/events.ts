@@ -1,4 +1,4 @@
-import { docker } from "./docker.js";
+import { getRuntime } from "./runtime.js";
 
 /**
  * Global fan-out hub for dashboard-wide events — the push replacement for
@@ -42,56 +42,12 @@ export function broadcastEvent(event: GlobalEvent): void {
   }
 }
 
-// ---- Docker event stream → agents_changed ----------------------------------
-
-const WATCHED_ACTIONS = new Set(["start", "die", "destroy", "rename"]);
+// ---- container lifecycle → agents_changed ----------------------------------
+// Transport lives in the runtime (Docker event stream in prod, in-process
+// emitter in mock); here we only fan out onto the global socket.
 
 export function watchDockerEvents(): void {
-  docker()
-    .getEvents({
-      filters: {
-        type: ["container"],
-        event: [...WATCHED_ACTIONS],
-        label: ["agent.kind=pi"],
-      },
-    })
-    .then((stream) => {
-      let buf = "";
-      stream.on("data", (chunk: Buffer) => {
-        buf += chunk.toString("utf8");
-        for (;;) {
-          const idx = buf.indexOf("\n");
-          if (idx === -1) break;
-          const line = buf.slice(0, idx).trim();
-          buf = buf.slice(idx + 1);
-          if (!line) continue;
-          try {
-            const ev = JSON.parse(line) as {
-              Action?: string;
-              action?: string;
-              Actor?: { ID?: string };
-              id?: string;
-            };
-            const action = ev.Action ?? ev.action ?? "";
-            const id = ev.Actor?.ID ?? ev.id ?? "";
-            if (WATCHED_ACTIONS.has(action) && id) {
-              broadcastEvent({ type: "agents_changed", action, id });
-            }
-          } catch {
-            // not JSON — ignore
-          }
-        }
-      });
-      stream.on("end", resubscribe);
-      stream.on("error", resubscribe);
-    })
-    .catch((err) => {
-      console.error("[docker events] subscribe failed:", err);
-      resubscribe();
-    });
-}
-
-function resubscribe(): void {
-  // Docker daemon restarted or the stream broke — resubscribe after a pause.
-  setTimeout(() => watchDockerEvents(), 5_000).unref();
+  getRuntime().onLifecycle((e) =>
+    broadcastEvent({ type: "agents_changed", action: e.action, id: e.id }),
+  );
 }

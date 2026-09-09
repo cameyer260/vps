@@ -1,6 +1,5 @@
-import { PassThrough } from "node:stream";
-import type { Duplex } from "node:stream";
-import { docker } from "./docker.js";
+import { getRuntime } from "./runtime.js";
+import type { AttachedAgent } from "./runtime.js";
 import { broadcastEvent } from "./events.js";
 
 /**
@@ -76,7 +75,7 @@ export class Bridge {
   private clients = new Set<Client>();
   private routes = new Map<string, Route>();
   private internalWaiters = new Map<string, (resp: Record<string, unknown>) => void>();
-  private stream: Duplex | null = null;
+  private attached: AttachedAgent | null = null;
   private stdoutBuf = "";
   private stderrTail: string[] = [];
   private seq = 0;
@@ -99,18 +98,9 @@ export class Bridge {
   }
 
   private async attach(): Promise<void> {
-    const container = docker().getContainer(this.containerId);
-    const stream = await new Promise<Duplex>((resolve, reject) => {
-      container.attach(
-        { stream: true, stdin: true, stdout: true, stderr: true, hijack: true },
-        (err, s) => (err ? reject(err) : resolve(s as Duplex)),
-      );
-    });
-    this.stream = stream;
-
-    const stdout = new PassThrough();
-    const stderr = new PassThrough();
-    container.modem.demuxStream(stream, stdout, stderr);
+    const attached = await getRuntime().attach(this.containerId);
+    this.attached = attached;
+    const { stdout, stderr, stdin } = attached;
 
     stdout.on("data", (chunk: Buffer) => this.onStdout(chunk));
     stderr.on("data", (chunk: Buffer) => {
@@ -119,9 +109,9 @@ export class Bridge {
       }
     });
     const onGone = () => this.markExited();
-    stream.on("close", onGone);
-    stream.on("end", onGone);
-    stream.on("error", onGone);
+    stdin.on("close", onGone);
+    stdin.on("end", onGone);
+    stdin.on("error", onGone);
 
     // Best-effort snapshot for the agent list (model, session name).
     this.request({ type: "get_state" })
@@ -283,7 +273,7 @@ export class Bridge {
     broadcastEvent({ type: "agent_status", id: this.containerId, project: this.project, status: "exited" });
     this.routes.clear();
     this.internalWaiters.clear();
-    this.stream?.destroy();
+    (this.attached?.stdin as unknown as { destroy?: () => void } | undefined)?.destroy?.();
     bridges.delete(this.containerId);
   }
 
@@ -372,10 +362,10 @@ export class Bridge {
   // ---- sending ----------------------------------------------------------------
 
   private writeToPi(obj: unknown): void {
-    if (!this.stream || this.status === "exited") {
+    if (!this.attached || this.status === "exited") {
       throw new Error("agent container is not attached (exited?)");
     }
-    this.stream.write(JSON.stringify(obj) + "\n");
+    this.attached.stdin.write(JSON.stringify(obj) + "\n");
   }
 
   private sendTo(client: Client, msg: unknown): void {

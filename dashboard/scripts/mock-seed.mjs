@@ -1,0 +1,214 @@
+#!/usr/bin/env node
+/**
+ * Regenerate the mock-VPS fixtures under dashboard/testdata/mock/.
+ *
+ * Idempotent (`mkdir -p`, safe to rerun; runs on every `dev:mock` boot) and
+ * regenerates EVERYTHING: absolute paths differ per machine, so fixtures are
+ * generated, never hand-written. The sessions fixtures stamp the absolute
+ * project dir because `listSessions` compares `header.cwd` to `projectDir()`
+ * output exactly, and the start route only accepts resume paths under the
+ * sessions dir ending `.jsonl`.
+ *
+ * Everything is local-file git (bare remote in the fixtures dir), so notes
+ * commit+push and `git pull` work fully offline.
+ */
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const dashboardDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const mockDir = path.join(dashboardDir, "testdata/mock");
+const projectsDir = path.join(mockDir, "projects");
+const alphaDir = path.join(projectsDir, "alpha");
+const betaDir = path.join(projectsDir, "beta");
+const sessionsDir = path.join(mockDir, "sessions");
+const skillsDir = path.join(mockDir, "skills");
+const remoteDir = path.join(mockDir, "notes-remote.git");
+const notesDir = path.join(mockDir, "notes");
+
+function sh(cmd, args, cwd) {
+  execFileSync(cmd, args, {
+    cwd,
+    stdio: "pipe",
+    env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0" },
+  });
+}
+
+function git(args, cwd) {
+  sh("git", args, cwd);
+}
+
+/** Local-only identity so seeding never depends on the host ~/.gitconfig. */
+function stampIdentity(repoDir) {
+  git(["config", "user.name", "Mock Dev"], repoDir);
+  git(["config", "user.email", "mock@example.test"], repoDir);
+  git(["config", "commit.gpgsign", "false"], repoDir);
+}
+
+function commitAll(repoDir, message) {
+  git(["add", "-A"], repoDir);
+  git(
+    ["-c", "user.name=Mock Dev", "-c", "user.email=mock@example.test", "-c", "commit.gpgsign=false",
+      "commit", "-m", message],
+    repoDir,
+  );
+}
+
+function write(file, content) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, content);
+}
+
+// ---- clean rebuild (idempotent: rerunning leaves a working state) ------------
+
+fs.rmSync(mockDir, { recursive: true, force: true });
+for (const d of [alphaDir, betaDir, sessionsDir, skillsDir, notesDir]) {
+  fs.mkdirSync(d, { recursive: true });
+}
+
+// ---- projects/alpha (plain dir) ----------------------------------------------
+
+write(
+  path.join(alphaDir, "README.md"),
+  "# Mock Alpha\n\nPlain fixture project for offline dashboard testing.\n",
+);
+
+// ---- projects/beta (git repo with one dirty file) ----------------------------
+
+git(["init", "-b", "main"], betaDir);
+stampIdentity(betaDir);
+write(path.join(betaDir, "app.js"), "console.log(\"mock beta\");\n");
+commitAll(betaDir, "seed mock beta");
+// Leave one unstaged modification: the git-status UI shows a dirty tree.
+fs.appendFileSync(path.join(betaDir, "app.js"), "console.log(\"uncommitted change\");\n");
+
+// ---- notes (clone of a local bare remote) -------------------------------------
+
+git(["init", "--bare", remoteDir], mockDir);
+git(["init", "-b", "main"], notesDir);
+stampIdentity(notesDir);
+git(["remote", "add", "origin", remoteDir], notesDir);
+write(path.join(notesDir, "welcome.md"), "# Welcome\n\nMock notes vault for offline dashboard testing.\n");
+write(path.join(notesDir, "ideas.md"), "# Ideas\n\n- stream tokens one by one\n- rename agents\n");
+write(path.join(notesDir, "todo.md"), "# Todo\n\n- [ ] verify mock harness\n");
+write(path.join(notesDir, "scores.csv"), "name,score\nada,10\ngrace,9\n");
+commitAll(notesDir, "seed mock notes");
+git(["push", "-u", "origin", "main"], notesDir);
+
+// ---- sessions (header cwd must equal the absolute fixture project dir) --------
+
+function sessionSubdir(cwd) {
+  return `--${cwd.replace(/\//g, "-")}--`;
+}
+
+function writeSession(cwd, fileBase, headerId, name, turns) {
+  const lines = [
+    JSON.stringify({ type: "session", id: headerId, cwd, timestamp: new Date().toISOString() }),
+    JSON.stringify({ type: "session_info", name }),
+  ];
+  for (const [id, role, text] of turns) {
+    const content =
+      role === "assistant" ? [{ type: "text", text }] : text;
+    lines.push(JSON.stringify({ type: "message", id, message: { role, content } }));
+  }
+  const subdir = path.join(sessionsDir, sessionSubdir(cwd));
+  fs.mkdirSync(subdir, { recursive: true });
+  fs.writeFileSync(path.join(subdir, fileBase), lines.join("\n") + "\n");
+}
+
+writeSession(alphaDir, "20260909T000000_sess-alpha-1.jsonl", "sess-alpha-1", "alpha kickoff", [
+  ["hist-a1", "user", "Where should I start in this repo?"],
+  ["hist-a2", "assistant", "Start with README.md — this is the mock Alpha project."],
+]);
+
+writeSession(betaDir, "20260909T000000_sess-beta-1.jsonl", "sess-beta-1", "beta exploration", [
+  ["hist-b1", "user", "What is dirty in the tree?"],
+  ["hist-b2", "assistant", "app.js has uncommitted changes (mock fixture)."],
+]);
+
+// ---- skills --------------------------------------------------------------------
+
+write(
+  path.join(skillsDir, "mock-search", "SKILL.md"),
+  `---\nname: mock-search\ndescription: Mock web-search skill for offline dashboard testing\n---\n\n# mock-search\n\nPretends to search the web. Fixture only.\n`,
+);
+write(
+  path.join(skillsDir, "mock-notes", "SKILL.md"),
+  `---\nname: mock-notes\ndescription: Mock notes helper skill for offline dashboard testing\n---\n\n# mock-notes\n\nPretends to help with notes. Fixture only.\n`,
+);
+
+// ---- models.json ---------------------------------------------------------------
+
+write(
+  path.join(mockDir, "models.json"),
+  JSON.stringify(
+    [
+      { provider: "openrouter", id: "mock-sonnet", name: "Mock Sonnet", contextWindow: 200000 },
+      { provider: "openrouter", id: "mock-haiku", name: "Mock Haiku", contextWindow: 100000 },
+      { provider: "openrouter", id: "mock-opus", name: "Mock Opus", contextWindow: 200000 },
+    ],
+    null,
+    2,
+  ) + "\n",
+);
+
+// ---- scenarios.json --------------------------------------------------------------
+
+const history = (userId, userText, asstId, asstText) => [
+  { type: "message", id: userId, message: { role: "user", content: userText } },
+  {
+    type: "message",
+    id: asstId,
+    message: { role: "assistant", content: [{ type: "text", text: asstText }] },
+  },
+];
+
+const scenarios = {
+  "sidebar-full": {
+    defaultGranularity: "word",
+    agents: [
+      {
+        project: "alpha",
+        name: "alpha chat",
+        origin: "dashboard",
+        granularity: "word",
+        history: history(
+          "hist-s1",
+          "What is this project?",
+          "hist-s2",
+          "This is the mock Alpha project for offline dashboard testing.",
+        ),
+      },
+      { project: "alpha", name: "alpha side quest", readOnly: true },
+      { project: "beta", name: "beta chat", origin: "dashboard" },
+    ],
+  },
+  "chat-streaming": {
+    defaultGranularity: "char",
+    agents: [
+      {
+        project: "alpha",
+        name: "stream test",
+        origin: "dashboard",
+        granularity: "char",
+        history: history(
+          "hist-c1",
+          "Hello, stream test",
+          "hist-c2",
+          "History is preloaded — new prompts stream char by char.",
+        ),
+      },
+    ],
+  },
+  "notes-editor": {
+    defaultGranularity: "word",
+    agents: [{ project: "notes", name: "notes chat", origin: "dashboard" }],
+  },
+  empty: { defaultGranularity: "word", agents: [] },
+};
+
+write(path.join(mockDir, "scenarios.json"), JSON.stringify(scenarios, null, 2) + "\n");
+
+console.log(`mock-seed: fixtures regenerated at ${mockDir}`);
+console.log(`mock-seed: scenarios: ${Object.keys(scenarios).join(", ")}`);

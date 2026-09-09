@@ -5,3 +5,4 @@ dist-server/
 *.log
 .DS_Store
 tasks.md
+dashboard/testdata/mock/

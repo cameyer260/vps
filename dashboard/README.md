@@ -146,3 +146,6 @@ Builds: `npm run build` (Vite SPA → dist/, esbuild server bundle →
 dist-server/). The bundle stubs out ssh2 (dockerode's optional native dep —
 the dashboard only talks to the unix socket) so the runtime image needs no
 node_modules. Typecheck: `npm run typecheck`.
+
+Mock mode (no VPS needed): `MOCK_SCENARIO=sidebar-full npm run dev:mock` + `npm run dev:web`.
+Full loop, scenarios, and the per-fix definition of done: [docs/testing.md](docs/testing.md).

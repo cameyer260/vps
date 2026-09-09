@@ -56,6 +56,16 @@ the flags. Rules:
 - The notes project lives at `/home/dev/notes` (a git repo synced with
   GitHub). It is the default/always-on agent's workspace.
 
+## Validating dashboard work
+
+Agents run with no Docker socket, no jarvis, and none of the host mounts,
+so dashboard changes must never be shipped untested: drive them through the
+mock harness — `MOCK_SCENARIO=… npm run dev:mock` + `npm run dev:web`, the
+scenario matching the work, and `node scripts/mock-smoke.mjs` green plus
+`npm run typecheck && npm run build` before committing. Full loop, scenario
+table, and per-fix definition of done:
+[dashboard/docs/testing.md](dashboard/docs/testing.md).
+
 ## How the docs are organized
 
 - `README.md` files — orientation and operations (what it is, how to

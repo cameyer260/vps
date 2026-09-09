@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import fs from "node:fs";
 import path from "node:path";
 import { config, notesName, projectDir } from "./config.js";
-import { containerState, listPiContainers, stopAndRemove, type AgentInfo } from "./docker.js";
-import { startAgent } from "./jarvis.js";
+import type { AgentInfo } from "./docker.js";
+import { getRuntime } from "./runtime.js";
 import { gitCommitPush, gitPull, gitStatus } from "./git.js";
 import { notesTree, readNote, searchNotes, writeNote } from "./notes.js";
 
@@ -14,7 +14,6 @@ function safeRel(rel: string): boolean {
   return !r.startsWith("..") && !path.isAbsolute(r);
 }
 import { listSessions } from "./sessions.js";
-import { listAllModels } from "./piModels.js";
 import { listSkills } from "./skills.js";
 import { bridges, ensureBridge } from "./bridge.js";
 
@@ -54,7 +53,7 @@ function decorate(a: AgentInfo): AgentInfo {
 }
 
 api.get("/agents", async (c) => {
-  const agents = await listPiContainers();
+  const agents = await getRuntime().list();
   for (const a of agents) {
     if (a.origin === "dashboard" && a.state === "running") {
       // Attach lazily so a restarted dashboard picks running agents back up.
@@ -89,7 +88,7 @@ api.post("/agents/start", async (c) => {
   }
   const name = body.name?.trim().slice(0, 200) || undefined;
 
-  const containerId = await startAgent({ project: dir, sessionPath, name, readOnly: !!body.readOnly });
+  const containerId = await getRuntime().spawn({ project: dir, sessionPath, name, readOnly: !!body.readOnly });
   // Pass the spawn name so the bridge can pin it: pi's auto-generated
   // session_info titles must never override a user-provided name.
   await ensureBridge(containerId, project, { explicitName: name }).catch(() => undefined);
@@ -101,7 +100,7 @@ api.post("/agents/:id/terminate", async (c) => {
   // Plain stop + remove. Uncommitted work is the user's call: the UI warns
   // on a dirty tree and they direct the agent to commit & push in the chat —
   // the dashboard never commits on their behalf.
-  await stopAndRemove(id);
+  await getRuntime().stopAndRemove(id);
   bridges.get(id)?.destroy();
   return c.json({ ok: true });
 });
@@ -125,8 +124,11 @@ api.get("/sessions", async (c) => {
 // ---- models (picker "all" source) -----------------------------------------
 
 api.get("/models", async (c) => {
+  // Full catalog via the runtime seam: pi --list-models in prod, the
+  // deterministic fixture in mock. The MOCK_VPS + production guard lives in
+  // getRuntime(), so no env branch is needed here.
   try {
-    return c.json({ models: await listAllModels() });
+    return c.json({ models: await getRuntime().listModels() });
   } catch (err) {
     return c.json({ error: String(err instanceof Error ? err.message : err) }, 502);
   }

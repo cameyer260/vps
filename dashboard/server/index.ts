@@ -7,7 +7,7 @@ import { config } from "./config.js";
 import { api } from "./routes.js";
 import { bridges, ensureBridge } from "./bridge.js";
 import { addEventsClient, watchDockerEvents } from "./events.js";
-import { containerLabels } from "./docker.js";
+import { getRuntime } from "./runtime.js";
 import type { ClientHandle } from "./bridge.js";
 
 const app = new Hono();
@@ -28,7 +28,7 @@ app.get(
         void (async () => {
           let bridge = bridges.get(containerId);
           if (!bridge) {
-            const labels = await containerLabels(containerId);
+            const labels = await getRuntime().labels(containerId);
             if (!labels || labels["agent.kind"] !== "pi") {
               ws.close(1008, "not a pi agent container");
               return;

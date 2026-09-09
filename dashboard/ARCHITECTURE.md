@@ -12,8 +12,12 @@ How the dashboard works inside. Usage and deployment:
     dashboard container (Node/TypeScript, Hono)
       ├─ serves React SPA (Vite build)
       ├─ starts agents by shelling out to `jarvis rpc`
-      ├─ Docker API (dockerode): list / inspect / attach / stop containers,
-      │    plus the daemon's event stream (container lifecycle → /ws/events)
+      ├─ talks to agents through the `ContainerRuntime` seam
+      │    (server/runtime.ts): `DockerRuntime` in prod — list / inspect /
+      │    attach / stop containers via the Docker API (dockerode), plus the
+      │    daemon's event stream (container lifecycle → /ws/events); the
+      │    `MockRuntime` in-memory fake swaps in under `MOCK_VPS=1` (dev
+      │    only, never production — see docs/testing.md)
       ├─ WebSocket per open chat, relays pi RPC JSONL both ways
       ├─ global events WebSocket (/ws/events): agent list push, no polling
       └─ host-side git operations (pull / add / commit / push; remotes auth
@@ -51,9 +55,21 @@ once for CLI and dashboard-launched agents alike. The dev UID/GID resolve as
 `${AGENT_UID:-$(id -u dev)}` — the dashboard container is deployed with
 `AGENT_UID`/`AGENT_GID` set (there is no dev user inside it to look up).
 
+## ContainerRuntime seam (server/runtime.ts)
+
+Every VPS touch-point the dashboard needs — list/labels/attach/stop+remove/
+spawn/lifecycle/models — sits behind the `ContainerRuntime` interface.
+Production code never imports `docker.ts`/`jarvis.ts`/`piModels.ts` directly;
+`getRuntime()` returns the `DockerRuntime` delegate unless `MOCK_VPS=1` (dev
+only: it throws when combined with `NODE_ENV=production`, and `deploy.sh`
+never sets it), in which case the in-memory `MockRuntime` + scripted `FakePi`
+stand-ins take over. Offline loop, scenarios, and the per-fix definition of
+done: [docs/testing.md](docs/testing.md).
+
 ## WS→RPC bridge (server/bridge.ts)
 
-One bridge per agent container owns the docker attach stream and fans traffic
+One bridge per agent container owns the runtime attachment (the Docker
+attach stream in prod, fake pipes in mock) and fans traffic
 out to any number of browser WebSockets:
 
 - Browser commands are rewritten with an internal request id; responses are
@@ -90,10 +106,12 @@ out to any number of browser WebSockets:
 
 The agent list is push-based; there is no polling:
 
-- The server subscribes to the Docker daemon's event stream (`getEvents()`,
-  filtered to `agent.kind=pi` containers, actions start/die/destroy/rename)
-  and broadcasts `agents_changed`; clients resync with a debounced refetch of
-  `GET /api/agents`. The subscription resubscribes after daemon restarts.
+- The server subscribes to container lifecycle through the runtime seam
+  (`onLifecycle`: the Docker daemon's event stream in prod — `getEvents()`,
+  filtered to `agent.kind=pi` containers, actions start/die/destroy/rename;
+  an in-process emitter in mock) and broadcasts `agents_changed`; clients
+  resync with a debounced refetch of `GET /api/agents`. The prod
+  subscription resubscribes after daemon restarts.
 - Per-agent bridges relay idle/streaming/exited transitions onto the same
   socket as `agent_status`, so cards update in place.
 - Clients keep a one-shot initial `GET /api/agents` fetch plus a refetch on
