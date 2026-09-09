@@ -14,7 +14,9 @@ RUN npm run build
 # socket directly), git (host-side git ops + jarvis workspace autocreate), gh
 # (git remote auth — the mounted ~/.gitconfig points the credential helper at
 # it, the token itself comes from the ro-mounted ~/.config/gh), and bash +
-# coreutils (jarvis.sh).
+# coreutils (jarvis.sh). No pi CLI: the /api/models route runs
+# `jarvis models` (an ephemeral agent-pi container), so pi ships only in the
+# agent-pi image — one version to keep in sync.
 FROM node:24-bookworm-slim
 COPY --from=docker:cli /usr/local/bin/docker /usr/local/bin/docker
 RUN apt-get update \
@@ -34,11 +36,6 @@ RUN install -m 0755 -d /etc/apt/keyrings \
       > /etc/apt/sources.list.d/github-cli.list \
  && apt-get update && apt-get install -y gh \
  && rm -rf /var/lib/apt/lists/*
-
-# pi CLI — the /api/models route runs `pi --list-models` for the model
-# picker's "all models" source. Pinned to the agent-pi image's version.
-RUN npm install -g @earendil-works/pi-coding-agent@0.85.1 \
- && npm cache clean --force
 
 WORKDIR /app
 ENV NODE_ENV=production \

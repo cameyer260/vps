@@ -36,7 +36,29 @@ TTY corrupts pi's LF-framed JSONL protocol). Adds:
 - prints the container ID on stdout
 
 ```bash
+jarvis models
+```
+
+Prints the full pi model catalog (`pi --list-models`) from an ephemeral
+agent-pi container, for the dashboard's model picker (`GET /api/models`).
+Deliberately minimal — no workspace, no skills, no labels (so it never shows
+up in the agent list), just pi auth (required: without login pi lists no
+models) plus shared settings when present:
+
+```bash
+docker run --rm \
+  --user "${AGENT_UID:-$(id -u dev)}:${AGENT_GID:-$(id -g dev)}" \
+  -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
+  -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
+  agent-pi pi --list-models
+```
+
+The dashboard caches the result for an hour, so this container starts at most
+once per hour — the ~1s startup cost never sits on a user interaction.
+
+```bash
 jarvis projects     # list host projects
+jarvis models       # print the pi model catalog (dashboard's /api/models source)
 jarvis build        # rebuild the images
 ```
 

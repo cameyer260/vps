@@ -4,6 +4,7 @@
 # Usage:
 #   jarvis PROJECT [TASK]                    interactive; one-shot when TASK is given
 #   jarvis rpc PROJECT [pi args...]          headless pi RPC daemon (for the dashboard)
+#   jarvis models                            print the pi model catalog (for the dashboard)
 #   jarvis projects                          list host projects
 #   jarvis build                             rebuild all images
 #   jarvis help
@@ -29,6 +30,12 @@
 #       container when set, so the extension can start read-only.
 #     - Extra label agent.origin=dashboard (what the dashboard filters on).
 #     - Extra pi args are forwarded as-is (--session, -n, --provider, ...).
+#   models                jarvis models
+#     Prints the full pi model catalog (`pi --list-models`) from an ephemeral
+#     agent-pi container. For the dashboard's model picker; deliberately
+#     minimal — no workspace, no skills, no labels (so the dashboard never
+#     sees it as an agent). Mounts pi auth (required: without login pi lists
+#     no models) and shared settings when present.
 #
 # PROJECT is a bare name resolved under $PROJECTS_DIR (default /home/dev/projects),
 # or an absolute path. If the workspace does not exist it is created (mkdir +
@@ -92,10 +99,9 @@ GIT_BRIDGE_EXT="$REPO_ROOT/agent-images/pi-git-bridge/git-bridge.ts"
 die() { echo "jarvis: $*" >&2; exit 1; }
 
 usage() {
-  # Prints the comment header above as help text.
-  # If you add or remove header comment lines, update the range here to match:
-  #   from the line after shebang to the last header line.
-  sed -n '2,63p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  # Prints the comment header above as help text (everything between the
+  # shebang and `set -euo pipefail`).
+  sed -n '2,/^set -euo pipefail/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^# \{0,1\}//'
   exit "${1:-0}"
 }
 
@@ -252,6 +258,24 @@ rpc_cmd() {
     "$image" pi ${PI_ENV_ARGS[@]+"${PI_ENV_ARGS[@]}"} ${GIT_EXT_FLAGS[@]+"${GIT_EXT_FLAGS[@]}"} --mode rpc -a ${ext_flags[@]+"${ext_flags[@]}"} "$@"
 }
 
+models_cmd() {
+  local image=agent-pi
+  (( $# == 0 )) || die "usage: jarvis models"
+  require_image "$image"
+  local args=( --rm --user "$(dev_uid):$(dev_gid)" )
+  if [[ -f "$PI_AUTH" ]]; then
+    args+=( -v "$PI_AUTH:/home/dev/.pi/agent/auth.json" )
+  else
+    echo "jarvis: warning: $PI_AUTH missing — pi will list no models without login" >&2
+  fi
+  if [[ -f "$PI_SETTINGS" ]]; then
+    args+=( -v "$PI_SETTINGS:/home/dev/.pi/agent/settings.json:ro" )
+  fi
+  # No labels: this is a one-off query, not an agent — the dashboard's
+  # agent list (filtered on agent.kind=pi) must never see it.
+  docker run "${args[@]}" "$image" pi --list-models
+}
+
 list_projects() {
   if [[ -d "$PROJECTS_DIR" ]]; then
     ls -1 "$PROJECTS_DIR"
@@ -267,7 +291,8 @@ main() {
   case "$cmd" in
     projects) list_projects ;;
     rpc)      rpc_cmd "$@" ;;
-    build)  "$HERE/build-images.sh" ;;
+    models)   models_cmd "$@" ;;
+    build)    "$HERE/build-images.sh" ;;
     help|-h|"") usage 0 ;;
     *) pi_cmd "$cmd" "$@" ;;
   esac

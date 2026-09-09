@@ -124,7 +124,7 @@ api.get("/sessions", async (c) => {
 // ---- models (picker "all" source) -----------------------------------------
 
 api.get("/models", async (c) => {
-  // Full catalog via the runtime seam: pi --list-models in prod, the
+  // Full catalog via the runtime seam: jarvis models in prod, the
   // deterministic fixture in mock. The MOCK_VPS + production guard lives in
   // getRuntime(), so no env branch is needed here.
   try {

@@ -97,4 +97,20 @@ docker run --rm -d -i \
 
 In practice you never type these: `jarvis project-name`, `jarvis project-name "TASK"`
 and `jarvis rpc project-name [pi args...]` build them. The dashboard shells out to
-`jarvis rpc`.
+`jarvis rpc` (agents) and `jarvis models` (model catalog).
+
+## Pi — model catalog (what `jarvis models` runs for the dashboard)
+
+One-off `pi --list-models` for the model picker's "all models" source. No
+workspace, no skills, no labels — it must never appear in the agent list.
+Auth is required (without login pi lists no models); settings ride along
+read-only when present. The dashboard caches the output for an hour, so this
+container starts at most once per hour.
+
+```bash
+docker run --rm \
+  --user "$(id -u dev):$(id -g dev)" \
+  -v /home/dev/.pi/agent/auth.json:/home/dev/.pi/agent/auth.json \
+  -v /home/dev/.pi/agent/settings.json:/home/dev/.pi/agent/settings.json:ro \
+  agent-pi pi --list-models
+```

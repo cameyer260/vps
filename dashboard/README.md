@@ -68,8 +68,9 @@ The dashboard runs inside a container but must act as the host `dev` user (git
 pulls/commits must be dev-owned) and reach the Docker socket. All identity
 values are resolved on the host at deploy time — never hardcoded, never looked
 up inside the container. The runtime image (dashboard/Dockerfile) installs the
-docker CLI, git, gh and the pi CLI (the `/api/models` route runs
-`pi --list-models`); `dashboard/deploy.sh` mounts the skills dir read-only
+docker CLI, git and gh (no pi CLI — the `/api/models` route runs
+`jarvis models`, an ephemeral agent-pi container, so pi ships only in the
+agent-pi image); `dashboard/deploy.sh` mounts the skills dir read-only
 (`GET /api/skills`) and does the rest:
 
 ```bash

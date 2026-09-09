@@ -127,7 +127,7 @@ export class MockRuntime implements ContainerRuntime {
   }
 
   listModels(): Promise<AllModel[]> {
-    // Mock mode serves the deterministic fixture; prod lists via pi --list-models.
+    // Mock mode serves the deterministic fixture; prod lists via jarvis models.
     try {
       const raw = fs.readFileSync(mockModelsPath(), "utf8");
       const parsed = JSON.parse(raw) as AllModel[];

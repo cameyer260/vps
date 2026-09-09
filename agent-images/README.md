@@ -57,6 +57,7 @@ jarvis my-project                       # interactive pi TUI
 jarvis my-project "refactor the auth"   # one-shot, prints and exits
 jarvis rpc my-project [--session <f>]   # headless pi RPC daemon for the dashboard;
                                         #   prints the container ID
+jarvis models                           # pi model catalog (dashboard's /api/models source)
 jarvis projects                         # list host projects
 jarvis build                            # rebuild the image
 ```
@@ -75,6 +76,10 @@ policy) appended to pi's system prompt via `--append-system-prompt`.
 | Pi agent | `agent-pi.Dockerfile` npm install | `@earendil-works/pi-coding-agent@0.85.1` |
 | Node (Pi) | `agent-pi.Dockerfile` `NODE_VERSION` | `v24.19.0` (LTS) |
 | bx, git, rg, fd, jq, python3 | `agent-pi.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
+
+The dashboard does not install pi separately — its `/api/models` route runs
+`jarvis models` (an ephemeral agent-pi container), so the pi version lives
+here alone.
 
 Upgrade by editing the exact version in the Dockerfile and rebuilding.
 
