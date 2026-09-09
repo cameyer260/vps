@@ -105,10 +105,10 @@ ARG NODE_VERSION=v24.19.0
 RUN curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz" \
       | tar -xJ -C /usr/local --strip-components=1
 
-# Pi agent package v0.85.0. --cache keeps npm's cache out of $HOME: this RUN
+# Pi agent package v0.85.1. --cache keeps npm's cache out of $HOME: this RUN
 # executes as root with HOME=/home/dev, and a root-owned /home/dev/.npm breaks
 # every later `npm install` as dev.
-RUN npm install -g --cache /tmp/npm-cache @earendil-works/pi-coding-agent@0.85.0 \
+RUN npm install -g --cache /tmp/npm-cache @earendil-works/pi-coding-agent@0.85.1 \
  && rm -rf /home/dev/.npm
 
 # Pre-create ~/.pi owned by dev. Docker creates missing bind-mount parents as
