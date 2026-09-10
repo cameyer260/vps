@@ -50,12 +50,6 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     }).then((r) => json<{ ok: boolean }>(r)),
-  gitPull: (project: string) =>
-    fetch("/api/git/pull", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project }),
-    }).then((r) => json<{ ok: boolean; output: string }>(r)),
   gitStatus: (project: string) =>
     fetch(`/api/git/status?project=${encodeURIComponent(project)}`).then((r) =>
       json<{ ok: boolean; dirty: boolean; porcelain: string; branch: string | null }>(r),

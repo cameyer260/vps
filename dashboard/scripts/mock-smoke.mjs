@@ -179,9 +179,6 @@ try {
   const status = await getJSON("/api/git/status?project=beta");
   check("beta dirty tree", status.ok === true && status.dirty === true, JSON.stringify(status));
 
-  const pull = await postJSON("/api/git/pull", { project: "notes" });
-  check("notes pull works offline (local bare remote)", pull.ok === true, JSON.stringify(pull).slice(0, 160));
-
   const logs = await getJSON(`/api/agents/${seeded.id}/logs`);
   check("agent logs (FakePi stderr seed)", Array.isArray(logs.stderr) && logs.stderr.length >= 2, JSON.stringify(logs).slice(0, 160));
 

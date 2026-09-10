@@ -4,7 +4,7 @@ import path from "node:path";
 import { config, notesName, projectDir } from "./config.js";
 import type { AgentInfo } from "./docker.js";
 import { getRuntime } from "./runtime.js";
-import { gitCommitPush, gitPull, gitStatus } from "./git.js";
+import { gitCommitPush, gitStatus } from "./git.js";
 import { notesTree, readNote, searchNotes, writeNote } from "./notes.js";
 
 const EDITABLE_EXT_SAFE = /\.(md|csv)$/i;
@@ -141,14 +141,6 @@ api.get("/skills", async (c) => {
 });
 
 // ---- git ------------------------------------------------------------------
-
-api.post("/git/pull", async (c) => {
-  const body = (await c.req.json()) as { project?: string };
-  const dir = projectDir(body.project ?? "");
-  if (!dir) return c.json({ error: "invalid project" }, 400);
-  const result = await gitPull(dir);
-  return c.json(result, result.ok ? 200 : 409);
-});
 
 api.get("/git/status", async (c) => {
   const project = c.req.query("project");

@@ -17,8 +17,7 @@ Built and running on the VPS — see Deployment.
 
 ### 1. Agents dashboard
 Running dashboard agents grouped into sections by project; the notes project
-is pinned at the top with one-click "new conversation" (git pull first,
-full tools) plus a "resume…" conversation picker. Rows update live via the
+is pinned at the top with one-click "new conversation" (full tools) plus a "resume…" conversation picker. Rows update live via the
 `/ws/events` socket (see [ARCHITECTURE.md](ARCHITECTURE.md)). Each row shows
 session name, model, status and uptime, with a stop control (stops and
 removes the container; red only on hover/confirm). Start dialog: pick a
@@ -33,9 +32,8 @@ override it. Installable as a PWA ("Admin Dashboard").
 ### 2. Notes section (pinned)
 Notes agents are agents on `/home/dev/notes`, managed like every other
 project. Multiple conversations at once; sessions persist and can be resumed.
-Every notes-agent start does a host-side `git pull` first — failures are
-surfaced with copy-to-clipboard (hand them to an agent) and a "start anyway"
-override. Closing any agent with a dirty project tree warns first — "back to
+No auto `git pull` — starting agents and opening the viewer never pull; sync
+is manual. Closing any agent with a dirty project tree warns first — "back to
 chat" (ask the agent to commit & push) or "stop anyway" — but the dashboard
 never commits on the user's behalf. Git policy is use-at-your-own-risk (no
 locks); agents are instructed to stage-commit-push after changes via the
@@ -57,8 +55,7 @@ attaches (provisional items are preserved across backfills).
 Obsidian clone over `/home/dev/notes`: file tree, multiple files open as tabs,
 live-preview markdown editing (TipTap — the rendered document IS the editor;
 de bounces autosave to `PUT /api/notes/file`), a spreadsheet-style CSV grid
-editor (papaparse), full-text search. Opening the viewer does a host-side
-`git pull` (errors surfaced with copy, retry, dismiss). "Commit & push"
+editor (papaparse), full-text search. Load errors surface with copy, retry, dismiss. "Commit & push"
 stages exactly the files edited in that viewer session — dirt from agents
 isn't swept up.
 

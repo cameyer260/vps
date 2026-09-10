@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { api } from "../api";
-import { CopyButton } from "./CopyButton";
 
 interface Props {
   notesName: string;
@@ -10,16 +9,17 @@ interface Props {
 }
 
 /**
- * One-click "new conversation" for the notes project: host-side git pull
- * first (failures surfaced with copy-to-clipboard), then a notes agent with
- * full tools (read-only is opt-in via the start dialog).
+ * One-click "new conversation" for the notes project: a notes agent with
+ * full tools (read-only is opt-in via the start dialog). No auto git pull —
+ * sync is manual.
  */
 export function StartNotesButton({ notesName, onStarted, label = "+ new conversation", className }: Props) {
   const [busy, setBusy] = useState(false);
-  const [pullError, setPullError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const start = async () => {
+  const click = async () => {
     setBusy(true);
+    setError(null);
     try {
       const res = await api.startAgent({
         project: notesName,
@@ -27,27 +27,9 @@ export function StartNotesButton({ notesName, onStarted, label = "+ new conversa
       });
       onStarted(res);
     } catch (e) {
-      setPullError(`start failed: ${String((e as Error).message ?? e)}`);
+      setError(`start failed: ${String((e as Error).message ?? e)}`);
       setBusy(false);
     }
-  };
-
-  const click = async () => {
-    setBusy(true);
-    setPullError(null);
-    try {
-      const pull = await api.gitPull(notesName);
-      if (!pull.ok) {
-        setPullError(pull.output);
-        setBusy(false);
-        return;
-      }
-    } catch (e) {
-      setPullError(String((e as Error).message ?? e));
-      setBusy(false);
-      return;
-    }
-    void start();
   };
 
   return (
@@ -55,23 +37,15 @@ export function StartNotesButton({ notesName, onStarted, label = "+ new conversa
       <button className={className ?? "btn small primary"} onClick={click} disabled={busy}>
         {busy ? "starting…" : label}
       </button>
-      {pullError && (
-        <div className="modal-scrim" onClick={() => setPullError(null)}>
+      {error && (
+        <div className="modal-scrim" onClick={() => setError(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>git pull failed</h2>
-            <pre className="porcelain">{pullError}</pre>
-            <p className="dim">
-              The pull runs host-side before every notes-agent start. Fix the error, or
-              start the agent anyway — or copy this and hand it to an agent.
-            </p>
+            <h2>couldn't start agent</h2>
+            <pre className="porcelain">{error}</pre>
             <div className="modal-actions">
-              <CopyButton text={pullError} />
               <span style={{ flex: 1 }} />
-              <button className="btn" onClick={() => setPullError(null)}>
-                cancel
-              </button>
-              <button className="btn primary" onClick={start}>
-                start anyway
+              <button className="btn" onClick={() => setError(null)}>
+                close
               </button>
             </div>
           </div>

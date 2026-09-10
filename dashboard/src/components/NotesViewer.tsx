@@ -13,7 +13,7 @@ import { CsvEditor } from "./CsvEditor";
  * document is rendered while you edit — no raw-text mode), full-text search.
  * Edits auto-save to disk (debounced) and every file edited in this viewer
  * session is staged by the "commit & push" button — so dirt from agents
- * isn't swept up. Opening the viewer does a host-side git pull.
+ * isn't swept up. No auto git pull anywhere — sync is manual.
  */
 
 interface Tab {
@@ -27,7 +27,7 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [edited, setEdited] = useState<Set<string>>(new Set());
-  const [pullError, setPullError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [treeOpen, setTreeOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [commitOpen, setCommitOpen] = useState(false);
@@ -36,19 +36,13 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
     api
       .notesTree()
       .then((r) => setTree(r.tree))
-      .catch((e) => setPullError(String((e as Error).message ?? e)));
+      .catch((e) => setLoadError(String((e as Error).message ?? e)));
   }, []);
 
-  // On open: host-side git pull (errors surfaced with copy-to-clipboard).
+  // On open: just load the file tree. No auto git pull — sync is manual.
   useEffect(() => {
-    api
-      .gitPull(notesName)
-      .then((r) => {
-        if (!r.ok) setPullError(r.output || "git pull failed");
-      })
-      .catch((e) => setPullError(String((e as Error).message ?? e)));
     loadTree();
-  }, [notesName, loadTree]);
+  }, [loadTree]);
 
   const openFile = async (path: string) => {
     setTreeOpen(false);
@@ -62,7 +56,7 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
       setTabs((ts) => [...ts, { path, content: file.content, saved: file.content }]);
       setActive(path);
     } catch (e) {
-      setPullError(String((e as Error).message ?? e));
+      setLoadError(String((e as Error).message ?? e));
     }
   };
 
@@ -122,28 +116,27 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
         </button>
       </header>
 
-      {pullError && (
+      {loadError && (
         <div className="git-banner">
           <div className="git-banner-head">
-            <span>git pull failed (host-side)</span>
+            <span>failed to load notes</span>
             <span className="banner-actions">
-              <CopyButton text={pullError} />
+              <CopyButton text={loadError} />
               <button
                 className="btn small"
-                onClick={() =>
-                  api
-                    .gitPull(notesName)
-                    .then((r) => (r.ok ? setPullError(null) : setPullError(r.output)))
-                }
+                onClick={() => {
+                  setLoadError(null);
+                  loadTree();
+                }}
               >
                 retry
               </button>
-              <button className="btn small ghost" onClick={() => setPullError(null)}>
+              <button className="btn small ghost" onClick={() => setLoadError(null)}>
                 dismiss
               </button>
             </span>
           </div>
-          <pre className="porcelain">{pullError}</pre>
+          <pre className="porcelain">{loadError}</pre>
         </div>
       )}
 

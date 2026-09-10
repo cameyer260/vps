@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { SessionSummary } from "../types";
-import { CopyButton } from "./CopyButton";
 
 interface Props {
   initialProject: string | null;
@@ -21,8 +20,6 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
   const [readOnly, setReadOnly] = useState(false); // default off: full tools; flip for a chat-only session
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pullError, setPullError] = useState<string | null>(null);
-  const [pullOk, setPullOk] = useState(false);
 
   const isNotes = mode === "existing" && project === notesName;
 
@@ -48,7 +45,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
 
   const effectiveProject = mode === "new" ? newProject.trim() : project;
 
-  const start = async (skipPull: boolean) => {
+  const start = async () => {
     if (!effectiveProject) {
       setError("pick or enter a project");
       return;
@@ -56,18 +53,6 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
     setBusy(true);
     setError(null);
     try {
-      // Every notes-agent start does a host-side git pull first; failures are
-      // surfaced (copy-to-clipboard for handing to an agent) and can be
-      // overridden with "start anyway".
-      if (effectiveProject === notesName && !skipPull && !pullOk) {
-        const pull = await api.gitPull(notesName);
-        if (!pull.ok) {
-          setPullError(pull.output || "git pull failed");
-          setBusy(false);
-          return;
-        }
-        setPullOk(true);
-      }
       const res = await api.startAgent({
         project: effectiveProject,
         ...(sessionPath ? { sessionPath } : {}),
@@ -92,8 +77,6 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
             value={project}
             onChange={(e) => {
               setProject(e.target.value);
-              setPullOk(false);
-              setPullError(null);
             }}
             className="select"
           >
@@ -117,8 +100,6 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
           className="link"
           onClick={() => {
             setMode(mode === "new" ? "existing" : "new");
-            setPullOk(false);
-            setPullError(null);
           }}
         >
           {mode === "existing" ? "+ new project…" : "↩ pick an existing project"}
@@ -189,32 +170,18 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
           onChange={(e) => setName(e.target.value)}
         />
 
-        {pullError && (
-          <div className="error-box">
-            <div className="error-head">
-              <span>git pull failed (host-side, before every notes-agent start)</span>
-              <CopyButton text={pullError} />
-            </div>
-            <pre className="porcelain">{pullError}</pre>
-          </div>
-        )}
         {error && <div className="error-box">{error}</div>}
 
         <div className="modal-actions">
           <button className="btn" onClick={onClose} disabled={busy}>
             cancel
           </button>
-          {pullError && (
-            <button className="btn" onClick={onClose} title="close and fix the error first">
-              fix first
-            </button>
-          )}
           <button
             className="btn primary"
-            onClick={() => start(!!pullError)}
+            onClick={() => start()}
             disabled={busy || !effectiveProject}
           >
-            {busy ? "starting…" : pullError ? "start anyway" : "start"}
+            {busy ? "starting…" : "start"}
           </button>
         </div>
       </div>
