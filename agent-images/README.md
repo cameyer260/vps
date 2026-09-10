@@ -6,7 +6,8 @@ the jarvis contract: [docs/jarvis.md](../docs/jarvis.md).
 
 - `agent-pi.Dockerfile` — the single agent image: Ubuntu 24.04, a non-root
   `dev` user, the CLIs the skills call (`git`, `ripgrep`, `fd`, `jq`,
-  `bx`), Playwright's bundled Chromium, Node, and
+  `bx`), Playwright's bundled Chromium, Node, Rust stable (rustup, backend
+  + SQLite) with `cargo-watch`/`cargo-edit`/`cargo-binstall`, and
   `@earendil-works/pi-coding-agent` (needs Node `>=22.19.0`). No gh, no
   GitHub credentials — remote git ops go through the git bridge
   ([docs/jarvis.md](../docs/jarvis.md)).
@@ -76,6 +77,7 @@ policy) appended to pi's system prompt via `--append-system-prompt`.
 | Pi agent | `agent-pi.Dockerfile` npm install | `@earendil-works/pi-coding-agent@0.85.1` |
 | Node (Pi) | `agent-pi.Dockerfile` `NODE_VERSION` | `v24.19.0` (LTS) |
 | bx, git, rg, fd, jq, python3 | `agent-pi.Dockerfile` | from the Ubuntu 24.04 apt repo / their installers |
+| Rust + cargo-watch/edit/binstall | `agent-pi.Dockerfile` | `stable` via rustup (minimal + rustfmt/clippy); helpers via binstall |
 
 The dashboard does not install pi separately — its `/api/models` route runs
 `jarvis models` (an ephemeral agent-pi container), so the pi version lives

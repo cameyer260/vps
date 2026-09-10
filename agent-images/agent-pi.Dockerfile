@@ -3,7 +3,8 @@
 #
 # Provides a non-root `dev` user (matching the host's dev uid/gid via build
 # args), the common CLIs the skills call (git, ripgrep, fd, jq, python3, bx),
-# Playwright's bundled Chromium, Node LTS, and @earendil-works/pi-coding-agent.
+# Playwright's bundled Chromium, Node LTS, Rust stable (rustup) for backend
+# web dev with SQLite, and @earendil-works/pi-coding-agent.
 # The playwright package lives inside the skills dir and is NOT installed here.
 #
 # No GitHub credentials or gh CLI: remote git ops (push/fetch/pull) go through
@@ -32,6 +33,9 @@ RUN apt-get update \
       ca-certificates curl gnupg \
       git ripgrep fd-find jq unzip xz-utils \
       python3 python3-venv \
+      build-essential pkg-config cmake perl \
+      libssl-dev zlib1g-dev libsqlite3-dev sqlite3 \
+      clang lld \
       libasound2t64 \
       libatk-bridge2.0-0t64 \
       libcups2t64 \
@@ -116,4 +120,23 @@ RUN npm install -g --cache /tmp/npm-cache @earendil-works/pi-coding-agent@0.85.1
 # root-owned and pi can't write sessions/ as the non-root dev user.
 RUN mkdir -p /home/dev/.pi/agent && chown -R dev:dev /home/dev/.pi
 
+# Rust backend web dev (SQLite-only, no Postgres, no WASM frontend).
+# System deps (build-essential, libssl-dev, libsqlite3-dev, clang/lld, …) are
+# in the apt layer above. rustup (not apt) so the toolchain stays current;
+# minimal profile + rustfmt/clippy only to keep the layer small.
+# CC/CXX=clang + lld via RUSTFLAGS = much faster linking on the 2-vCPU VPS.
+# Override per-project with local .cargo/config.toml or RUSTFLAGS="".
+ENV CARGO_HOME=/home/dev/.cargo
+ENV RUSTUP_HOME=/home/dev/.rustup
+ENV PATH="/home/dev/.cargo/bin:$PATH"
+ENV CC=clang
+ENV CXX=clang++
+ENV RUSTFLAGS="-C link-arg=-fuse-ld=lld"
+
 USER dev
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal -c rustfmt,clippy
+
+# cargo-binstall (prebuilt binaries in seconds) + everyday helpers:
+# cargo-watch (rebuild on save) and cargo-edit (cargo add).
+RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
+ && cargo binstall -y cargo-watch cargo-edit
