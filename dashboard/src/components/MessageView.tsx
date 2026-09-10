@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api } from "../api";
@@ -87,6 +87,11 @@ export function MessageView({ item }: { item: Item }) {
       {item.text.map((t, i) => (
         <Markdown key={i}>{t}</Markdown>
       ))}
+      {item.stopped && (
+        <div className="stopped dim" title="The turn was stopped before it finished">
+          stopped — reply truncated
+        </div>
+      )}
       {!item.done && <span className="cursor" aria-hidden="true" />}
     </div>
   );
@@ -172,6 +177,17 @@ export function ModelPicker({
   const [source, setSource] = useState<"scoped" | "all">("scoped");
   const [allModels, setAllModels] = useState<PiModel[] | null>(allModelsCache);
   const [allError, setAllError] = useState<string | null>(null);
+
+  // Escape closes the menu even when the tap-catching scrim doesn't cover
+  // the tapped area (narrow headers), so it can never trap other controls.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const label = current ? current.id : "model";
   const activeModels = source === "scoped" ? models : allModels;

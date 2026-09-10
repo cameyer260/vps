@@ -195,8 +195,18 @@ function applyEvent(state: ChatState, event: PiEvent): ChatState {
     case "agent_start":
       return { ...state, status: "streaming" };
 
-    case "agent_settled":
-      return { ...state, status: "idle" };
+    case "agent_settled": {
+      // Freeze any in-flight assistant bubble as-is: on abort there is no
+      // message_end, so the streamed prefix is the final content. Marking it
+      // done drops the live cursor (and a late duplicate message_end can no
+      // longer resurrect it); `stopped` tells the UI the answer is truncated.
+      // After a clean finish the item is already done — a no-op.
+      const found = streamingAssistant(state.items);
+      if (!found) return { ...state, status: "idle" };
+      const items = [...state.items];
+      items[found.index] = { ...found.item, done: true, stopped: true };
+      return { ...state, status: "idle", items };
+    }
 
     case "message_start": {
       const msg = event.message;
@@ -274,7 +284,10 @@ function applyEvent(state: ChatState, event: PiEvent): ChatState {
           item.thinking[item.thinking.length - 1] += e.delta ?? "";
           item.lastBlock = "thinking";
           break;
-        case "toolcall_start":
+        case "toolcall_start": {
+          // Same-id start twice (duplicate delivery) must not push a second
+          // card — it breaks the tool list keys and the spinner matching.
+          if (e.id && item.tools.some((t) => t.id === e.id)) break;
           item.tools.push({
             id: e.id ?? `t${item.tools.length}`,
             name: e.toolName ?? "tool",
@@ -285,6 +298,7 @@ function applyEvent(state: ChatState, event: PiEvent): ChatState {
           });
           item.lastBlock = "tool";
           break;
+        }
         case "toolcall_delta": {
           const tool = item.tools[item.tools.length - 1];
           if (tool) tool.argsText += e.delta ?? "";
@@ -565,6 +579,12 @@ export function useChat(agent: AgentInfo): ChatApi {
   useEffect(() => {
     aliveRef.current = true;
     let retry: ReturnType<typeof setTimeout> | null = null;
+    // Only the newest socket of this effect run may dispatch or reconnect.
+    // A superseded socket (StrictMode double-mount, or a close that lands
+    // after its replacement connected) must be fully ignored: every pi event
+    // it still delivers would otherwise be applied twice — doubling streamed
+    // text and tool cards, visible on abort where no message_end masks it.
+    const isCurrent = (ws: WebSocket) => aliveRef.current && wsRef.current === ws;
 
     const handleMessage = (raw: string) => {
       let msg: Record<string, unknown>;
@@ -647,6 +667,14 @@ export function useChat(agent: AgentInfo): ChatApi {
       const ws = new WebSocket(`${proto}://${location.host}/ws/agent/${agent.id}`);
       wsRef.current = ws;
       ws.onopen = () => {
+        if (!isCurrent(ws)) {
+          try {
+            ws.close();
+          } catch {
+            /* already gone */
+          }
+          return;
+        }
         dispatch({ type: "connected", value: true });
         backfill(cursorRef.current ? "since" : "full");
         // Prime UI state.
@@ -668,8 +696,12 @@ export function useChat(agent: AgentInfo): ChatApi {
           })
           .catch(() => {});
       };
-      ws.onmessage = (e) => handleMessage(String(e.data));
+      ws.onmessage = (e) => {
+        if (!isCurrent(ws)) return;
+        handleMessage(String(e.data));
+      };
       ws.onclose = (e) => {
+        if (wsRef.current !== ws) return; // stale socket — never retry off it
         wsRef.current = null;
         for (const [, waiter] of pendingRef.current) waiter({ success: false, error: "disconnected" });
         pendingRef.current.clear();
@@ -691,8 +723,19 @@ export function useChat(agent: AgentInfo): ChatApi {
     return () => {
       aliveRef.current = false;
       if (retry) clearTimeout(retry);
-      wsRef.current?.close();
+      const ws = wsRef.current;
       wsRef.current = null;
+      // A socket still connecting must NOT be closed here: aborting the
+      // handshake logs a browser-level warning, while letting it open lets
+      // the onopen guard above close the superseded socket cleanly (and a
+      // genuinely stale open would be ignored by every handler anyway).
+      if (ws && ws.readyState !== WebSocket.CONNECTING) {
+        try {
+          ws.close();
+        } catch {
+          /* already gone */
+        }
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent.id]);

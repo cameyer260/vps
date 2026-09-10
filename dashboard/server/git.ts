@@ -1,3 +1,4 @@
+import path from "node:path";
 import { config } from "./config.js";
 import { projectDir } from "./config.js";
 import { runCommand } from "./jarvis.js";
@@ -7,9 +8,24 @@ export interface GitResult {
   output: string;
 }
 
+/** In-process per-repo pull mutex: two overlapping `git pull --ff-only` in one
+ *  repo fail with "Cannot fast-forward to multiple branches", so concurrent
+ *  callers (viewer mount, StartDialog pre-start pull, two tabs) await the
+ *  in-flight pull and share its result instead of racing it. */
+const pullLocks = new Map<string, Promise<GitResult>>();
+
 /** Host-side `git pull --ff-only` (surfaces divergence instead of merging). */
 export function gitPull(dir: string): Promise<GitResult> {
-  return runCommand("git", ["pull", "--ff-only"], { cwd: dir, timeout: 120_000 });
+  const key = path.resolve(dir);
+  const inflight = pullLocks.get(key);
+  if (inflight) return inflight;
+  const p = runCommand("git", ["pull", "--ff-only"], { cwd: dir, timeout: 120_000 }).finally(
+    () => {
+      if (pullLocks.get(key) === p) pullLocks.delete(key);
+    },
+  );
+  pullLocks.set(key, p);
+  return p;
 }
 
 export interface GitStatus {

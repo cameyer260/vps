@@ -32,19 +32,37 @@ export function CsvEditor({
     const parsed = Papa.parse<string[]>(content, {
       skipEmptyLines: false,
     });
+    // A trailing newline (what most editors write) parses as final
+    // all-empty rows — strip those so normal files open as a clean grid.
+    // Interior blank lines are kept so open→save round-trips losslessly.
+    const rows = [...parsed.data];
+    while (
+      rows.length > 0 &&
+      Array.isArray(rows[rows.length - 1]) &&
+      (rows[rows.length - 1] as string[]).every((cell) => cell === "")
+    ) {
+      rows.pop();
+    }
     if (parsed.errors.length > 0) {
       const first = parsed.errors[0]!;
-      // row-mismatched lengths are normal in hand-edited CSVs — papaparse
-      // pads/keeps them; only hard failures block editing
-      if (first.code === "TooFewFields" || first.code === "TooManyFields") {
-        return { rows: parsed.data, error: null };
+      // Row-mismatched lengths are normal in hand-edited CSVs — papaparse
+      // pads/keeps them. UndetectableDelimiter is also benign when real rows
+      // parsed (it fires on the empty tail above, defaulting to ','); only
+      // hard failures block editing.
+      if (
+        first.code === "TooFewFields" ||
+        first.code === "TooManyFields" ||
+        (first.code === "UndetectableDelimiter" && rows.length > 0)
+      ) {
+        return { rows, error: null };
       }
       return { rows: [] as string[][], error: `${first.code ?? "parse error"}: ${first.message}` };
     }
-    return { rows: parsed.data, error: null };
+    return { rows, error: null };
   }, [content]);
 
   const [rows, setRows] = useState<string[][]>(initial.rows);
+  const [parseError] = useState<string | null>(initial.error);
 
   useEffect(() => {
     return () => {
@@ -100,12 +118,12 @@ export function CsvEditor({
     });
   };
 
-  if (gridError || rows.length === 0) {
+  if (parseError || gridError || rows.length === 0) {
     return (
       <div className="csv-editor">
         <div className="empty">
           <p>Couldn't parse this CSV.</p>
-          <p className="dim">{gridError ?? "no rows"}</p>
+          <p className="dim">{parseError ?? gridError ?? "no rows"}</p>
         </div>
       </div>
     );

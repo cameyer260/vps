@@ -149,6 +149,8 @@ export type Item =
       thinking: string[];
       tools: ToolView[];
       done: boolean;
+      /** Turn ended without message_end (abort): the streamed prefix is final. */
+      stopped?: boolean;
       model: string | null;
       provisional: boolean;
       lastBlock?: "text" | "thinking" | "tool";

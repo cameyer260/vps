@@ -54,7 +54,17 @@ export default function App() {
       const proto = location.protocol === "https:" ? "wss" : "ws";
       const socket = new WebSocket(`${proto}://${location.host}/ws/events`);
       ws = socket;
-      socket.onopen = () => refetch();
+      socket.onopen = () => {
+        if (ws !== socket) {
+          try {
+            socket.close();
+          } catch {
+            /* already gone */
+          }
+          return;
+        }
+        refetch();
+      };
       socket.onmessage = (e) => {
         let msg: { type?: string; id?: string; status?: AgentInfo["live"] };
         try {
@@ -70,6 +80,9 @@ export default function App() {
         }
       };
       socket.onclose = () => {
+        // A superseded socket (StrictMode double-mount) must not clear the
+        // live connection or schedule a duplicate one — see useChat.
+        if (ws !== socket) return;
         ws = null;
         if (alive) retry = setTimeout(connect, 2000);
       };
@@ -83,8 +96,17 @@ export default function App() {
       alive = false;
       if (retry) clearTimeout(retry);
       if (refetchDelay) clearTimeout(refetchDelay);
-      ws?.close();
+      const sock = ws;
       ws = null;
+      // See useChat: never abort a connecting handshake (browser warning);
+      // the onopen guard closes superseded sockets once established.
+      if (sock && sock.readyState !== WebSocket.CONNECTING) {
+        try {
+          sock.close();
+        } catch {
+          /* already gone */
+        }
+      }
     };
   }, []);
 

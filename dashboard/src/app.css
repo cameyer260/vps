@@ -564,6 +564,13 @@ button {
   animation: pulse 1s steps(2) infinite;
 }
 
+/* frozen-turn marker: the turn was stopped, the partial text above is final */
+.stopped {
+  font-size: 12px;
+  font-style: italic;
+  margin-top: 4px;
+}
+
 /* thinking */
 
 details.thinking {
@@ -1934,6 +1941,25 @@ div.agent-card {
   .chat-controls .model-picker {
     min-width: 0;
     overflow: hidden;
+  }
+
+  /* Model picker popover: the narrow wrapped header puts the picker's box
+     at the row's edge, so the edge-anchored absolute panel lands off-screen
+     (and is clipped by the picker's overflow:hidden above) — an invisible
+     menu whose scrim then traps header taps. Pin the panel below the header
+     bar, full width, instead. Note: chat-head's backdrop-filter is the
+     containing block for fixed descendants, so top:100% anchors just under
+     the bar. Desktop rendering is untouched (outside this media query). */
+  .chat-controls .model-pop {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    top: calc(100% + 6px);
+    width: auto;
+  }
+
+  .chat-controls .model-list {
+    max-height: 40dvh;
   }
 
   .chat-controls .btn.ghost {
