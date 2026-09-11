@@ -170,6 +170,125 @@ try {
   const search = await getJSON("/api/notes/search?q=mock");
   check("notes search", search.results.length >= 1);
 
+  // ---- project-scoped files API (Phase 4 IDE backend) ------------------------
+  const findNode = (nodes, p) => {
+    for (const n of nodes ?? []) {
+      if (n.path === p) return n;
+      const f = n.children ? findNode(n.children, p) : null;
+      if (f) return f;
+    }
+    return null;
+  };
+
+  const alphaTree = await getJSON("/api/files/tree?project=alpha");
+  check(
+    "files tree lists nested code",
+    ["src/app.js", "src/lib/helpers.py", "docs/guide.md", "Dockerfile"].every((p) =>
+      findNode(alphaTree.tree, p),
+    ),
+    JSON.stringify(alphaTree.tree.map((n) => n.path)),
+  );
+  check("files tree marks code as text", findNode(alphaTree.tree, "src/app.js")?.kind === "text");
+  check("files tree marks md", findNode(alphaTree.tree, "docs/guide.md")?.kind === "md");
+  check("files tree marks binary", findNode(alphaTree.tree, "assets/pixel.png")?.kind === "binary");
+
+  const betaTree = await getJSON("/api/files/tree?project=beta");
+  check("files tree covers git projects", !!findNode(betaTree.tree, "src/nested/deep.json"));
+
+  const codeFile = await getJSON("/api/files/file?project=alpha&path=src/app.js");
+  check(
+    "files read text",
+    codeFile.content.includes("alpha app") && codeFile.kind === "text",
+    JSON.stringify(codeFile).slice(0, 120),
+  );
+  const dockerFile = await getJSON("/api/files/file?project=alpha&path=Dockerfile");
+  check("files read extensionless text", dockerFile.kind === "text" && dockerFile.content.includes("FROM"));
+
+  const binRes = await fetch(`${base}/api/files/file?project=alpha&path=assets/pixel.png`);
+  const binBody = await binRes.json();
+  check("files binary refusal", binRes.status === 415 && binBody.binary === true, `got ${binRes.status}`);
+
+  const bigRes = await fetch(`${base}/api/files/file?project=alpha&path=big.log`);
+  check("files oversize refusal", bigRes.status === 413, `got ${bigRes.status}`);
+
+  const badProj = await fetch(`${base}/api/files/tree?project=..%2Fnotes`);
+  check("files tree rejects traversal project", badProj.status === 400, `got ${badProj.status}`);
+  const emptyProj = await fetch(`${base}/api/files/tree?project=`);
+  check("files tree rejects empty project", emptyProj.status === 400, `got ${emptyProj.status}`);
+  const travRes = await fetch(
+    `${base}/api/files/file?project=alpha&path=..%2F..%2Fnotes%2Fwelcome.md`,
+  );
+  check("files read rejects traversal", travRes.status === 400, `got ${travRes.status}`);
+  const badProjFile = await fetch(`${base}/api/files/file?project=..%2Fx&path=a.md`);
+  check("files read rejects bad project", badProjFile.status === 400, `got ${badProjFile.status}`);
+
+  const fsearch = await getJSON("/api/files/search?project=alpha&q=console");
+  check(
+    "files search",
+    fsearch.results.some((h) => h.path === "src/app.js"),
+    JSON.stringify(fsearch.results).slice(0, 160),
+  );
+  const fshort = await getJSON("/api/files/search?project=alpha&q=x");
+  check("files search rejects short query", Array.isArray(fshort.results) && fshort.results.length === 0);
+  const fbadSearch = await fetch(`${base}/api/files/search?project=..%2Fx&q=console`);
+  check("files search rejects bad project", fbadSearch.status === 400, `got ${fbadSearch.status}`);
+
+  const putTravRaw = await fetch(`${base}/api/files/file`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project: "alpha", path: "../evil.md", content: "x" }),
+  });
+  check("files write rejects traversal", putTravRaw.status === 400, `got ${putTravRaw.status}`);
+  const putBinRaw = await fetch(`${base}/api/files/file`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project: "alpha", path: "assets/evil.png", content: "x" }),
+  });
+  check("files write refuses binary", putBinRaw.status === 415, `got ${putBinRaw.status}`);
+  const putBigRaw = await fetch(`${base}/api/files/file`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project: "alpha", path: "big2.log", content: "x".repeat((2 << 20) + 1) }),
+  });
+  check("files write refuses oversize", putBigRaw.status === 413, `got ${putBigRaw.status}`);
+
+  // Write + commit round-trip rides the notes repo (local bare remote: push
+  // works fully offline). Re-runs overwrite the same file and stack one
+  // more commit — idempotent enough for a generated fixture.
+  const putOk = await (async () => {
+    const r = await fetch(`${base}/api/files/file`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project: "notes",
+        path: "smoke-commit.md",
+        content: `# smoke\n\nfiles API round-trip.\n`,
+      }),
+    });
+    return r.ok;
+  })();
+  check("files write round-trip", putOk);
+  const roundTrip = await getJSON("/api/files/file?project=notes&path=smoke-commit.md");
+  check("files read after write", roundTrip.content.includes("round-trip") && roundTrip.kind === "md");
+  const committed = await postJSON("/api/files/commit", {
+    project: "notes",
+    paths: ["smoke-commit.md"],
+    message: "smoke files commit",
+  });
+  check("files commit+push", committed.ok === true, JSON.stringify(committed).slice(0, 160));
+  const badCommit = await fetch(`${base}/api/files/commit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project: "alpha", paths: ["../evil.md"], message: "x" }),
+  });
+  check("files commit rejects traversal", badCommit.status === 400, `got ${badCommit.status}`);
+  const badCommitProj = await fetch(`${base}/api/files/commit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project: "..", paths: ["a.md"], message: "x" }),
+  });
+  check("files commit rejects bad project", badCommitProj.status === 400, `got ${badCommitProj.status}`);
+
   const fd = new FormData();
   fd.append("file", new File(["hello mock"], "hi.txt", { type: "text/plain" }));
   const upRes = await fetch(`${base}/api/upload`, { method: "POST", body: fd });

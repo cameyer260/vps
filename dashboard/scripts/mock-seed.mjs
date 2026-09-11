@@ -60,6 +60,17 @@ function write(file, content) {
   fs.writeFileSync(file, content);
 }
 
+function writeBin(file, bytes) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, Buffer.from(bytes));
+}
+
+// Minimal PNG header bytes (binary fixture for the IDE "not shown" path).
+const PIXEL_PNG = [
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49,
+  0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0xff, 0xd8, 0x00, 0x10, 0x4a, 0x46,
+];
+
 // ---- clean rebuild (idempotent: rerunning leaves a working state) ------------
 
 fs.rmSync(mockDir, { recursive: true, force: true });
@@ -73,12 +84,37 @@ write(
   path.join(alphaDir, "README.md"),
   "# Mock Alpha\n\nPlain fixture project for offline dashboard testing.\n",
 );
+// IDE backend fixtures: nested code/text dirs, an extensionless Dockerfile,
+// a binary (refused with the `binary: true` signal), and an oversize log
+// (reads refuse it with 413; search skips it).
+write(path.join(alphaDir, "src/app.js"), "console.log(\"alpha app\");\n");
+write(
+  path.join(alphaDir, "src/lib/helpers.py"),
+  "def hello():\n    return \"alpha\"\n",
+);
+write(
+  path.join(alphaDir, "docs/guide.md"),
+  "# Alpha Guide\n\nMock nested markdown for the IDE file tree.\n",
+);
+write(
+  path.join(alphaDir, "Dockerfile"),
+  "FROM node:22-slim\nWORKDIR /app\nCMD [\"node\", \"src/app.js\"]\n",
+);
+writeBin(path.join(alphaDir, "assets/pixel.png"), PIXEL_PNG);
+write(path.join(alphaDir, "big.log"), "x".repeat((2 << 20) + 512 * 1024));
 
 // ---- projects/beta (git repo with one dirty file) ----------------------------
 
 git(["init", "-b", "main"], betaDir);
 stampIdentity(betaDir);
 write(path.join(betaDir, "app.js"), "console.log(\"mock beta\");\n");
+write(path.join(betaDir, "README.md"), "# Mock Beta\n\nGit fixture project for offline dashboard testing.\n");
+write(
+  path.join(betaDir, "src/main.go"),
+  "package main\n\nfunc main() {}\n",
+);
+write(path.join(betaDir, "src/nested/deep.json"), '{\n  "depth": "nested"\n}\n');
+writeBin(path.join(betaDir, "assets/icon.png"), PIXEL_PNG);
 commitAll(betaDir, "seed mock beta");
 // Leave one unstaged modification: the git-status UI shows a dirty tree.
 fs.appendFileSync(path.join(betaDir, "app.js"), "console.log(\"uncommitted change\");\n");

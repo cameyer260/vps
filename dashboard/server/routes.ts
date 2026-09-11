@@ -5,6 +5,13 @@ import { config, notesName, projectDir } from "./config.js";
 import type { AgentInfo } from "./docker.js";
 import { getRuntime } from "./runtime.js";
 import { gitCommitPush, gitStatus } from "./git.js";
+import {
+  filterCommitPaths,
+  projectTree,
+  readProjectFile,
+  searchProject,
+  writeProjectFile,
+} from "./files.js";
 import { notesTree, readNote, searchNotes, writeNote } from "./notes.js";
 
 const EDITABLE_EXT_SAFE = /\.(md|csv)$/i;
@@ -218,5 +225,73 @@ api.post("/notes/commit", async (c) => {
   if (paths.length === 0) return c.json({ error: "no valid note paths given" }, 400);
   const message = (body.message ?? "").trim().slice(0, 300) || "notes update via dashboard";
   const result = await gitCommitPush(config.notesDir, paths, message);
+  return c.json(result, result.ok ? 200 : 409);
+});
+
+// ---- project-scoped files (IDE backend) ------------------------------------
+// Same traversal guards as the notes aliases, generalized to any project
+// from `GET /api/projects`. Binary files are refused with a `binary: true`
+// signal (the UI shows "not shown"); oversize with 413.
+
+api.get("/files/tree", async (c) => {
+  const project = c.req.query("project") ?? "";
+  const tree = await projectTree(project);
+  if (!tree) return c.json({ error: `invalid project: ${project}` }, 400);
+  return c.json({ tree, project });
+});
+
+api.get("/files/file", async (c) => {
+  const project = c.req.query("project") ?? "";
+  const rel = c.req.query("path") ?? "";
+  if (!projectDir(project)) return c.json({ error: `invalid project: ${project}` }, 400);
+  const r = await readProjectFile(project, rel);
+  if (!r.ok) {
+    if (r.reason === "binary") {
+      return c.json({ error: `binary file not shown: ${rel}`, binary: true, kind: "binary" }, 415);
+    }
+    if (r.reason === "oversize") {
+      return c.json({ error: `file too large (max 2 MiB): ${rel}`, oversize: true, size: r.size }, 413);
+    }
+    if (r.reason === "invalid") return c.json({ error: `invalid path: ${rel}` }, 400);
+    return c.json({ error: `not a readable file: ${rel}` }, 404);
+  }
+  return c.json(r.file);
+});
+
+api.put("/files/file", async (c) => {
+  const body = (await c.req.json()) as { project?: string; path?: string; content?: string };
+  const project = body.project ?? "";
+  if (!projectDir(project)) return c.json({ error: `invalid project: ${project}` }, 400);
+  if (!body.path || typeof body.content !== "string") {
+    return c.json({ error: "project, path and content are required" }, 400);
+  }
+  const r = await writeProjectFile(project, body.path, body.content);
+  if (!r.ok) {
+    if (r.reason === "binary") {
+      return c.json({ error: `binary file not shown: ${body.path}`, binary: true }, 415);
+    }
+    if (r.reason === "oversize") return c.json({ error: "file too large (max 2 MiB)" }, 413);
+    return c.json({ error: `not a writable file: ${body.path}` }, 400);
+  }
+  return c.json({ ok: true, mtime: r.mtime });
+});
+
+api.get("/files/search", async (c) => {
+  const project = c.req.query("project") ?? "";
+  const q = c.req.query("q") ?? "";
+  const results = await searchProject(project, q);
+  if (!results) return c.json({ error: `invalid project: ${project}` }, 400);
+  return c.json({ results });
+});
+
+api.post("/files/commit", async (c) => {
+  const body = (await c.req.json()) as { project?: string; paths?: string[]; message?: string };
+  const project = body.project ?? "";
+  const dir = projectDir(project);
+  if (!dir) return c.json({ error: `invalid project: ${project}` }, 400);
+  const paths = filterCommitPaths(project, body.paths);
+  if (paths.length === 0) return c.json({ error: "no valid file paths given" }, 400);
+  const message = (body.message ?? "").trim().slice(0, 300) || "dashboard update";
+  const result = await gitCommitPush(dir, paths, message);
   return c.json(result, result.ok ? 200 : 409);
 });

@@ -76,4 +76,30 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ paths, message }),
     }).then((r) => json<{ ok: boolean; output: string }>(r)),
+  filesTree: (project: string) =>
+    fetch(`/api/files/tree?project=${encodeURIComponent(project)}`).then((r) =>
+      json<{ tree: TreeNode[]; project: string }>(r),
+    ),
+  filesFile: (project: string, path: string) =>
+    fetch(
+      `/api/files/file?project=${encodeURIComponent(project)}&path=${encodeURIComponent(path)}`,
+    ).then((r) =>
+      json<{ path: string; content: string; mtime: number; size: number; kind: string }>(r),
+    ),
+  filesWrite: (project: string, path: string, content: string) =>
+    fetch("/api/files/file", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project, path, content }),
+    }).then((r) => json<{ ok: boolean; mtime: number }>(r)),
+  filesSearch: (project: string, q: string) =>
+    fetch(
+      `/api/files/search?project=${encodeURIComponent(project)}&q=${encodeURIComponent(q)}`,
+    ).then((r) => json<{ results: { path: string; line: number; text: string }[] }>(r)),
+  filesCommit: (project: string, paths: string[], message: string) =>
+    fetch("/api/files/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project, paths, message }),
+    }).then((r) => json<{ ok: boolean; output: string }>(r)),
 };

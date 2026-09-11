@@ -45,6 +45,8 @@ export interface TreeNode {
   path: string;
   type: "dir" | "file";
   children?: TreeNode[];
+  /** File renderer hint from the IDE backend (Phase 4); absent on old shapes. */
+  kind?: "md" | "csv" | "text" | "binary";
   size?: number;
   mtime?: number;
 }
