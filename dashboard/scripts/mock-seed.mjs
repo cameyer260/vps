@@ -10,7 +10,7 @@
  * sessions dir ending `.jsonl`.
  *
  * Everything is local-file git (bare remote in the fixtures dir), so notes
- * commit+push and `git pull` work fully offline.
+ * commit+push works fully offline.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";

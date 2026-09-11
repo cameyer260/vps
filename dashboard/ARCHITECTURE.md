@@ -20,7 +20,7 @@ How the dashboard works inside. Usage and deployment:
       │    only, never production — see docs/testing.md)
       ├─ WebSocket per open chat, relays pi RPC JSONL both ways
       ├─ global events WebSocket (/ws/events): agent list push, no polling
-      └─ host-side git operations (pull / add / commit / push; remotes auth
+      └─ host-side git operations (status / commit / push; remotes auth
          via the gh CLI credential helper)
 
     agent container (agent-pi image)

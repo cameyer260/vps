@@ -32,8 +32,7 @@ override it. Installable as a PWA ("Admin Dashboard").
 ### 2. Notes section (pinned)
 Notes agents are agents on `/home/dev/notes`, managed like every other
 project. Multiple conversations at once; sessions persist and can be resumed.
-No auto `git pull` — starting agents and opening the viewer never pull; sync
-is manual. Closing any agent with a dirty project tree warns first — "back to
+Closing any agent with a dirty project tree warns first — "back to
 chat" (ask the agent to commit & push) or "stop anyway" — but the dashboard
 never commits on the user's behalf. Git policy is use-at-your-own-risk (no
 locks); agents are instructed to stage-commit-push after changes via the
@@ -61,8 +60,7 @@ isn't swept up.
 
 ## Deployment (UID/GID quirk)
 
-The dashboard runs inside a container but must act as the host `dev` user (git
-pulls/commits must be dev-owned) and reach the Docker socket. All identity
+The dashboard runs inside a container but must act as the host `dev` user (git operations must be dev-owned) and reach the Docker socket. All identity
 values are resolved on the host at deploy time — never hardcoded, never looked
 up inside the container. The runtime image (dashboard/Dockerfile) installs the
 docker CLI, git and gh (no pi CLI — the `/api/models` route runs

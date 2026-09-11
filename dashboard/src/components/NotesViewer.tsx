@@ -13,7 +13,7 @@ import { CsvEditor } from "./CsvEditor";
  * document is rendered while you edit — no raw-text mode), full-text search.
  * Edits auto-save to disk (debounced) and every file edited in this viewer
  * session is staged by the "commit & push" button — so dirt from agents
- * isn't swept up. No auto git pull anywhere — sync is manual.
+ * isn't swept up.
  */
 
 interface Tab {
@@ -39,7 +39,7 @@ export function NotesViewer({ notesName, onBack }: { notesName: string; onBack: 
       .catch((e) => setLoadError(String((e as Error).message ?? e)));
   }, []);
 
-  // On open: just load the file tree. No auto git pull — sync is manual.
+  // On open: just load the file tree.
   useEffect(() => {
     loadTree();
   }, [loadTree]);

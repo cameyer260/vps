@@ -10,8 +10,7 @@ interface Props {
 
 /**
  * One-click "new conversation" for the notes project: a notes agent with
- * full tools (read-only is opt-in via the start dialog). No auto git pull —
- * sync is manual.
+ * full tools (read-only is opt-in via the start dialog).
  */
 export function StartNotesButton({ notesName, onStarted, label = "+ new conversation", className }: Props) {
   const [busy, setBusy] = useState(false);
