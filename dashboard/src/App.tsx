@@ -5,15 +5,16 @@ import { AgentsSections } from "./components/AgentsSections";
 import { Chat } from "./components/Chat";
 import { NotesViewer } from "./components/NotesViewer";
 import { StartDialog } from "./components/StartDialog";
-
-type View = { page: "agents" } | { page: "chat"; agentId: string } | { page: "notes" };
+import { TabHeader } from "./components/TabHeader";
+import { BottomNav, type TabKey } from "./components/BottomNav";
 
 export default function App() {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
-  const [view, setView] = useState<View>({ page: "agents" });
+  const [tab, setTab] = useState<TabKey>("agents");
+  // Agent chat is a sub-state of the Agents tab (agents / agent-chat).
+  const [chatAgentId, setChatAgentId] = useState<string | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [startProject, setStartProject] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [notesName, setNotesName] = useState("notes");
 
   useEffect(() => {
@@ -111,8 +112,8 @@ export default function App() {
   }, []);
 
   const openChat = useCallback((agentId: string) => {
-    setView({ page: "chat", agentId });
-    setMenuOpen(false);
+    setTab("agents");
+    setChatAgentId(agentId);
   }, []);
 
   const openStart = useCallback((project?: string) => {
@@ -120,8 +121,14 @@ export default function App() {
     setStartOpen(true);
   }, []);
 
-  const chatAgent =
-    view.page === "chat" ? agents.find((a) => a.id === view.agentId) : undefined;
+  // Tap `Dashboard` in the header: home *within* the current tab. Agents
+  // returns to the overview; IDE/GC have no sub-state in phase 1 (their
+  // picker/list homes arrive with phases 5/7), so they are already home.
+  const goHome = useCallback(() => {
+    if (tab === "agents") setChatAgentId(null);
+  }, [tab]);
+
+  const chatAgent = chatAgentId ? agents.find((a) => a.id === chatAgentId) : undefined;
   // Keep the last known info around so a brief die→refetch window doesn't
   // flash the overview; once the refetch confirms the container is really
   // gone (terminated — possibly from another device), the effect below
@@ -138,78 +145,65 @@ export default function App() {
   useEffect(() => {
     for (const a of agents) everSeenRef.current.add(a.id);
     if (
-      view.page === "chat" &&
-      everSeenRef.current.has(view.agentId) &&
-      !agents.some((a) => a.id === view.agentId)
+      chatAgentId &&
+      everSeenRef.current.has(chatAgentId) &&
+      !agents.some((a) => a.id === chatAgentId)
     ) {
       lastChatAgentRef.current = null;
-      setView({ page: "agents" });
+      setChatAgentId(null);
     }
-  }, [agents, view]);
+  }, [agents, chatAgentId]);
 
   return (
-    <div className="app">
-      {menuOpen && <div className="scrim" onClick={() => setMenuOpen(false)} />}
-      <aside className={`sidebar${menuOpen ? " open" : ""}`}>
-        <div className="sidebar-head">
-          <span className="brand">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path d="M13 2 4.8 13.2c-.3.5 0 1.1.6 1.1h4.9l-1.6 7.2c-.1.6.6.9 1 .4L18 10.6c.3-.5 0-1.1-.6-1.1h-4.9l1.5-6.9c.1-.6-.6-.9-1-.6z" />
-            </svg>
-            dashboard
-          </span>
-          <button className="btn primary" onClick={() => openStart()}>
-            + New agent
-          </button>
-        </div>
-        <div className="sidebar-body">
-          <AgentsSections
-            agents={agents}
-            notesName={notesName}
-            compact
-            onOpenChat={openChat}
-            onOpenNotes={() => {
-              setView({ page: "notes" });
-              setMenuOpen(false);
-            }}
-            onStart={openStart}
-            onStarted={(agent) => {
-              setMenuOpen(false);
-              openChat(agent.id);
-            }}
-          />
-        </div>
-      </aside>
+    <div className="app-shell">
+      <TabHeader tab={tab} onHome={goHome} />
 
-      <main className="main">
-        {view.page === "chat" && shownChatAgent ? (
-          <Chat
-            key={shownChatAgent.id}
-            agent={shownChatAgent}
-            onBack={() => setView({ page: "agents" })}
-            onTerminated={() => setView({ page: "agents" })}
-          />
-        ) : view.page === "notes" ? (
-          <NotesViewer notesName={notesName} onBack={() => setView({ page: "agents" })} />
-        ) : (
-          <div className="overview">
-            <div className="overview-head">
-              <h1>Agents</h1>
-              <button className="btn primary" onClick={() => openStart()}>
-                + Start agent
-              </button>
-            </div>
-            <AgentsSections
-              agents={agents}
-              notesName={notesName}
-              onOpenChat={openChat}
-              onOpenNotes={() => setView({ page: "notes" })}
-              onStart={openStart}
-              onStarted={(agent) => openChat(agent.id)}
+      <main className="tab-content" data-tab={tab}>
+        {tab === "agents" &&
+          (chatAgentId && shownChatAgent ? (
+            <Chat
+              key={shownChatAgent.id}
+              agent={shownChatAgent}
+              onBack={() => setChatAgentId(null)}
+              onTerminated={() => setChatAgentId(null)}
             />
+          ) : (
+            <div className="overview">
+              <div className="overview-head">
+                <h1>Agents</h1>
+                <button className="btn primary" onClick={() => openStart()}>
+                  + Start agent
+                </button>
+              </div>
+              <AgentsSections
+                agents={agents}
+                notesName={notesName}
+                onOpenChat={openChat}
+                onOpenNotes={() => setTab("ide")}
+                onStart={openStart}
+                onStarted={(agent) => openChat(agent.id)}
+              />
+            </div>
+          ))}
+
+        {tab === "ide" && (
+          <NotesViewer notesName={notesName} onBack={() => setTab("agents")} />
+        )}
+
+        {tab === "gc" && (
+          <div className="overview">
+            <div className="empty">
+              <p>General Chat lives here.</p>
+              <p className="dim">
+                The ChatGPT-style chat over your notes arrives in a later phase —
+                this tab proves the chrome routing first.
+              </p>
+            </div>
           </div>
         )}
       </main>
+
+      <BottomNav tab={tab} onChange={setTab} />
 
       {startOpen && (
         <StartDialog
@@ -222,12 +216,6 @@ export default function App() {
           }}
         />
       )}
-
-      <button className="menu-btn" onClick={() => setMenuOpen(true)} aria-label="Open menu">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <path d="M4 7h16M4 12h16M4 17h16" />
-        </svg>
-      </button>
     </div>
   );
 }

@@ -1,10 +1,13 @@
 /* Admin Dashboard — dark, phone-first.
  *
- * Design language (phase 4 rework): OLED-black unified canvas with hairline
- * borders (no heavy panel contrast), vivid blue accent, compact geometry
- * (0.5rem control radius), glass floating surfaces (composer, popovers),
- * 6px scrollbars, system font stacks, 150-200ms ease-out motion.
- * Styling inspired by T3 Chat's design system (MIT), recolored black+blue.
+ * Design language: OLED-black unified canvas with hairline borders (no
+ * heavy panel contrast), compact geometry, glass floating surfaces
+ * (composer, popovers), 6px scrollbars, system font stacks, 150-200ms
+ * ease-out motion. Status/action colors follow the Apple system palette
+ * (green = done/waiting/on/Start, orange = running/working, red =
+ * off/Exit/destructive, yellow = warnings); the blue accent remains only
+ * for non-status chrome (links, focus, selection). Global tab chrome
+ * (TabHeader + floating BottomNav pill) is marked "Phase 1" below.
  */
 
 :root {
@@ -26,10 +29,14 @@
   --accent-soft: rgba(77, 141, 255, 0.12);
   --accent-border: rgba(77, 141, 255, 0.4);
 
-  /* semantics */
-  --green: #3ecf8e;
-  --red: #ef6f6f;
-  --amber: #e0b060;
+  /* semantics — Apple system palette (dark): green = done/waiting/on/Start,
+     orange = running/working, red = off/Exit/destructive, yellow = warnings.
+     --amber is kept as an alias of Apple yellow for existing warning styles. */
+  --green: #30d158;
+  --orange: #ff9f0a;
+  --red: #ff453a;
+  --yellow: #ffd60a;
+  --amber: #ffd60a;
 
   /* geometry */
   --radius-sm: 8px;
@@ -271,8 +278,8 @@ button {
 }
 
 .dot.streaming {
-  background: var(--accent);
-  box-shadow: 0 0 8px rgba(77, 141, 255, 0.7);
+  background: var(--orange);
+  box-shadow: 0 0 8px rgba(255, 159, 10, 0.7);
   animation: pulse 1.4s ease-in-out infinite;
 }
 
@@ -281,7 +288,8 @@ button {
 }
 
 .dot.dead {
-  background: var(--red);
+  background: var(--text-dim);
+  opacity: 0.55;
 }
 
 @keyframes pulse {
@@ -331,16 +339,16 @@ button {
 }
 
 .btn.primary {
-  background: linear-gradient(180deg, #5b98ff, #3f7ff5);
+  background: linear-gradient(180deg, #34dc61, #26b352);
   border-color: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  color: #06130b;
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.4),
-    0 0 12px rgba(77, 141, 255, 0.25);
+    0 0 12px rgba(48, 209, 88, 0.25);
 }
 
 .btn.primary:hover {
-  background: linear-gradient(180deg, #6ba4ff, #4d8aff);
+  background: linear-gradient(180deg, #45e472, #2cbf5b);
 }
 
 .btn.primary:disabled {
@@ -365,7 +373,7 @@ button {
 }
 
 .btn.danger {
-  background: linear-gradient(180deg, #f37c7c, #e05d5d);
+  background: linear-gradient(180deg, #ff5a52, #e0342c);
   border-color: rgba(255, 255, 255, 0.14);
   color: #fff;
 }
@@ -604,7 +612,7 @@ details.thinking summary {
 }
 
 .tool-card.error {
-  border-color: rgba(239, 111, 111, 0.5);
+  border-color: rgba(255, 69, 58, 0.5);
 }
 
 .tool-head {
@@ -759,12 +767,12 @@ details.thinking summary {
 }
 
 .notice.warning {
-  border-color: rgba(224, 176, 96, 0.5);
+  border-color: rgba(255, 214, 10, 0.5);
   color: var(--amber);
 }
 
 .notice.error {
-  border-color: rgba(239, 111, 111, 0.5);
+  border-color: rgba(255, 69, 58, 0.5);
   color: var(--red);
 }
 
@@ -1130,7 +1138,7 @@ details.thinking summary {
 }
 
 .error-box {
-  border: 1px solid rgba(239, 111, 111, 0.5);
+  border: 1px solid rgba(255, 69, 58, 0.5);
   color: var(--red);
   border-radius: var(--radius-sm);
   padding: 8px 10px;
@@ -1236,9 +1244,9 @@ details.thinking summary {
 }
 
 .ro-toggle.on {
-  border-color: rgba(62, 207, 142, 0.5);
+  border-color: rgba(48, 209, 88, 0.5);
   color: var(--green);
-  background: rgba(62, 207, 142, 0.08);
+  background: rgba(48, 209, 88, 0.08);
 }
 
 .ro-toggle:disabled {
@@ -1303,8 +1311,8 @@ div.agent-card {
 .btn.stop-agent:hover:not(:disabled),
 .btn.stop-agent:focus-visible {
   color: var(--red);
-  border-color: rgba(239, 111, 111, 0.5);
-  background: rgba(239, 111, 111, 0.08);
+  border-color: rgba(255, 69, 58, 0.5);
+  background: rgba(255, 69, 58, 0.08);
 }
 
 .btn.stop-agent .power-icon {
@@ -1348,8 +1356,8 @@ div.agent-card {
 
 .git-banner {
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(224, 176, 96, 0.5);
-  background: rgba(224, 176, 96, 0.06);
+  border-bottom: 1px solid rgba(255, 214, 10, 0.5);
+  background: rgba(255, 214, 10, 0.06);
   font-size: 13px;
 }
 
@@ -2001,5 +2009,178 @@ div.agent-card {
 @media (min-width: 769px) {
   .chat .back {
     display: inline-block;
+  }
+}
+
+/* ---- Phase 1: global tab chrome (TabHeader + BottomNav) ---- */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: var(--app-h, 100dvh);
+  overflow: hidden;
+}
+
+.tab-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--bg-2) 85%, transparent);
+  backdrop-filter: var(--glass);
+  border-bottom: 1px solid var(--border);
+  padding-top: env(safe-area-inset-top);
+  flex-shrink: 0;
+}
+
+.tab-header-inner {
+  display: flex;
+  align-items: baseline;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.tab-home {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  white-space: nowrap;
+  border-radius: 4px;
+}
+
+.tab-home:hover {
+  color: var(--accent-strong);
+}
+
+.tab-sep,
+.tab-name {
+  color: var(--text-dim);
+}
+
+.tab-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* tab bodies keep their internal scroll; the shell only constrains height */
+.app-shell .chat,
+.app-shell .notes {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-shell .overview {
+  flex: 1;
+  min-height: 0;
+  /* clearance for the floating pill */
+  padding-bottom: 110px;
+}
+
+/* floating rounded bottom pill — always visible, above modals */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  z-index: 70;
+  pointer-events: none;
+}
+
+.bottom-pill {
+  pointer-events: auto;
+  display: flex;
+  background: color-mix(in srgb, var(--bg-4) 88%, transparent);
+  backdrop-filter: var(--glass);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.bottom-pill button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 22px;
+  min-height: 48px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-dim);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.bottom-pill button:last-child {
+  border-right: none;
+}
+
+.bottom-pill button:hover {
+  color: var(--text);
+}
+
+.bottom-pill button.active {
+  color: var(--green);
+  background: rgba(48, 209, 88, 0.12);
+}
+
+/* glue: the old menu button is gone, so per-view chrome that deferred to
+   it shows inline inside the new shell */
+.app-shell .chat-head,
+.app-shell .notes-head {
+  padding-left: 14px;
+}
+
+.app-shell .chat-head .back,
+.app-shell .notes-head .back {
+  display: inline-block;
+}
+
+.app-shell .overview-head .btn {
+  display: inline-block;
+}
+
+.app-shell .overview {
+  padding-top: 24px;
+}
+
+/* composer sits above the floating pill, never under it */
+.app-shell .composer {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+
+.app-shell .note-render {
+  padding-bottom: 110px;
+}
+
+@media (min-width: 769px) {
+  /* desktop shell, same IA: widened panels, centered floating pill */
+  .tab-header-inner {
+    padding: 14px 24px;
+  }
+
+  .app-shell .overview {
+    max-width: 860px;
+  }
+
+  .bottom-pill button {
+    padding: 11px 30px;
   }
 }
