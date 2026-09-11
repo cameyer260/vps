@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import type { AgentInfo } from "../types";
 import { statusDot } from "./agentStatus";
 import { TerminateButton } from "./TerminateButton";
-import { StartNotesButton } from "./StartNotesButton";
 
 export { statusDot } from "./agentStatus";
 
@@ -29,11 +28,15 @@ interface Props {
 }
 
 /**
- * Dashboard agents grouped into sections by project. The notes project is
- * pinned at the top with a one-click "new conversation" — it's the everyday
- * ChatGPT replacement.
+ * Agents tab (spec §3): a single scrolling column grouped by project. Each
+ * row shows the chat name, how long it has been running, and a status dot
+ * (green = done/waiting, orange = running/working, dim = exited/dead —
+ * see agentStatus.ts); tapping a row opens that agent chat (shared
+ * ChatView). Live updates arrive in place via the global events socket in
+ * App.tsx — no polling here. The header `+` (App overview-head) and the
+ * empty-state `+` both open the New Agent modal.
  */
-export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenNotes, onStart, onStarted }: Props) {
+export function AgentsSections({ agents, notesName, onOpenChat, onStart }: Props) {
   const managed = useMemo(() => agents.filter((a) => a.origin === "dashboard"), [agents]);
   const sections = useMemo(() => {
     const map = new Map<string, AgentInfo[]>();
@@ -48,76 +51,29 @@ export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenN
     );
   }, [managed, notesName]);
 
-  if (managed.length === 0 && sections.length === 0) {
+  if (managed.length === 0) {
     return (
-      <div className="empty">
-        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-          <rect x="4" y="7" width="16" height="12" rx="3" />
-          <path d="M12 7V4" />
-          <circle cx="12" cy="3" r="1" fill="currentColor" stroke="none" />
-          <circle cx="9" cy="12.5" r="1" fill="currentColor" stroke="none" />
-          <circle cx="15" cy="12.5" r="1" fill="currentColor" stroke="none" />
-          <path d="M9.5 16h5" />
-        </svg>
-        <p>No dashboard agents running.</p>
-        <p className="dim">Start one to chat with pi on one of your projects.</p>
-        <button className="btn primary" onClick={() => onStart()}>
-          + Start agent
+      <div className="empty agents-empty">
+        <p className="agents-empty-title">No Agents Running</p>
+        <p className="dim">Start one</p>
+        <button
+          className="btn primary agents-plus"
+          onClick={() => onStart()}
+          aria-label="Start one — open the New Agent modal"
+        >
+          +
         </button>
       </div>
     );
   }
 
   return (
-    <div className="sections">
+    <div className="agents-list">
       {sections.map(([project, list]) => (
-        <section key={project} className={`section${project === notesName ? " pinned" : ""}`}>
-          <div className="section-head">
-            <span className="section-title">
-              {project === notesName && (
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                  <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 3v5h5" />
-                </svg>
-              )}
-              {project === notesName ? notesName : project}
-            </span>
-            <span className="section-actions">
-              {project === notesName && onStarted && (
-                <StartNotesButton
-                  notesName={notesName}
-                  onStarted={onStarted}
-                  label={compact ? "+ new" : undefined}
-                />
-              )}
-              {project === notesName && (
-                <button
-                  className="btn small"
-                  onClick={() => onStart(notesName)}
-                  title="Pick an existing conversation to resume"
-                >
-                  resume…
-                </button>
-              )}
-              {project === notesName && (
-                <button className="btn small" onClick={onOpenNotes}>
-                  view
-                </button>
-              )}
-              {project !== notesName && (
-                <button className="btn small" onClick={() => onStart(project)}>
-                  + start
-                </button>
-              )}
-            </span>
-          </div>
+        <section key={project} className="agent-group">
+          <h2 className="agent-group-title">{project}</h2>
           {list.map((a) => (
-            <AgentCard
-              key={a.id}
-              agent={a}
-              compact={compact}
-              onOpenChat={onOpenChat}
-            />
+            <AgentRow key={a.id} agent={a} onOpenChat={onOpenChat} />
           ))}
         </section>
       ))}
@@ -125,38 +81,30 @@ export function AgentsSections({ agents, notesName, compact, onOpenChat, onOpenN
   );
 }
 
-function AgentCard({
+function AgentRow({
   agent,
-  compact,
   onOpenChat,
 }: {
   agent: AgentInfo;
-  compact?: boolean;
   onOpenChat: (agentId: string) => void;
 }) {
   const dot = statusDot(agent);
   const title = agent.sessionName || agent.name || agent.id.slice(0, 12);
   return (
     <div
-      className="agent-card"
+      className="agent-row"
       onClick={() => onOpenChat(agent.id)}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onOpenChat(agent.id)}
       title={title}
     >
-      <span className={`dot ${dot.cls}`} />
+      <span className={`dot ${dot.cls}`} aria-hidden="true" />
       <span className="agent-main">
         <span className="agent-title">{title}</span>
-        {!compact && (
-          <span className="agent-meta">
-            {agent.model ?? "model?"}
-            {agent.thinkingLevel ? ` · ${agent.thinkingLevel}` : ""}
-          </span>
-        )}
       </span>
       <span className="agent-side">
-        {!compact && <span className="agent-meta">{uptime(agent.startedAt)}</span>}
+        <span className="agent-meta">{uptime(agent.startedAt)}</span>
         <span className="agent-status">{dot.label}</span>
       </span>
       <TerminateButton agent={agent} small onTerminated={() => {}} />

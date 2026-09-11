@@ -177,40 +177,22 @@ button {
 
 /* ---- sections / cards ---- */
 
-.section {
-  margin-bottom: 20px;
-}
-
-.section-head {
+.agents-list {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 2px 6px 8px;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.section-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
+.agent-group-title {
+  margin: 0;
+  padding: 2px 6px 8px;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
   color: var(--text-dim);
 }
 
-.section-title svg {
-  opacity: 0.75;
-}
-
-.section-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.agent-card {
+.agent-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -226,12 +208,12 @@ button {
     border-color 0.15s var(--ease);
 }
 
-.agent-card:hover {
+.agent-row:hover {
   background: var(--bg-3);
   border-color: var(--border);
 }
 
-.agent-card:active {
+.agent-row:active {
   background: var(--bg-4);
 }
 
@@ -1148,82 +1130,12 @@ details.thinking summary {
   word-break: break-word;
 }
 
-/* conversations list (StartDialog). Scrolls on every surface: bounded
- * against the viewport (not a fixed px cap, so short phones still see a
- * useful list), with contained scrolling so it doesn't fight the modal's
- * own scroll on touch devices. */
-.session-list {
-  max-height: clamp(200px, 42dvh, 420px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
+/* conversations pickers live in the shared TreeModal shell now (phase 3) —
+ * the old inline radio list styles are retired. */
 
-.session-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 9px 11px;
-  border-bottom: 1px solid var(--border);
+/* agent rows are divs with role=button */
+div.agent-row {
   cursor: pointer;
-}
-
-.session-row:last-child {
-  border-bottom: none;
-}
-
-.session-row:hover {
-  background: var(--bg-3);
-}
-
-.session-row.selected {
-  background: var(--accent-soft);
-}
-
-.session-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.session-title {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 500;
-}
-
-.session-preview {
-  font-size: 12.5px;
-  color: var(--text-dim);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-date {
-  font-size: 11.5px;
-  color: var(--text-dim);
-}
-
-/* notes pinned section */
-
-.section.pinned {
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px;
-  margin-bottom: 22px;
-}
-
-.section.pinned .section-head {
-  padding-bottom: 10px;
-}
-
-.section.pinned .agent-card:hover {
-  background: var(--bg-4);
 }
 
 /* read-only toggle (shared ReadOnlyToggle, spec §7.3): red = off / full
@@ -1296,11 +1208,6 @@ details.thinking summary {
 
 .error-box .porcelain {
   margin-top: 6px;
-}
-
-/* agent card is a div with role=button */
-div.agent-card {
-  cursor: pointer;
 }
 
 /* stop-agent control: neutral until intent, red only on hover/confirm */
@@ -2349,4 +2256,87 @@ div.agent-card {
 
 .edit-toggle:disabled {
   opacity: 0.5;
+}
+
+/* ---- Phase 3: agents tab + New Agent modal (spec §§3–4) ---- */
+
+/* empty state: `No Agents Running` / `Start one` + boxed `+` */
+.agents-empty-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.agents-empty .dim {
+  margin: 0;
+}
+
+.agents-plus {
+  font-size: 22px;
+  line-height: 1;
+  padding: 8px 30px;
+  border-radius: 10px;
+}
+
+/* New Agent modal: expand-downward picker fields (the scrollable lists
+   themselves reuse the shared TreeModal shell), gate warning, and a
+   green-Start / red-Exit footer. */
+.picker-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 8px 11px;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.15s var(--ease);
+}
+
+.picker-field:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-3);
+}
+
+.picker-field > span:first-child {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-chevron {
+  color: var(--text-dim);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.gate-warning {
+  margin-top: 8px;
+  font-size: 13px;
+  border: 1px solid rgba(255, 214, 10, 0.5);
+  color: var(--yellow);
+  background: rgba(255, 214, 10, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 7px 11px;
+}
+
+.start-actions {
+  justify-content: space-between;
+}
+
+@media (min-width: 769px) {
+  /* desktop: the modal stays a centered dialog, widened with the panels */
+  .start-modal {
+    width: min(600px, 100%);
+  }
+
+  .agents-list {
+    gap: 20px;
+  }
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { SessionSummary } from "../types";
 import { ReadOnlyToggle } from "./ReadOnlyToggle";
+import { TreeModal, type TreeModalItem } from "./TreeModal";
 
 interface Props {
   initialProject: string | null;
@@ -10,19 +11,30 @@ interface Props {
   onStarted: (agent: { id: string; project: string }) => void;
 }
 
+/**
+ * New Agent modal (spec §4): fields top-to-bottom per the sketch —
+ * expand-downward project picker (notes + projects, plus a new-project name
+ * option fed to the backend autocreate), `ReadOnlyToggle` (off by default),
+ * expand-downward conversation select (`New convo` first row, gated on a
+ * project being picked), and a green Start / red Exit footer. Start launches
+ * via the existing `jarvis rpc` path and opens the new chat; Exit dismisses
+ * with no side effects. Picker lists reuse the shared `TreeModal` shell.
+ */
 export function StartDialog({ initialProject, notesName, onClose, onStarted }: Props) {
   const [projects, setProjects] = useState<string[]>([]);
   const [mode, setMode] = useState<"existing" | "new">("existing");
-  const [project, setProject] = useState<string>(initialProject ?? notesName);
+  // No pre-selection: the conversation gate warning needs a no-project
+  // state, and the picker is one tap away. An opener-passed project still
+  // pre-fills (kept for callers that deep-link with one).
+  const [project, setProject] = useState<string>(initialProject ?? "");
   const [newProject, setNewProject] = useState("");
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [sessionPath, setSessionPath] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [readOnly, setReadOnly] = useState(false); // default off: full tools; flip for a chat-only session
+  const [readOnly, setReadOnly] = useState(false); // off default: full tools
+  const [picker, setPicker] = useState<"project" | "conversation" | null>(null);
+  const [gateWarning, setGateWarning] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const isNotes = mode === "existing" && project === notesName;
 
   useEffect(() => {
     api
@@ -46,6 +58,45 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
 
   const effectiveProject = mode === "new" ? newProject.trim() : project;
 
+  const sessionTitle = (s: SessionSummary): string =>
+    s.name ?? s.preview ?? "session " + s.id.slice(0, 8);
+
+  const selectedSession = sessions?.find((s) => s.file === sessionPath) ?? null;
+
+  const projectItems: TreeModalItem[] = [
+    { key: "__new__", title: "+ New project…" },
+    { key: notesName, title: `${notesName} (notes)` },
+    ...projects
+      .filter((p) => p !== notesName)
+      .map((p) => ({ key: p, title: p })),
+  ];
+
+  const convoItems: TreeModalItem[] = [
+    { key: "__new__", title: "New convo", subtitle: "start a fresh conversation" },
+    ...(sessions ?? []).map((s) => ({
+      key: s.file,
+      title: sessionTitle(s),
+      subtitle:
+        (s.timestamp ? new Date(s.timestamp).toLocaleString() : "") +
+        (s.timestamp && s.preview ? " — " : "") +
+        (s.preview && s.preview !== s.name ? s.preview : ""),
+    })),
+  ];
+
+  /** Gate: the conversation list does not open until a project is picked. */
+  const openConversationPicker = () => {
+    if (mode === "new" || !project) {
+      setGateWarning(
+        mode === "new"
+          ? "A new project starts a fresh conversation — nothing to pick yet."
+          : "Pick a project first — conversations live under a project.",
+      );
+      return;
+    }
+    setGateWarning(null);
+    setPicker("conversation");
+  };
+
   const start = async () => {
     if (!effectiveProject) {
       setError("pick or enter a project");
@@ -56,9 +107,10 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
     try {
       const res = await api.startAgent({
         project: effectiveProject,
-        ...(sessionPath ? { sessionPath } : {}),
-        ...(name.trim() ? { name: name.trim() } : {}),
-        readOnly: isNotes ? readOnly : false,
+        ...(mode === "existing" && sessionPath ? { sessionPath } : {}),
+        // The start route accepts readOnly for any project — send it for
+        // all, not just notes (phase 3 fix).
+        readOnly,
       });
       onStarted(res);
     } catch (e) {
@@ -69,25 +121,30 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
 
   return (
     <div className="modal-scrim" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Start agent</h2>
+      <div
+        className="modal start-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="New Agent"
+      >
+        <h2>New Agent</h2>
 
-        <label className="field-label">Project</label>
+        <label className="field-label" id="start-project-label">
+          Project
+        </label>
         {mode === "existing" ? (
-          <select
-            value={project}
-            onChange={(e) => {
-              setProject(e.target.value);
-            }}
-            className="select"
+          <button
+            type="button"
+            className="picker-field"
+            aria-labelledby="start-project-label"
+            onClick={() => setPicker("project")}
           >
-            <option value={notesName}>{notesName} (pinned)</option>
-            {projects.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+            <span className={project ? undefined : "dim"}>{project || "Select project…"}</span>
+            <span className="picker-chevron" aria-hidden="true">
+              ▾
+            </span>
+          </button>
         ) : (
           <input
             className="input"
@@ -95,93 +152,100 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
             placeholder="new-project-name"
             value={newProject}
             onChange={(e) => setNewProject(e.target.value)}
+            aria-label="New project name"
           />
         )}
         <button
+          type="button"
           className="link"
           onClick={() => {
             setMode(mode === "new" ? "existing" : "new");
+            setGateWarning(null);
           }}
         >
           {mode === "existing" ? "+ new project…" : "↩ pick an existing project"}
         </button>
-
-        {isNotes && (
-          <>
-            <label className="field-label">Mode</label>
-            <div className="check-row">
-              <ReadOnlyToggle value={readOnly} onToggle={() => setReadOnly(!readOnly)} />
-              <span>
-                start read-only{" "}
-                <span className="dim">(chat-only session; edit/write disabled — toggle in chat any time)</span>
-              </span>
-            </div>
-          </>
+        {mode === "new" && (
+          <div className="dim pad">
+            a fresh conversation; the project is created for you (mkdir + git init)
+          </div>
         )}
+
+        <label className="field-label">Read-only</label>
+        <div className="check-row">
+          <ReadOnlyToggle value={readOnly} onToggle={() => setReadOnly(!readOnly)} />
+          <span>
+            start read-only{" "}
+            <span className="dim">(full tools when off — toggle in chat any time)</span>
+          </span>
+        </div>
 
         <label className="field-label">Conversation</label>
-        {mode === "existing" && project ? (
-          <div className="session-list">
-            <label className={`session-row${sessionPath === null ? " selected" : ""}`}>
-              <input
-                type="radio"
-                checked={sessionPath === null}
-                onChange={() => setSessionPath(null)}
-              />
-              <span>new conversation</span>
-            </label>
-            {sessions === null && <div className="dim pad">loading sessions…</div>}
-            {sessions?.map((s) => (
-              <label key={s.file} className={`session-row${sessionPath === s.file ? " selected" : ""}`}>
-                <input
-                  type="radio"
-                  checked={sessionPath === s.file}
-                  onChange={() => setSessionPath(s.file)}
-                />
-                <span className="session-info">
-                  <span className="session-title">
-                    {s.name ?? s.preview ?? "session " + s.id.slice(0, 8)}
-                  </span>
-                  {s.preview && <span className="session-preview">{s.preview}</span>}
-                  <span className="session-date">
-                    {s.timestamp ? new Date(s.timestamp).toLocaleString() : ""}
-                  </span>
-                </span>
-              </label>
-            ))}
-            {sessions?.length === 0 && <div className="dim pad">no past sessions</div>}
-          </div>
+        {mode === "new" ? (
+          <div className="dim pad">New convo</div>
         ) : (
-          <div className="dim pad">
-            {mode === "new"
-              ? "a fresh conversation; the project is created for you (mkdir + git init)"
-              : "pick an existing project to list its conversations"}
+          <button type="button" className="picker-field" onClick={openConversationPicker}>
+            <span>{selectedSession ? sessionTitle(selectedSession) : "New convo"}</span>
+            <span className="picker-chevron" aria-hidden="true">
+              ▾
+            </span>
+          </button>
+        )}
+        {gateWarning && (
+          <div className="gate-warning" role="alert">
+            {gateWarning}
           </div>
         )}
-
-        <label className="field-label">Session name (optional)</label>
-        <input
-          className="input"
-          placeholder="e.g. refactor auth"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
 
         {error && <div className="error-box">{error}</div>}
 
-        <div className="modal-actions">
-          <button className="btn" onClick={onClose} disabled={busy}>
-            cancel
+        <div className="modal-actions start-actions">
+          <button type="button" className="btn danger" onClick={onClose} disabled={busy}>
+            Exit
           </button>
           <button
+            type="button"
             className="btn primary"
-            onClick={() => start()}
+            onClick={() => void start()}
             disabled={busy || !effectiveProject}
           >
-            {busy ? "starting…" : "start"}
+            {busy ? "starting…" : "Start"}
           </button>
         </div>
       </div>
+
+      {picker === "project" && (
+        <TreeModal
+          title="Select project"
+          items={projectItems}
+          emptyText="no projects yet — create one below"
+          onClose={() => setPicker(null)}
+          onSelect={(item) => {
+            if (item.key === "__new__") {
+              setMode("new");
+            } else {
+              setMode("existing");
+              setProject(item.key);
+              setGateWarning(null);
+            }
+            setPicker(null);
+          }}
+        />
+      )}
+
+      {picker === "conversation" && (
+        <TreeModal
+          title={`Conversations — ${project}`}
+          items={convoItems}
+          emptyText="no past sessions"
+          footer={sessions === null ? <span className="dim">loading sessions…</span> : undefined}
+          onClose={() => setPicker(null)}
+          onSelect={(item) => {
+            setSessionPath(item.key === "__new__" ? null : item.key);
+            setPicker(null);
+          }}
+        />
+      )}
     </div>
   );
 }
