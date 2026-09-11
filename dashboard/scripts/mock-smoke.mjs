@@ -298,6 +298,17 @@ try {
   const status = await getJSON("/api/git/status?project=beta");
   check("beta dirty tree", status.ok === true && status.dirty === true, JSON.stringify(status));
 
+  // Plain (non-repo) project dirs must not report the enclosing repo's
+  // dirt: the terminate guard would warn about foreign files. The route
+  // answers 409 (ok: false) and the UI falls back to a plain confirm.
+  const alphaStatusRaw = await fetch(`${base}/api/git/status?project=alpha`);
+  const alphaStatus = await alphaStatusRaw.json();
+  check(
+    "non-repo project reports no status",
+    alphaStatusRaw.status === 409 && alphaStatus.ok === false && alphaStatus.dirty === false,
+    `got ${alphaStatusRaw.status}: ${JSON.stringify(alphaStatus).slice(0, 120)}`,
+  );
+
   const logs = await getJSON(`/api/agents/${seeded.id}/logs`);
   check("agent logs (FakePi stderr seed)", Array.isArray(logs.stderr) && logs.stderr.length >= 2, JSON.stringify(logs).slice(0, 160));
 

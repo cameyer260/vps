@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { config } from "./config.js";
 import { projectDir } from "./config.js";
 import { runCommand } from "./jarvis.js";
@@ -15,12 +17,32 @@ export interface GitStatus {
 }
 
 export function gitStatus(dir: string): Promise<GitStatus> {
-  return runCommand("git", ["status", "--porcelain", "--branch"], { cwd: dir }).then((r) => {
-    if (!r.ok) return { ok: false, dirty: false, porcelain: r.output, branch: null };
-    const lines = r.output.split("\n");
-    const branch = lines[0]?.startsWith("## ") ? lines[0].slice(3) : null;
-    const porcelain = lines.slice(1).filter(Boolean).join("\n");
-    return { ok: true, dirty: porcelain.length > 0, porcelain, branch };
+  return runCommand("git", ["rev-parse", "--show-toplevel"], { cwd: dir }).then((t) => {
+    // A project dir that is not itself a repo root (plain dir, or a subdir
+    // of some outer repo) has nothing committable: `git status` would walk
+    // up and report the ENCLOSING repo's dirt, so refuse instead of lying.
+    // Callers (terminate guard) already degrade to a plain confirm here.
+    const toplevel = t.ok ? t.output.trim().split("\n").pop()!.trim() : null;
+    const sameRoot = (a: string, b: string) => {
+      const norm = (p: string) => {
+        try {
+          return fs.realpathSync(p);
+        } catch {
+          return path.resolve(p);
+        }
+      };
+      return norm(a) === norm(b);
+    };
+    if (!toplevel || !sameRoot(toplevel, dir)) {
+      return { ok: false, dirty: false, porcelain: `not a git repository: ${dir}`, branch: null };
+    }
+    return runCommand("git", ["status", "--porcelain", "--branch"], { cwd: dir }).then((r) => {
+      if (!r.ok) return { ok: false, dirty: false, porcelain: r.output, branch: null };
+      const lines = r.output.split("\n");
+      const branch = lines[0]?.startsWith("## ") ? lines[0].slice(3) : null;
+      const porcelain = lines.slice(1).filter(Boolean).join("\n");
+      return { ok: true, dirty: porcelain.length > 0, porcelain, branch };
+    });
   });
 }
 
