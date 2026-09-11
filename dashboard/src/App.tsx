@@ -3,6 +3,7 @@ import { api } from "./api";
 import type { AgentInfo } from "./types";
 import { AgentsSections } from "./components/AgentsSections";
 import { Chat } from "./components/Chat";
+import { GeneralChat } from "./components/GeneralChat";
 import { IdeView } from "./components/IdeView";
 import { StartDialog } from "./components/StartDialog";
 import { TabHeader } from "./components/TabHeader";
@@ -15,6 +16,11 @@ export default function App() {
   // switches unmount/remount IdeView and keep the persisted project — only
   // an explicit Dashboard tap clears it.
   const [ideHome, setIdeHome] = useState(0);
+  // General Chat's open conversation (null = conversation list home). Kept
+  // in App so tab switches preserve it, like the agent-chat id; the GC
+  // view drops it when its container vanishes.
+  const [gcAgentId, setGcAgentId] = useState<string | null>(null);
+  const [gcHome, setGcHome] = useState(0);
   // Agent chat is a sub-state of the Agents tab (agents / agent-chat).
   const [chatAgentId, setChatAgentId] = useState<string | null>(null);
   const [startOpen, setStartOpen] = useState(false);
@@ -127,10 +133,12 @@ export default function App() {
 
   // Tap `Dashboard` in the header: home *within* the current tab. Agents
   // returns to the overview; IDE returns to its no-selection state (via
-  // IdeView's homeSignal); GC has no sub-state until phase 7.
+  // IdeView's homeSignal); GC returns to its conversation list home (via
+  // GeneralChat's homeSignal).
   const goHome = useCallback(() => {
     if (tab === "agents") setChatAgentId(null);
     else if (tab === "ide") setIdeHome((n) => n + 1);
+    else if (tab === "gc") setGcHome((n) => n + 1);
   }, [tab]);
 
   const chatAgent = chatAgentId ? agents.find((a) => a.id === chatAgentId) : undefined;
@@ -194,15 +202,13 @@ export default function App() {
         {tab === "ide" && <IdeView homeSignal={ideHome} />}
 
         {tab === "gc" && (
-          <div className="overview">
-            <div className="empty">
-              <p>General Chat lives here.</p>
-              <p className="dim">
-                The ChatGPT-style chat over your notes arrives in a later phase —
-                this tab proves the chrome routing first.
-              </p>
-            </div>
-          </div>
+          <GeneralChat
+            agents={agents}
+            notesName={notesName}
+            activeId={gcAgentId}
+            onActiveChange={setGcAgentId}
+            homeSignal={gcHome}
+          />
         )}
       </main>
 

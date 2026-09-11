@@ -25,6 +25,7 @@ npm run dev:web                               # Vite on :5173, proxies /api + /w
 | `sidebar-full`   | 3 agents across 2 projects, mixed origins, one read-only           |
 | `chat-streaming` | 1 agent with preloaded history; replies stream character by character |
 | `notes-editor`   | 1 agent on the notes project                                       |
+| `gc-chat`        | 1 read-only GC notes agent with history + 2 seeded notes sessions  |
 | `empty`          | no agents                                                          |
 
 ## File fixtures (IDE backend)

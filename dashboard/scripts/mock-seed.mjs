@@ -163,6 +163,19 @@ writeSession(betaDir, "20260909T000000_sess-beta-1.jsonl", "sess-beta-1", "beta 
   ["hist-b2", "assistant", "app.js has uncommitted changes (mock fixture)."],
 ]);
 
+// Notes sessions back the GC conversation list's Past section (same session
+// source the modal resumes through — phase 7). Header cwd must equal the
+// absolute notes fixture dir, like the project sessions above.
+writeSession(notesDir, "20260908T000000_sess-notes-1.jsonl", "sess-notes-1", "grocery ideas", [
+  ["hist-n1", "user", "What should I cook this week?"],
+  ["hist-n2", "assistant", "Pasta on Monday, tacos on Thursday (mock fixture)."],
+]);
+
+writeSession(notesDir, "20260909T000000_sess-notes-2.jsonl", "sess-notes-2", "book notes", [
+  ["hist-n3", "user", "Remind me what I thought of Dune."],
+  ["hist-n4", "assistant", "You liked the worldbuilding, not the pacing (mock fixture)."],
+]);
+
 // ---- skills --------------------------------------------------------------------
 
 write(
@@ -240,6 +253,28 @@ const scenarios = {
   "notes-editor": {
     defaultGranularity: "word",
     agents: [{ project: "notes", name: "notes chat", origin: "dashboard" }],
+  },
+  // General Chat frontend (phase 7): a read-only notes agent with preloaded
+  // history (toggle starts ON via the GC spawn default) plus the seeded
+  // notes sessions above for the Past section.
+  "gc-chat": {
+    defaultGranularity: "word",
+    agents: [
+      {
+        project: "notes",
+        name: "gc chat",
+        origin: "dashboard",
+        readOnly: true,
+        generalChat: true,
+        granularity: "word",
+        history: history(
+          "hist-g1",
+          "What is in my notes?",
+          "hist-g2",
+          "Welcome, ideas, and todo — this is the mock notes vault.",
+        ),
+      },
+    ],
   },
   empty: { defaultGranularity: "word", agents: [] },
 };

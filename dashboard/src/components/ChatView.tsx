@@ -41,6 +41,13 @@ interface Props {
   agent: AgentInfo;
   onBack: () => void;
   onTerminated: () => void;
+  /** General Chat renders its own sub-header (Conversations + toggle per
+   *  the sketch) and reuses only the messages/composer below — the
+   *  ChatView header (back/title/model/terminate) stays agent-chat-only. */
+  hideHeader?: boolean;
+  /** Mirror of the live read-only mode for an external toggle (GC
+   *  sub-header): called whenever the agent-observed value changes. */
+  onReadOnlyState?: (value: boolean, toggle: () => void) => void;
 }
 
 /**
@@ -53,7 +60,7 @@ interface Props {
  * Phase 2 is an extraction without behavior change: `Chat` is a thin
  * wrapper over this (GC reuses it in phase 7).
  */
-export function ChatView({ agent, onBack, onTerminated }: Props) {
+export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlyState }: Props) {
   const chat = useChat(agent);
   const { state } = chat;
   const [input, setInput] = useState("");
@@ -120,6 +127,17 @@ export function ChatView({ agent, onBack, onTerminated }: Props) {
   const toggleReadOnly = () => {
     chat.send(`/read-only ${state.readOnly ? "off" : "on"}`);
   };
+
+  // Let an embedding page (GC) drive its own sub-header toggle off the
+  // same ground truth — no second socket, no local state. The parent
+  // renders `ReadOnlyToggle` with this value/toggle; this view hides its
+  // own header toggle via `hideHeader` so exactly one toggle is visible.
+  const readOnlyCb = useRef(onReadOnlyState);
+  readOnlyCb.current = onReadOnlyState;
+  useEffect(() => {
+    readOnlyCb.current?.(state.readOnly, toggleReadOnly);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.readOnly]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
@@ -254,7 +272,8 @@ export function ChatView({ agent, onBack, onTerminated }: Props) {
   };
 
   return (
-    <div className="chat">
+    <div className={`chat${hideHeader ? " gc-chat" : ""}`}>
+      {!hideHeader && (
       <header className="chat-head">
         <button className="btn ghost back" onClick={onBack} aria-label="Back">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -298,6 +317,7 @@ export function ChatView({ agent, onBack, onTerminated }: Props) {
           {!exited && <TerminateButton agent={agent} onTerminated={onTerminated} />}
         </div>
       </header>
+      )}
 
       <div className="chat-messages" ref={scrollRef} onScroll={onScroll}>
         <div className="messages-inner">

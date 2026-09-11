@@ -38,6 +38,7 @@ export const api = {
     sessionPath?: string;
     name?: string;
     readOnly?: boolean;
+    generalChat?: boolean;
   }) =>
     fetch("/api/agents/start", {
       method: "POST",

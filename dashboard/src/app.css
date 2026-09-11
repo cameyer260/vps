@@ -2366,3 +2366,82 @@ div.agent-row {
     max-width: 220px;
   }
 }
+
+/* ---- Phase 7: General Chat tab (spec §6, sketch 4.jpg) ---- */
+
+/* GC root reuses the notes column layout (global TabHeader on top,
+   sub-header row, scrolling body). The chat itself is the shared ChatView
+   with its header hidden (`.gc-chat`) — the GC sub-header above is the
+   single header, so exactly one read-only toggle is ever visible. */
+.gc-subheader {
+  flex-wrap: nowrap;
+}
+
+.gc-conv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.gc-conv-btn svg {
+  flex-shrink: 0;
+}
+
+.gc-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* list-home empty state: two actions side by side (wrap on narrow phones) */
+.gc-home-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.gc-home .error-box {
+  margin-top: 16px;
+  max-width: 420px;
+}
+
+/* running-row titles carry the same status dot as the agents list */
+.gc-row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gc-row-title .dot {
+  flex-shrink: 0;
+}
+
+.gc-modal-error {
+  color: var(--red);
+  font-size: 13px;
+  margin-right: auto;
+  text-align: left;
+}
+
+/* headerless ChatView still fills the column: messages scroll, composer
+   pins to the bottom above the floating pill (same clearance as the
+   agent chat). */
+.gc .chat.gc-chat {
+  flex: 1;
+  min-height: 0;
+}
+
+/* the Conversations label always fits: this sub-header holds only the
+   button, the title, and the toggle (unlike the crowded IDE row) */
+
+@media (min-width: 769px) {
+  /* desktop: same app, widened — the sub-header gets breathing room and
+     the conversation modal becomes a left side sheet like the file tree */
+  .gc-subheader {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

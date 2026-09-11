@@ -33,6 +33,7 @@ interface ScenarioAgentConfig {
   name?: string;
   origin?: string | null;
   readOnly?: boolean;
+  generalChat?: boolean;
   granularity?: StreamGranularity;
   history?: FakePiHistoryEntry[];
 }
@@ -204,6 +205,7 @@ export class MockRuntime implements ContainerRuntime {
       project: cfg.project,
       name: cfg.name ?? "mock chat",
       readOnly: cfg.readOnly,
+      generalChat: cfg.generalChat,
       granularity: cfg.granularity ?? defaultGranularity ?? "word",
       models: this.models,
       history: cfg.history,
