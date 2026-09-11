@@ -1,11 +1,14 @@
 import { execFile } from "node:child_process";
 import { config } from "./config.js";
+import { GENERAL_CHAT_SYSTEM_PROMPT } from "./general-chat.js";
 
 export interface StartAgentOptions {
   project: string; // bare project name (resolved by config.projectDir)
   sessionPath?: string; // resume: absolute path to a pi session file
   name?: string; // pi session display name
   readOnly?: boolean; // start with the read-only extension active
+  /** General Chat spawn: append the GC system prompt (server-side only). */
+  generalChat?: boolean;
 }
 
 /**
@@ -18,6 +21,7 @@ export function startAgent(opts: StartAgentOptions): Promise<string> {
   const args = ["rpc", dir];
   if (opts.sessionPath) args.push("--session", opts.sessionPath);
   if (opts.name) args.push("-n", opts.name);
+  if (opts.generalChat) args.push("--append-system-prompt", GENERAL_CHAT_SYSTEM_PROMPT);
 
   const env: NodeJS.ProcessEnv = { ...process.env };
   if (opts.readOnly) env.PI_DASHBOARD_READONLY = "1";

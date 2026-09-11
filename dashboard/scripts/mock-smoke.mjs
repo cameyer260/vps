@@ -427,6 +427,62 @@ try {
   // Prod removes the container, so the list must drop it too (no ghost exited row).
   const agentsAfter = await getJSON("/api/agents");
   check("terminated agent drops from list", !agentsAfter.agents.some((a) => a.id === freshId));
+
+  // ---- general-chat backend (Phase 6 GC flag) ---------------------------------
+  // GC spawn forces the notes project and defaults to read-only; the mock
+  // records the flag on FakePi's stderr seed (prod appends
+  // GENERAL_CHAT_SYSTEM_PROMPT via --append-system-prompt instead).
+  const gc = await postJSON("/api/agents/start", { generalChat: true, name: "smoke gc" });
+  check("gc spawn returns id", typeof gc.id === "string" && gc.id.startsWith("mock-"));
+  check("gc spawn forces notes project", gc.project === "notes", JSON.stringify(gc));
+  const gcId = gc.id;
+  await sleep(600);
+  check("events: agents_changed start (gc)", evSeen.some((m) => m.type === "agents_changed" && m.action === "start" && m.id === gcId));
+  const gcChat = await wsConnect(`/ws/agent/${gcId}`);
+  const gcHello = await wsWait(gcChat, (m) => m.type === "hello", 5_000, "hello (gc)");
+  check("gc defaults read-only on", gcHello.readOnly === true, JSON.stringify(gcHello).slice(0, 200));
+  gcChat.close();
+  const gcLogs = await getJSON(`/api/agents/${gcId}/logs`);
+  check("gc prompt plumbed (mock seed)", gcLogs.stderr.some((l) => l.includes("general-chat: on")), JSON.stringify(gcLogs.stderr).slice(0, 200));
+  check("gc read-only seed on", gcLogs.stderr.some((l) => l.includes("read-only: on")), JSON.stringify(gcLogs.stderr).slice(0, 200));
+  await postJSON(`/api/agents/${gcId}/terminate`, {});
+  await sleep(600);
+
+  // A caller-sent project is still forced to notes for GC spawns.
+  const gcForced = await postJSON("/api/agents/start", { generalChat: true, project: "alpha" });
+  check("gc ignores caller project", gcForced.project === "notes", JSON.stringify(gcForced));
+  await postJSON(`/api/agents/${gcForced.id}/terminate`, {});
+  await sleep(600);
+
+  // Explicit opt-out keeps GC at notes but read-only off.
+  const gcOff = await postJSON("/api/agents/start", { generalChat: true, readOnly: false });
+  check("gc opt-out stays at notes", gcOff.project === "notes", JSON.stringify(gcOff));
+  const gcOffChat = await wsConnect(`/ws/agent/${gcOff.id}`);
+  const gcOffHello = await wsWait(gcOffChat, (m) => m.type === "hello", 5_000, "hello (gc opt-out)");
+  check("gc opt-out read-only off", !("readOnly" in gcOffHello) || gcOffHello.readOnly === false, JSON.stringify(gcOffHello).slice(0, 200));
+  gcOffChat.close();
+  await postJSON(`/api/agents/${gcOff.id}/terminate`, {});
+  await sleep(600);
+
+  // Invalid input is still rejected for GC spawns.
+  const gcBadSess = await fetch(`${base}/api/agents/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ generalChat: true, sessionPath: "/tmp/evil.jsonl" }),
+  });
+  check("gc rejects bad sessionPath", gcBadSess.status === 400, `got ${gcBadSess.status}`);
+
+  // Normal (non-GC) spawns are unaffected: default read-only off, no GC flag.
+  const plain = await postJSON("/api/agents/start", { project: "alpha", name: "smoke plain" });
+  check("plain spawn unaffected", plain.project === "alpha" && plain.generalChat === false, JSON.stringify(plain));
+  const plainChat = await wsConnect(`/ws/agent/${plain.id}`);
+  const plainHello = await wsWait(plainChat, (m) => m.type === "hello", 5_000, "hello (plain)");
+  check("plain spawn read-only off", !("readOnly" in plainHello), JSON.stringify(plainHello).slice(0, 200));
+  plainChat.close();
+  const plainLogs = await getJSON(`/api/agents/${plain.id}/logs`);
+  check("plain spawn no gc prompt", plainLogs.stderr.some((l) => l.includes("general-chat: off")), JSON.stringify(plainLogs.stderr).slice(0, 200));
+  await postJSON(`/api/agents/${plain.id}/terminate`, {});
+  await sleep(600);
   ev.close();
 
   console.log(`\nsmoke: all ${passed} checks passed`);

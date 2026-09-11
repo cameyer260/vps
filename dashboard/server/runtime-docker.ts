@@ -46,6 +46,7 @@ export class DockerRuntime implements ContainerRuntime {
       sessionPath: opts.sessionPath,
       name: opts.name,
       readOnly: opts.readOnly,
+      generalChat: opts.generalChat,
     });
   }
 

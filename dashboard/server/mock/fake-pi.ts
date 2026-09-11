@@ -48,6 +48,8 @@ export interface FakePiOptions {
   project: string;
   name?: string;
   readOnly?: boolean;
+  /** General Chat spawn: recorded for observability, no behavior change. */
+  generalChat?: boolean;
   granularity?: StreamGranularity;
   models?: MockModel[];
   history?: FakePiHistoryEntry[];
@@ -82,6 +84,7 @@ export class FakePi {
   private sessionName: string;
   private readonly sessionFile: string;
   private readOnly: boolean;
+  readonly generalChat: boolean;
   private readonly granularity: StreamGranularity;
   private readonly models: MockModel[];
 
@@ -102,6 +105,7 @@ export class FakePi {
     this.sessionName = opts.name ?? "mock chat";
     this.sessionFile = sessionFileFor(opts.id);
     this.readOnly = !!opts.readOnly;
+    this.generalChat = !!opts.generalChat;
     this.granularity = opts.granularity ?? "word";
     this.models = opts.models && opts.models.length > 0 ? opts.models : [{ ...DEFAULT_MODEL }];
     // Seed with the default model only if the fixture list lacks it — the
@@ -239,6 +243,7 @@ export class FakePi {
       `fake-pi ready (${this.id})`,
       `project: ${this.project}`,
       `read-only: ${this.readOnly ? "on" : "off"}`,
+      `general-chat: ${this.generalChat ? "on" : "off"}`,
     ];
   }
 

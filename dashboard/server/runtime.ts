@@ -22,6 +22,8 @@ export interface SpawnOptions {
   name?: string;
   /** → PI_DASHBOARD_READONLY equivalent. */
   readOnly?: boolean;
+  /** General Chat spawn: append the GC system prompt server-side. */
+  generalChat?: boolean;
 }
 
 export interface AttachedAgent {

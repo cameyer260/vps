@@ -79,8 +79,12 @@ api.post("/agents/start", async (c) => {
     sessionPath?: string;
     name?: string;
     readOnly?: boolean;
+    generalChat?: boolean;
   };
-  const project = body.project?.trim();
+  const generalChat = !!body.generalChat;
+  // GC spawns are always notes-dir agents: force the project even when the
+  // caller sends another (or none). Non-GC spawns still require a project.
+  const project = generalChat ? notesName() : body.project?.trim();
   if (!project) return c.json({ error: "project is required" }, 400);
   const dir = projectDir(project);
   if (!dir) return c.json({ error: `invalid project name: ${project}` }, 400);
@@ -94,12 +98,15 @@ api.post("/agents/start", async (c) => {
     sessionPath = abs;
   }
   const name = body.name?.trim().slice(0, 200) || undefined;
+  // GC starts read-only/on by default (spec §6); an explicit `readOnly:
+  // false` opts out. Project agents keep today's default-off semantics.
+  const readOnly = generalChat ? body.readOnly !== false : !!body.readOnly;
 
-  const containerId = await getRuntime().spawn({ project: dir, sessionPath, name, readOnly: !!body.readOnly });
+  const containerId = await getRuntime().spawn({ project: dir, sessionPath, name, readOnly, generalChat });
   // Pass the spawn name so the bridge can pin it: pi's auto-generated
   // session_info titles must never override a user-provided name.
   await ensureBridge(containerId, project, { explicitName: name }).catch(() => undefined);
-  return c.json({ id: containerId, project });
+  return c.json({ id: containerId, project, generalChat });
 });
 
 api.post("/agents/:id/terminate", async (c) => {

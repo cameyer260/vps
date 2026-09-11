@@ -53,6 +53,33 @@ curl -s "localhost:3000/api/files/file?project=alpha&path=assets/pixel.png" -w "
 curl -s "localhost:3000/api/files/file?project=alpha&path=../x" -w "\n%{http_code}\n"
 ```
 
+## General Chat backend (GC flag)
+
+`POST /api/agents/start` accepts `generalChat: true`: the spawn is forced
+to the notes project, defaults to `readOnly: true` unless explicitly passed
+`readOnly: false`, and (in prod) appends `server/general-chat.ts`'s
+`GENERAL_CHAT_SYSTEM_PROMPT` via `jarvis rpc`'s `--append-system-prompt`
+passthrough — the same mechanism as `AGENT_CONTEXT`. The prompt lives
+server-side only, never in the client bundle; project agents are untouched.
+The mock records the flag on `FakePi` (visible as `general-chat: on/off` in
+`GET /api/agents/:id/logs`) and otherwise behaves identically.
+
+`mock-smoke` asserts the GC contract: forced-notes project, read-only
+default + explicit opt-out, bad-`sessionPath` rejection, and that plain
+(non-GC) spawns stay read-only-off with no GC flag.
+
+Direct checks (from `dashboard/`, mock server on `:3000`):
+
+```bash
+curl -s -X POST localhost:3000/api/agents/start \
+  -H 'Content-Type: application/json' -d '{"generalChat":true}'
+# → {"project":"notes","generalChat":true,...} (read-only on by default)
+curl -s -X POST localhost:3000/api/agents/start \
+  -H 'Content-Type: application/json' \
+  -d '{"generalChat":true,"project":"alpha"}'
+# → project still "notes" (GC forces the notes dir)
+```
+
 ## Commands (all from `dashboard/`)
 
 - `npm run mock-seed` — regenerate the fixtures (idempotent; absolute paths

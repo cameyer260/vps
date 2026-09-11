@@ -158,6 +158,7 @@ export class MockRuntime implements ContainerRuntime {
       project,
       name: opts.name ?? resumeName ?? "mock chat",
       readOnly: opts.readOnly,
+      generalChat: opts.generalChat,
       granularity: (process.env.MOCK_GRANULARITY as StreamGranularity | undefined) ?? "word",
       models: this.models,
       history,
