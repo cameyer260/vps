@@ -1,14 +1,10 @@
 import { useMemo } from "react";
 import type { AgentInfo } from "../types";
+import { statusDot } from "./agentStatus";
 import { TerminateButton } from "./TerminateButton";
 import { StartNotesButton } from "./StartNotesButton";
 
-export function statusDot(a: AgentInfo): { cls: string; label: string } {
-  if (a.state !== "running") return { cls: "dead", label: a.state };
-  if (a.live === "streaming") return { cls: "streaming", label: "streaming" };
-  if (a.live === "exited") return { cls: "dead", label: "exited" };
-  return { cls: "idle", label: "idle" };
-}
+export { statusDot } from "./agentStatus";
 
 export function uptime(startedAt: string | null): string {
   if (!startedAt) return "";

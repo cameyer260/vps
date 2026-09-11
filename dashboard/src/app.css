@@ -1226,27 +1226,35 @@ details.thinking summary {
   background: var(--bg-4);
 }
 
-/* read-only toggle */
+/* read-only toggle (shared ReadOnlyToggle, spec §7.3): red = off / full
+   tools, green = on / read-only. Stateless — ground truth is the agent
+   (bridge `hello` + notifies), never local state. */
 
-.ro-toggle {
-  border: 1px solid var(--border);
+.ro-toggle,
+.ro-toggle.off {
+  border: 1px solid rgba(255, 69, 58, 0.5);
   border-radius: 999px;
   padding: 4px 11px;
   font-size: 12.5px;
-  color: var(--text-dim);
-  background: none;
+  color: var(--red);
+  background: rgba(255, 69, 58, 0.08);
   white-space: nowrap;
 }
 
-.ro-toggle:hover {
-  border-color: var(--border-strong);
-  color: var(--text);
+.ro-toggle:hover:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
 }
 
 .ro-toggle.on {
   border-color: rgba(48, 209, 88, 0.5);
   color: var(--green);
   background: rgba(48, 209, 88, 0.08);
+}
+
+.ro-toggle.on:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
 }
 
 .ro-toggle:disabled {
@@ -2183,4 +2191,162 @@ div.agent-card {
   .bottom-pill button {
     padding: 11px 30px;
   }
+}
+
+/* ---- Phase 2: shared primitives (TreeModal + EditToggle) ---- */
+
+/* TreeModal: one expandable scrollable list-modal (spec §7.2) behind the
+   project picker, file tree, search results, and GC conversation list. */
+.tree-modal {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  width: min(560px, 100%);
+}
+
+.tree-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 10px 10px 18px;
+}
+
+.tree-modal-head h2 {
+  margin: 0;
+}
+
+.tree-modal-close {
+  font-size: 20px;
+  line-height: 1;
+  min-width: 36px;
+}
+
+.tree-modal-search {
+  padding: 0 18px 10px;
+}
+
+.tree-modal-list {
+  border-top: 1px solid var(--border);
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  max-height: clamp(240px, 52dvh, 480px);
+}
+
+.tree-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+}
+
+.tree-modal-row:hover {
+  background: var(--bg-3);
+}
+
+.tree-modal-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tree-modal-row-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.tree-modal-row-sub {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-modal-chevron {
+  color: var(--text-dim);
+  font-size: 12px;
+  width: 14px;
+  flex-shrink: 0;
+  transition: transform 0.15s var(--ease);
+}
+
+.tree-modal-chevron.open {
+  transform: rotate(90deg);
+}
+
+.tree-modal-foot {
+  border-top: 1px solid var(--border);
+  padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* left-slide variant: overlays from the left edge (file tree, GC list) */
+.modal-scrim.tree-modal-scrim-left {
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 0;
+}
+
+.modal.tree-modal-left {
+  margin: 0;
+  height: 100%;
+  max-height: none;
+  width: min(360px, 88vw);
+  border-radius: 0;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  animation: tree-slide-in 0.18s var(--ease);
+}
+
+@keyframes tree-slide-in {
+  from {
+    transform: translateX(-24px);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* IDE edit toggle (spec §7.4): frontend-only pencil, default read-only.
+   Accent (not status) colors — it gates the viewer, not the harness. */
+.edit-toggle {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.edit-toggle:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.edit-toggle.on {
+  border-color: var(--accent-border);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.edit-toggle:disabled {
+  opacity: 0.5;
 }

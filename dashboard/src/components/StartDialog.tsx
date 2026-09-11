@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { SessionSummary } from "../types";
+import { ReadOnlyToggle } from "./ReadOnlyToggle";
 
 interface Props {
   initialProject: string | null;
@@ -108,17 +109,13 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
         {isNotes && (
           <>
             <label className="field-label">Mode</label>
-            <label className="check-row">
-              <input
-                type="checkbox"
-                checked={readOnly}
-                onChange={(e) => setReadOnly(e.target.checked)}
-              />
+            <div className="check-row">
+              <ReadOnlyToggle value={readOnly} onToggle={() => setReadOnly(!readOnly)} />
               <span>
                 start read-only{" "}
                 <span className="dim">(chat-only session; edit/write disabled — toggle in chat any time)</span>
               </span>
-            </label>
+            </div>
           </>
         )}
 
