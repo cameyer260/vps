@@ -5,27 +5,37 @@ import { api } from "../api";
 /**
  * Spreadsheet-style CSV editor (task 11): papaparse in, editable grid,
  * papaparse out. Cell editing is the point — no formulas, no spreadsheet
- * engine. Autosaves debounced to /api/notes/file like the markdown editor.
- * Keyed by path in the parent (one instance per open file).
+ * engine. Autosaves debounced to PUT /api/files/file (IDE project) like
+ * the markdown editor. Keyed by project+path in the parent (one instance
+ * per open file). Editing is gated by the IDE EditToggle: read-only shows
+ * the same grid with disabled cells.
  */
 
 const MAX_CELLS = 400_000; // guard against pathological files
 const MAX_RENDER_ROWS = 2000; // plain table; window if ever exceeded
 
 export function CsvEditor({
+  project,
   path,
   content,
   onChange,
+  onSaved,
+  editing = true,
 }: {
+  project: string;
   path: string;
   content: string;
   onChange: (csv: string) => void;
+  onSaved?: (csv: string) => void;
+  editing?: boolean;
 }) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [gridError, setGridError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onSavedRef = useRef(onSaved);
+  onSavedRef.current = onSaved;
 
   // Parse once per file (parent keys us by path); rows live in state after.
   const initial = useMemo(() => {
@@ -76,8 +86,11 @@ export function CsvEditor({
     timer.current = setTimeout(() => {
       const csv = Papa.unparse(next);
       api
-        .notesWrite(path, csv)
-        .then(() => setStatus("saved"))
+        .filesWrite(project, path, csv)
+        .then(() => {
+          setStatus("saved");
+          onSavedRef.current?.(csv);
+        })
         .catch(() => setStatus("error"));
       onChangeRef.current(csv);
     }, 600);
@@ -136,12 +149,16 @@ export function CsvEditor({
   return (
     <div className="csv-editor">
       <div className="csv-toolbar">
-        <button className="btn small" onClick={addRow}>
-          + row
-        </button>
-        <button className="btn small" onClick={addColumn}>
-          + column
-        </button>
+        {editing && (
+          <>
+            <button className="btn small" onClick={addRow}>
+              + row
+            </button>
+            <button className="btn small" onClick={addColumn}>
+              + column
+            </button>
+          </>
+        )}
         <span className="dim csv-meta">
           {rows.length} rows × {width} cols{totalCells > MAX_CELLS ? " (too large to edit)" : ""}
         </span>
@@ -158,7 +175,7 @@ export function CsvEditor({
               <tr key={r}>
                 <td className="csv-rownum">
                   {r === 0 ? "" : r}
-                  {r > 0 && (
+                  {editing && r > 0 && (
                     <button
                       type="button"
                       className="csv-rowdel"
@@ -177,6 +194,7 @@ export function CsvEditor({
                       onChange={(e) => updateCell(r, c, e.target.value)}
                       className={r === 0 ? "csv-head-cell" : ""}
                       spellCheck={false}
+                      disabled={!editing}
                       aria-label={`row ${r + 1}, column ${c + 1}`}
                     />
                   </td>

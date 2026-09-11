@@ -11,9 +11,9 @@ import {
 
 // Notes-compat aliases over the project-scoped files backend (server/files.ts).
 // Behavior is exactly the old notes-only viewer backend: markdown + CSV only,
-// dotfiles hidden, display names without the extension. The old viewer
-// (NotesViewer.tsx) rides these until Phase 5 replaces it; the IDE uses
-// /api/files/* directly.
+// dotfiles hidden, display names without the extension. The dashboard UI moved
+// to /api/files/* in Phase 5; these aliases stay for the mock-smoke contract
+// (which asserts the notes surface) until a later phase decides otherwise.
 
 const MD_EXT = /\.md$/i;
 const CSV_EXT = /\.csv$/i;

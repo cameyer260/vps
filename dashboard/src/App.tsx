@@ -3,7 +3,7 @@ import { api } from "./api";
 import type { AgentInfo } from "./types";
 import { AgentsSections } from "./components/AgentsSections";
 import { Chat } from "./components/Chat";
-import { NotesViewer } from "./components/NotesViewer";
+import { IdeView } from "./components/IdeView";
 import { StartDialog } from "./components/StartDialog";
 import { TabHeader } from "./components/TabHeader";
 import { BottomNav, type TabKey } from "./components/BottomNav";
@@ -11,6 +11,10 @@ import { BottomNav, type TabKey } from "./components/BottomNav";
 export default function App() {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [tab, setTab] = useState<TabKey>("agents");
+  // Bumped to home the IDE tab (back to its no-selection state). Tab
+  // switches unmount/remount IdeView and keep the persisted project — only
+  // an explicit Dashboard tap clears it.
+  const [ideHome, setIdeHome] = useState(0);
   // Agent chat is a sub-state of the Agents tab (agents / agent-chat).
   const [chatAgentId, setChatAgentId] = useState<string | null>(null);
   const [startOpen, setStartOpen] = useState(false);
@@ -122,10 +126,11 @@ export default function App() {
   }, []);
 
   // Tap `Dashboard` in the header: home *within* the current tab. Agents
-  // returns to the overview; IDE/GC have no sub-state in phase 1 (their
-  // picker/list homes arrive with phases 5/7), so they are already home.
+  // returns to the overview; IDE returns to its no-selection state (via
+  // IdeView's homeSignal); GC has no sub-state until phase 7.
   const goHome = useCallback(() => {
     if (tab === "agents") setChatAgentId(null);
+    else if (tab === "ide") setIdeHome((n) => n + 1);
   }, [tab]);
 
   const chatAgent = chatAgentId ? agents.find((a) => a.id === chatAgentId) : undefined;
@@ -186,9 +191,7 @@ export default function App() {
             </div>
           ))}
 
-        {tab === "ide" && (
-          <NotesViewer notesName={notesName} onBack={() => setTab("agents")} />
-        )}
+        {tab === "ide" && <IdeView homeSignal={ideHome} />}
 
         {tab === "gc" && (
           <div className="overview">
