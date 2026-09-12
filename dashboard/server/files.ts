@@ -93,7 +93,7 @@ export async function projectTree(project: string): Promise<FileNode[] | null> {
     }
     const nodes: FileNode[] = [];
     for (const e of entries) {
-      if (e.name.startsWith(".") || SKIP_DIRS.has(e.name)) continue;
+      if (SKIP_DIRS.has(e.name)) continue;
       const childAbs = path.join(dir, e.name);
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) {
@@ -197,7 +197,7 @@ export async function searchProject(
     }
     for (const e of entries) {
       if (hits.length >= MAX_SEARCH_RESULTS) return;
-      if (e.name.startsWith(".") || SKIP_DIRS.has(e.name)) continue;
+      if (SKIP_DIRS.has(e.name)) continue;
       const childAbs = path.join(dir, e.name);
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) {

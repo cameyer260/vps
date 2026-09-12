@@ -85,8 +85,9 @@ write(
   "# Mock Alpha\n\nPlain fixture project for offline dashboard testing.\n",
 );
 // IDE backend fixtures: nested code/text dirs, an extensionless Dockerfile,
-// a binary (refused with the `binary: true` signal), and an oversize log
-// (reads refuse it with 413; search skips it).
+// a dotfile (.gitignore — shown in the tree, not hidden), a binary (refused
+// with the `binary: true` signal), and an oversize log (reads refuse it with
+// 413; search skips it).
 write(path.join(alphaDir, "src/app.js"), "console.log(\"alpha app\");\n");
 write(
   path.join(alphaDir, "src/lib/helpers.py"),
@@ -100,6 +101,7 @@ write(
   path.join(alphaDir, "Dockerfile"),
   "FROM node:22-slim\nWORKDIR /app\nCMD [\"node\", \"src/app.js\"]\n",
 );
+write(path.join(alphaDir, ".gitignore"), "node_modules/\n*.log\n");
 writeBin(path.join(alphaDir, "assets/pixel.png"), PIXEL_PNG);
 write(path.join(alphaDir, "big.log"), "x".repeat((2 << 20) + 512 * 1024));
 

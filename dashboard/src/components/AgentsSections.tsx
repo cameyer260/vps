@@ -1,13 +1,26 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AgentInfo } from "../types";
 import { statusDot } from "./agentStatus";
 import { TerminateButton } from "./TerminateButton";
 
 export { statusDot } from "./agentStatus";
 
-export function uptime(startedAt: string | null): string {
+/** Minute-resolution clock for elapsed-time labels: re-renders the list on
+ *  a 30s interval so `uptime()` stays fresh without server traffic. (The
+ *  /ws/events socket only pushes on lifecycle/status transitions — there
+ *  is no clock in it, so a local ticker is the mechanism here.) */
+export function useNow(intervalMs = 30_000): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(t);
+  }, [intervalMs]);
+  return now;
+}
+
+export function uptime(startedAt: string | null, now: number = Date.now()): string {
   if (!startedAt) return "";
-  const ms = Date.now() - new Date(startedAt).getTime();
+  const ms = now - new Date(startedAt).getTime();
   if (ms < 0 || Number.isNaN(ms)) return "";
   const min = Math.floor(ms / 60000);
   if (min < 1) return "just now";
@@ -20,11 +33,8 @@ export function uptime(startedAt: string | null): string {
 interface Props {
   agents: AgentInfo[];
   notesName: string;
-  compact?: boolean;
   onOpenChat: (agentId: string) => void;
-  onOpenNotes: () => void;
   onStart: (project?: string) => void;
-  onStarted?: (agent: { id: string; project: string }) => void;
 }
 
 /**
@@ -37,6 +47,7 @@ interface Props {
  * empty-state `+` both open the New Agent modal.
  */
 export function AgentsSections({ agents, notesName, onOpenChat, onStart }: Props) {
+  const now = useNow();
   const managed = useMemo(() => agents.filter((a) => a.origin === "dashboard"), [agents]);
   const sections = useMemo(() => {
     const map = new Map<string, AgentInfo[]>();
@@ -73,7 +84,7 @@ export function AgentsSections({ agents, notesName, onOpenChat, onStart }: Props
         <section key={project} className="agent-group">
           <h2 className="agent-group-title">{project}</h2>
           {list.map((a) => (
-            <AgentRow key={a.id} agent={a} onOpenChat={onOpenChat} />
+            <AgentRow key={a.id} agent={a} now={now} onOpenChat={onOpenChat} />
           ))}
         </section>
       ))}
@@ -83,9 +94,11 @@ export function AgentsSections({ agents, notesName, onOpenChat, onStart }: Props
 
 function AgentRow({
   agent,
+  now,
   onOpenChat,
 }: {
   agent: AgentInfo;
+  now: number;
   onOpenChat: (agentId: string) => void;
 }) {
   const dot = statusDot(agent);
@@ -104,7 +117,7 @@ function AgentRow({
         <span className="agent-title">{title}</span>
       </span>
       <span className="agent-side">
-        <span className="agent-meta">{uptime(agent.startedAt)}</span>
+        <span className="agent-meta">{uptime(agent.startedAt, now)}</span>
         <span className="agent-status">{dot.label}</span>
       </span>
       <TerminateButton agent={agent} small onTerminated={() => {}} />

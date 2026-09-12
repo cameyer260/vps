@@ -50,11 +50,14 @@ activity, thinking blocks, model / thinking-level switching (`set_model`,
 mirrors the agent's live mode. Streaming survives reconnects and mid-turn
 attaches (provisional items are preserved across backfills).
 
-### 4. Notes viewer
-Obsidian clone over `/home/dev/notes`: file tree, multiple files open as tabs,
+### 4. IDE
+Notes-first file editor over any project dir: project picker, file tree
+(including dotfiles), full-text search, one open file at a time —
 live-preview markdown editing (TipTap — the rendered document IS the editor;
-de bounces autosave to `PUT /api/notes/file`), a spreadsheet-style CSV grid
-editor (papaparse), full-text search. Load errors surface with copy, retry, dismiss. "Commit & push"
+autosave bounces to `PUT /api/files/file`), a spreadsheet-style CSV grid
+editor (papaparse), a plain monospace pane for code/text, "not shown" for
+binaries. Editing is gated by a read-only pencil toggle. Load errors surface
+with copy, retry, dismiss. "Commit & push"
 stages exactly the files edited in that viewer session — dirt from agents
 isn't swept up.
 

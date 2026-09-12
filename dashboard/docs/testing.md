@@ -34,8 +34,8 @@ npm run dev:web                               # Vite on :5173, proxies /api + /w
 routes are drivable offline:
 
 - `projects/alpha` (plain dir): `README.md`, `src/app.js`,
-  `src/lib/helpers.py`, `docs/guide.md`, extensionless `Dockerfile`,
-  binary `assets/pixel.png`, oversize `big.log` (> 2 MiB).
+  `src/lib/helpers.py`, `docs/guide.md`, extensionless `Dockerfile`, dotfile
+  `.gitignore`, binary `assets/pixel.png`, oversize `big.log` (> 2 MiB).
 - `projects/beta` (git repo): `app.js` (dirty), `README.md`,
   `src/main.go`, `src/nested/deep.json`, binary `assets/icon.png`.
 - `projects/notes` stays markdown + CSV only (old viewer surface).

@@ -521,8 +521,8 @@ function IdeSearch({
   return (
     <TreeModal
       title={`Search — ${project}`}
-      items={(results ?? []).map((h, i) => ({
-        key: String(i),
+      items={(results ?? []).map((h) => ({
+        key: `${h.path}:${h.line}`,
         title: h.path,
         subtitle: `L${h.line}: ${h.text}`,
       }))}
@@ -542,7 +542,9 @@ function IdeSearch({
       }
       onClose={onClose}
       onSelect={(item) => {
-        const hit = results?.[Number(item.key)];
+        // path+line is unique within a result set (one hit per matching
+        // line), so look the hit up instead of trusting an array index.
+        const hit = results?.find((h) => `${h.path}:${h.line}` === item.key);
         if (hit) void onOpen(hit.path);
       }}
     />

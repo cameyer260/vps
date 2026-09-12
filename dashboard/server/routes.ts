@@ -12,14 +12,6 @@ import {
   searchProject,
   writeProjectFile,
 } from "./files.js";
-import { notesTree, readNote, searchNotes, writeNote } from "./notes.js";
-
-const EDITABLE_EXT_SAFE = /\.(md|csv)$/i;
-function safeRel(rel: string): boolean {
-  const abs = path.resolve(config.notesDir, rel);
-  const r = path.relative(config.notesDir, abs);
-  return !r.startsWith("..") && !path.isAbsolute(r);
-}
 import { listSessions } from "./sessions.js";
 import { listSkills } from "./skills.js";
 import { bridges, ensureBridge } from "./bridge.js";
@@ -164,8 +156,6 @@ api.get("/git/status", async (c) => {
   return c.json(status, status.ok ? 200 : 409);
 });
 
-// ---- notes viewer --------------------------------------------------------
-
 // ---- chat attachments -----------------------------------------------------
 
 const UPLOAD_MAX_BYTES = 10 << 20; // 10 MiB per file
@@ -200,43 +190,8 @@ api.post("/upload", async (c) => {
   });
 });
 
-api.get("/notes/tree", async (c) => {
-  return c.json({ tree: await notesTree() });
-});
-
-api.get("/notes/file", async (c) => {
-  const rel = c.req.query("path") ?? "";
-  const file = await readNote(rel);
-  if (!file) return c.json({ error: `not a readable note: ${rel}` }, 404);
-  return c.json(file);
-});
-
-api.put("/notes/file", async (c) => {
-  const body = (await c.req.json()) as { path?: string; content?: string };
-  if (!body.path || typeof body.content !== "string") {
-    return c.json({ error: "path and content are required" }, 400);
-  }
-  const mtime = await writeNote(body.path, body.content);
-  if (mtime === null) return c.json({ error: `not a writable note: ${body.path}` }, 400);
-  return c.json({ ok: true, mtime });
-});
-
-api.get("/notes/search", async (c) => {
-  const q = c.req.query("q") ?? "";
-  return c.json({ results: await searchNotes(q) });
-});
-
-api.post("/notes/commit", async (c) => {
-  const body = (await c.req.json()) as { paths?: string[]; message?: string };
-  const paths = (body.paths ?? []).filter((p) => typeof p === "string" && EDITABLE_EXT_SAFE.test(p) && safeRel(p));
-  if (paths.length === 0) return c.json({ error: "no valid note paths given" }, 400);
-  const message = (body.message ?? "").trim().slice(0, 300) || "notes update via dashboard";
-  const result = await gitCommitPush(config.notesDir, paths, message);
-  return c.json(result, result.ok ? 200 : 409);
-});
-
 // ---- project-scoped files (IDE backend) ------------------------------------
-// Same traversal guards as the notes aliases, generalized to any project
+// Same traversal guards throughout, generalized to any project
 // from `GET /api/projects`. Binary files are refused with a `binary: true`
 // signal (the UI shows "not shown"); oversize with 413.
 

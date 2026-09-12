@@ -4,7 +4,7 @@ import type { AgentInfo, SessionSummary } from "../types";
 import { ChatView } from "./ChatView";
 import { ReadOnlyToggle } from "./ReadOnlyToggle";
 import { TreeModal, type TreeModalItem } from "./TreeModal";
-import { statusDot, uptime } from "./AgentsSections";
+import { statusDot, uptime, useNow } from "./AgentsSections";
 
 /**
  * General Chat tab (spec §6): a ChatGPT-clone over the notes dir.
@@ -59,6 +59,9 @@ export function GeneralChat({ agents, notesName, activeId, onActiveChange, homeS
   const [provisional, setProvisional] = useState<AgentInfo | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  // Minute-resolution clock so the running-row elapsed times stay fresh
+  // (same ticker as the Agents tab — no server traffic).
+  const now = useNow();
 
   const goListHome = () => {
     onActiveChange(null);
@@ -177,7 +180,7 @@ export function GeneralChat({ agents, notesName, activeId, onActiveChange, homeS
                     {a.sessionName || a.name || a.id.slice(0, 12)}
                   </span>
                 ),
-                subtitle: `${uptime(a.startedAt)} · ${dot.label}`,
+                subtitle: `${uptime(a.startedAt, now)} · ${dot.label}`,
               };
             }),
           } satisfies TreeModalItem,

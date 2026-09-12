@@ -161,13 +161,13 @@ try {
   const skills = await getJSON("/api/skills");
   check("skills fixture", skills.skills.length === 2);
 
-  const tree = await getJSON("/api/notes/tree");
+  const tree = await getJSON("/api/files/tree?project=notes");
   check("notes tree", JSON.stringify(tree).includes("welcome.md"));
 
-  const note = await getJSON("/api/notes/file?path=welcome.md");
+  const note = await getJSON("/api/files/file?project=notes&path=welcome.md");
   check("notes file", typeof note.content === "string" && note.content.includes("Mock"));
 
-  const search = await getJSON("/api/notes/search?q=mock");
+  const search = await getJSON("/api/files/search?project=notes&q=mock");
   check("notes search", search.results.length >= 1);
 
   // ---- project-scoped files API (Phase 4 IDE backend) ------------------------
@@ -191,6 +191,7 @@ try {
   check("files tree marks code as text", findNode(alphaTree.tree, "src/app.js")?.kind === "text");
   check("files tree marks md", findNode(alphaTree.tree, "docs/guide.md")?.kind === "md");
   check("files tree marks binary", findNode(alphaTree.tree, "assets/pixel.png")?.kind === "binary");
+  check("files tree shows dotfiles", !!findNode(alphaTree.tree, ".gitignore"));
 
   const betaTree = await getJSON("/api/files/tree?project=beta");
   check("files tree covers git projects", !!findNode(betaTree.tree, "src/nested/deep.json"));

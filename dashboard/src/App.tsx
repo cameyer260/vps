@@ -192,9 +192,7 @@ export default function App() {
                 agents={agents}
                 notesName={notesName}
                 onOpenChat={openChat}
-                onOpenNotes={() => setTab("ide")}
                 onStart={openStart}
-                onStarted={(agent) => openChat(agent.id)}
               />
             </div>
           ))}
