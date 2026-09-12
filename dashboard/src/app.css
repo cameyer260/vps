@@ -3,7 +3,7 @@
  * Design language: OLED-black unified canvas with hairline borders (no
  * heavy panel contrast), compact geometry, glass floating surfaces
  * (composer, popovers), 6px scrollbars, system font stacks, 150-200ms
- * ease-out motion. Status/action colors follow the Apple system palette
+ * ease-out motion. Status/action colors are the Mac traffic-light palette
  * (green = done/waiting/on/Start, orange = running/working, red =
  * off/Exit/destructive, yellow = warnings); the blue accent remains only
  * for non-status chrome (links, focus, selection). Global tab chrome
@@ -29,14 +29,15 @@
   --accent-soft: rgba(77, 141, 255, 0.12);
   --accent-border: rgba(77, 141, 255, 0.4);
 
-  /* semantics — Apple system palette (dark): green = done/waiting/on/Start,
-     orange = running/working, red = off/Exit/destructive, yellow = warnings.
-     --amber is kept as an alias of Apple yellow for existing warning styles. */
-  --green: #30d158;
-  --orange: #ff9f0a;
-  --red: #ff453a;
-  --yellow: #ffd60a;
-  --amber: #ffd60a;
+  /* semantics — Mac traffic-light palette (spec §2, sketch 2 margin note):
+     green = done/waiting/on/Start, orange = running/working, red =
+     off/Exit/destructive, yellow = warnings. --amber is kept as an alias
+     of Mac yellow for existing warning styles. */
+  --green: #28c840;
+  --orange: #ff9500;
+  --red: #ff5f57;
+  --yellow: #febc2e;
+  --amber: #febc2e;
 
   /* geometry */
   --radius-sm: 8px;
@@ -261,7 +262,7 @@ button {
 
 .dot.streaming {
   background: var(--orange);
-  box-shadow: 0 0 8px rgba(255, 159, 10, 0.7);
+  box-shadow: 0 0 8px rgba(255, 149, 0, 0.7);
   animation: pulse 1.4s ease-in-out infinite;
 }
 
@@ -326,7 +327,7 @@ button {
   color: #06130b;
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.4),
-    0 0 12px rgba(48, 209, 88, 0.25);
+    0 0 12px rgba(40, 200, 64, 0.25);
 }
 
 .btn.primary:hover {
@@ -594,7 +595,7 @@ details.thinking summary {
 }
 
 .tool-card.error {
-  border-color: rgba(255, 69, 58, 0.5);
+  border-color: rgba(255, 95, 87, 0.5);
 }
 
 .tool-head {
@@ -749,12 +750,12 @@ details.thinking summary {
 }
 
 .notice.warning {
-  border-color: rgba(255, 214, 10, 0.5);
+  border-color: rgba(254, 188, 46, 0.5);
   color: var(--amber);
 }
 
 .notice.error {
-  border-color: rgba(255, 69, 58, 0.5);
+  border-color: rgba(255, 95, 87, 0.5);
   color: var(--red);
 }
 
@@ -1120,7 +1121,7 @@ details.thinking summary {
 }
 
 .error-box {
-  border: 1px solid rgba(255, 69, 58, 0.5);
+  border: 1px solid rgba(255, 95, 87, 0.5);
   color: var(--red);
   border-radius: var(--radius-sm);
   padding: 8px 10px;
@@ -1144,12 +1145,12 @@ div.agent-row {
 
 .ro-toggle,
 .ro-toggle.off {
-  border: 1px solid rgba(255, 69, 58, 0.5);
+  border: 1px solid rgba(255, 95, 87, 0.5);
   border-radius: 999px;
   padding: 4px 11px;
   font-size: 12.5px;
   color: var(--red);
-  background: rgba(255, 69, 58, 0.08);
+  background: rgba(255, 95, 87, 0.08);
   white-space: nowrap;
 }
 
@@ -1159,9 +1160,9 @@ div.agent-row {
 }
 
 .ro-toggle.on {
-  border-color: rgba(48, 209, 88, 0.5);
+  border-color: rgba(40, 200, 64, 0.5);
   color: var(--green);
-  background: rgba(48, 209, 88, 0.08);
+  background: rgba(40, 200, 64, 0.08);
 }
 
 .ro-toggle.on:hover:not(:disabled) {
@@ -1226,8 +1227,8 @@ div.agent-row {
 .btn.stop-agent:hover:not(:disabled),
 .btn.stop-agent:focus-visible {
   color: var(--red);
-  border-color: rgba(255, 69, 58, 0.5);
-  background: rgba(255, 69, 58, 0.08);
+  border-color: rgba(255, 95, 87, 0.5);
+  background: rgba(255, 95, 87, 0.08);
 }
 
 .btn.stop-agent .power-icon {
@@ -1271,8 +1272,8 @@ div.agent-row {
 
 .git-banner {
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 214, 10, 0.5);
-  background: rgba(255, 214, 10, 0.06);
+  border-bottom: 1px solid rgba(254, 188, 46, 0.5);
+  background: rgba(254, 188, 46, 0.06);
   font-size: 13px;
 }
 
@@ -1930,7 +1931,7 @@ div.agent-row {
 
 .bottom-pill button.active {
   color: var(--green);
-  background: rgba(48, 209, 88, 0.12);
+  background: rgba(40, 200, 64, 0.12);
 }
 
 /* glue: the old menu button is gone, so per-view chrome that deferred to
@@ -2201,9 +2202,9 @@ div.agent-row {
 .gate-warning {
   margin-top: 8px;
   font-size: 13px;
-  border: 1px solid rgba(255, 214, 10, 0.5);
+  border: 1px solid rgba(254, 188, 46, 0.5);
   color: var(--yellow);
-  background: rgba(255, 214, 10, 0.06);
+  background: rgba(254, 188, 46, 0.06);
   border-radius: var(--radius-sm);
   padding: 7px 11px;
 }
