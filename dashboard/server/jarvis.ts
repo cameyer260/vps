@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import path from "node:path";
 import { config } from "./config.js";
 import { GENERAL_CHAT_SYSTEM_PROMPT } from "./general-chat.js";
 
@@ -54,7 +55,20 @@ export function runCommand(
     execFile(
       cmd,
       args,
-      { cwd: opts.cwd, timeout: opts.timeout ?? 60_000, maxBuffer: 4 << 20 },
+      {
+        cwd: opts.cwd,
+        timeout: opts.timeout ?? 60_000,
+        maxBuffer: 4 << 20,
+        // Containment: pin repo discovery inside the target dir — git
+        // checks the starting dir itself, and the ceiling blocks ascending
+        // into the parent from below, so git never sees an enclosing repo
+        // and every project-scoped op stays inside its project folder.
+        // (The ceiling must be the PARENT: ceiling == cwd blocks nothing.)
+        env: {
+          ...process.env,
+          ...(opts.cwd ? { GIT_CEILING_DIRECTORIES: path.dirname(opts.cwd) } : {}),
+        },
+      },
       (err, stdout, stderr) => {
         const output = ((stdout || "") + (stderr || "")).trim();
         resolve({ ok: !err, output: output || (err ? String(err.message) : "") });

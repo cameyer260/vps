@@ -183,28 +183,24 @@ export async function projectTree(project: string): Promise<FileNode[] | null> {
 async function gitIgnored(root: string, rels: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (rels.length === 0) return out;
-  // Only when root is itself a repo top-level: otherwise git walks up and
-  // applies some ENCLOSING repo's rules (the same trap as the terminate
-  // guard in git.ts) — plain project dirs show everything unmarked.
-  const norm = (p: string): string => {
-    try {
-      return fs.realpathSync(p);
-    } catch {
-      return path.resolve(p);
-    }
-  };
+  // Containment: GIT_CEILING_DIRECTORIES pins discovery inside root — git
+  // checks the starting dir itself, and the ceiling (root's parent) blocks
+  // ascending from below, so git never sees an enclosing repo. A plain dir
+  // (or a subdir of some outer repo) simply reports "not a repo" and shows
+  // everything unmarked. Same pin as runCommand (all git ops in git.ts).
+  const env = { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(root) };
   const toplevel = await new Promise<string | null>((resolve) => {
-    execFile("git", ["rev-parse", "--show-toplevel"], { cwd: root }, (err, stdout) => {
+    execFile("git", ["rev-parse", "--show-toplevel"], { cwd: root, env }, (err, stdout) => {
       if (err) return resolve(null);
       resolve(String(stdout ?? "").trim().split("\n").pop()!.trim() || null);
     });
   });
-  if (!toplevel || norm(toplevel) !== norm(root)) return out;
+  if (!toplevel) return out;
   const stdout = await new Promise<string>((resolve) => {
     const child = execFile(
       "git",
       ["-c", "core.quotepath=off", "check-ignore", "--stdin"],
-      { cwd: root },
+      { cwd: root, env },
       (_err, stdout) => resolve(String(stdout ?? "")),
     );
     child.stdin?.write(rels.join("\n"));

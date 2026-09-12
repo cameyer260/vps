@@ -18,10 +18,11 @@ export interface GitStatus {
 
 export function gitStatus(dir: string): Promise<GitStatus> {
   return runCommand("git", ["rev-parse", "--show-toplevel"], { cwd: dir }).then((t) => {
-    // A project dir that is not itself a repo root (plain dir, or a subdir
-    // of some outer repo) has nothing committable: `git status` would walk
-    // up and report the ENCLOSING repo's dirt, so refuse instead of lying.
-    // Callers (terminate guard) already degrade to a plain confirm here.
+    // Containment is enforced by GIT_CEILING_DIRECTORIES (runCommand pins
+    // discovery to dir): git can never see an enclosing repo, so a project
+    // dir that is not itself a repo root reports "not a git repository"
+    // here instead of some parent's dirt. Callers (terminate guard) already
+    // degrade to a plain confirm on this path.
     const toplevel = t.ok ? t.output.trim().split("\n").pop()!.trim() : null;
     const sameRoot = (a: string, b: string) => {
       const norm = (p: string) => {
