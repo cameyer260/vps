@@ -72,7 +72,6 @@ body {
 
 body {
   overflow: hidden;
-}
   background: var(--bg);
   color: var(--text);
   font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
