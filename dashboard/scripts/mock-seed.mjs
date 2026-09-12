@@ -105,7 +105,7 @@ write(path.join(alphaDir, ".gitignore"), "node_modules/\n*.log\n");
 writeBin(path.join(alphaDir, "assets/pixel.png"), PIXEL_PNG);
 write(path.join(alphaDir, "big.log"), "x".repeat((2 << 20) + 512 * 1024));
 
-// ---- projects/beta (git repo with one dirty file) ----------------------------
+// ---- projects/beta (git repo with one dirty file + one ignored dir) ----------------------------
 
 git(["init", "-b", "main"], betaDir);
 stampIdentity(betaDir);
@@ -116,6 +116,10 @@ write(
   "package main\n\nfunc main() {}\n",
 );
 write(path.join(betaDir, "src/nested/deep.json"), '{\n  "depth": "nested"\n}\n');
+// Ignored fixture: committed .gitignore keeps dist/ untracked, so the tree
+// marks it `ignored` (greyed out) instead of hiding it.
+write(path.join(betaDir, ".gitignore"), "dist/\n*.local\n");
+write(path.join(betaDir, "dist/bundle.js"), "console.log(\"mock ignored bundle\");\n");
 writeBin(path.join(betaDir, "assets/icon.png"), PIXEL_PNG);
 commitAll(betaDir, "seed mock beta");
 // Leave one unstaged modification: the git-status UI shows a dirty tree.

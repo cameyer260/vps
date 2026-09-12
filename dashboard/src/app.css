@@ -2034,6 +2034,11 @@ div.agent-row {
   background: var(--bg-3);
 }
 
+/* git-ignored paths: greyed out like a typical IDE, still tappable */
+.tree-modal-row-dim {
+  opacity: 0.45;
+}
+
 .tree-modal-row-main {
   flex: 1;
   min-width: 0;

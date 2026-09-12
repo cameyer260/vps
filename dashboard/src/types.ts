@@ -47,6 +47,8 @@ export interface TreeNode {
   children?: TreeNode[];
   /** File renderer hint from the IDE backend (Phase 4); absent on old shapes. */
   kind?: "md" | "csv" | "text" | "binary";
+  /** Git-ignored paths render greyed out (VS Code style). */
+  ignored?: boolean;
   size?: number;
   mtime?: number;
 }

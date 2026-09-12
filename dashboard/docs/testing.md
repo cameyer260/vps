@@ -37,13 +37,17 @@ routes are drivable offline:
   `src/lib/helpers.py`, `docs/guide.md`, extensionless `Dockerfile`, dotfile
   `.gitignore`, binary `assets/pixel.png`, oversize `big.log` (> 2 MiB).
 - `projects/beta` (git repo): `app.js` (dirty), `README.md`,
-  `src/main.go`, `src/nested/deep.json`, binary `assets/icon.png`.
+  `src/main.go`, `src/nested/deep.json`, binary `assets/icon.png`, ignored
+  `dist/bundle.js` (via a committed `.gitignore` — shown greyed out, not hidden).
 - `projects/notes` stays markdown + CSV only (old viewer surface).
 
 `mock-smoke` asserts the files contract: tree/read/search/commit happy
 path, `..` traversal rejection, binary refusal (`415` + `binary: true`),
-oversize refusal (`413`), and a write → read → commit+push round-trip on
-the notes repo (local bare remote, works offline).
+oversize refusal (`413`), dotfiles shown and readable as text, git-ignored
+paths flagged `ignored: true`, and a write → read → commit+push round-trip on
+the notes repo (local bare remote, works offline). Content search skips
+dependency/build/output dirs (node_modules, .git, dist, .next, …) while the
+tree itself ignores nothing.
 
 Direct checks (from `dashboard/`, mock server on `:3000`):
 

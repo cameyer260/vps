@@ -195,6 +195,9 @@ try {
 
   const betaTree = await getJSON("/api/files/tree?project=beta");
   check("files tree covers git projects", !!findNode(betaTree.tree, "src/nested/deep.json"));
+  check("files tree marks git-ignored", findNode(betaTree.tree, "dist/bundle.js")?.ignored === true);
+  check("files tree leaves tracked files unmarked", findNode(betaTree.tree, "src/main.go")?.ignored !== true);
+  check("files tree leaves plain dirs unmarked", findNode(alphaTree.tree, ".gitignore")?.ignored !== true);
 
   const codeFile = await getJSON("/api/files/file?project=alpha&path=src/app.js");
   check(
@@ -204,6 +207,9 @@ try {
   );
   const dockerFile = await getJSON("/api/files/file?project=alpha&path=Dockerfile");
   check("files read extensionless text", dockerFile.kind === "text" && dockerFile.content.includes("FROM"));
+
+  const dotFile = await getJSON("/api/files/file?project=alpha&path=.gitignore");
+  check("files read dotfile as text", dotFile.kind === "text" && dotFile.content.includes("node_modules"));
 
   const binRes = await fetch(`${base}/api/files/file?project=alpha&path=assets/pixel.png`);
   const binBody = await binRes.json();

@@ -1,12 +1,18 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { projectDir } from "./config.js";
 
-// Project-scoped file operations for the IDE tab (Phase 4). Generalizes the
-// old notes-only viewer backend (server/notes.ts, now thin compat wrappers
-// over this module) to whichever project is selected — same project source
-// as `GET /api/projects` (projectDir()), same traversal guards.
+// Project-scoped file operations for the IDE tab — whichever project is
+// selected. Same project source as `GET /api/projects` (projectDir()), same
+// traversal guards.
+//
+// Tree vs search policy (deliberately different): the file tree shows
+// EVERYTHING — no name-based skipping, dotfiles included — and marks
+// git-ignored paths (`ignored: true`, greyed out client-side, VS Code
+// style). Content search instead skips dependency/build/output dirs
+// (SEARCH_SKIP_DIRS) so results stay relevant and fast.
 //
 // File-type policy: markdown + CSV as before, plus every other text/code
 // extension the client already treats as text (TEXT_EXT_RE below — keep in
@@ -19,7 +25,32 @@ export const TEXT_EXT_RE =
   /\.(md|txt|json|csv|tsv|ya?ml|toml|xml|html?|css|js|jsx|ts|tsx|py|rb|go|rs|java|kt|c|h|cpp|hpp|sh|bash|zsh|sql|ini|cfg|conf|env|log|diff|patch)$/i;
 const MD_EXT = /\.md$/i;
 const CSV_EXT = /\.csv$/i;
-const SKIP_DIRS = new Set([".git", "node_modules", ".obsidian", ".trash"]);
+/** Search-only exclusions: dependency, build-output, and tooling dirs that
+ *  would drown content search in noise. The file tree ignores nothing. */
+const SEARCH_SKIP_DIRS = new Set([
+  ".git",
+  "node_modules",
+  ".obsidian",
+  ".trash",
+  "dist",
+  "build",
+  ".next",
+  "out",
+  "coverage",
+  ".nuxt",
+  ".output",
+  ".vercel",
+  ".turbo",
+  "__pycache__",
+  ".pytest_cache",
+  "target",
+  "vendor",
+  ".venv",
+  "venv",
+  ".expo",
+  ".svelte-kit",
+  ".astro",
+]);
 const MAX_FILE_BYTES = 2 << 20; // 2 MiB per file
 const MAX_SEARCH_RESULTS = 120;
 
@@ -31,6 +62,8 @@ export interface FileNode {
   type: "dir" | "file";
   children?: FileNode[];
   kind?: FileKind; // present on files
+  /** True when git ignores this path (greyed out in the tree, VS Code style). */
+  ignored?: boolean;
   size?: number;
   mtime?: number;
 }
@@ -66,7 +99,11 @@ function safeResolve(root: string, rel: string): string | null {
 /** Extension-based kind hint. Unknown extensions read as binary until the
  *  content sniff in readProjectFile proves them text (or refuses them). */
 export function kindForName(name: string): FileKind {
-  const base = name.split("/").pop() ?? name;
+  // A leading dot is not an extension (`.gitignore`, `.env` are names, not
+  // extensions) — strip it so dotfiles classify as extensionless text.
+  // (The NUL-byte sniff in readProjectFile is still the authority: real
+  // binaries with text-like names are refused on open regardless.)
+  const base = (name.split("/").pop() ?? name).replace(/^\.+/, "");
   if (MD_EXT.test(base)) return "md";
   if (CSV_EXT.test(base)) return "csv";
   if (TEXT_EXT_RE.test(base)) return "text";
@@ -93,7 +130,8 @@ export async function projectTree(project: string): Promise<FileNode[] | null> {
     }
     const nodes: FileNode[] = [];
     for (const e of entries) {
-      if (SKIP_DIRS.has(e.name)) continue;
+      // No name-based skipping: the tree shows everything (dotfiles, .git,
+      // build output). Git-ignored paths are marked below, not hidden.
       const childAbs = path.join(dir, e.name);
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) {
@@ -121,7 +159,72 @@ export async function projectTree(project: string): Promise<FileNode[] | null> {
     return nodes;
   }
 
-  return walk(root, "");
+  const tree = await walk(root, "");
+  // Grey-out data (VS Code style): one batched `git check-ignore --stdin`
+  // over every walked path. Empty when root isn't a repo — plain dirs just
+  // show everything unmarked.
+  const rels: string[] = [];
+  const collect = (nodes: FileNode[]): void => {
+    for (const n of nodes) {
+      rels.push(n.path);
+      if (n.children) collect(n.children);
+    }
+  };
+  collect(tree);
+  const ignored = await gitIgnored(root, rels);
+  if (ignored.size > 0) markIgnored(tree, ignored);
+  return tree;
+}
+
+/** Relative paths (as walked) that git ignores under root. One
+ *  `check-ignore --stdin` process for the whole tree; stdout is parsed
+ *  regardless of exit code (git exits 1 when some paths are NOT ignored).
+ *  Empty when root isn't a git repo. */
+async function gitIgnored(root: string, rels: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (rels.length === 0) return out;
+  // Only when root is itself a repo top-level: otherwise git walks up and
+  // applies some ENCLOSING repo's rules (the same trap as the terminate
+  // guard in git.ts) — plain project dirs show everything unmarked.
+  const norm = (p: string): string => {
+    try {
+      return fs.realpathSync(p);
+    } catch {
+      return path.resolve(p);
+    }
+  };
+  const toplevel = await new Promise<string | null>((resolve) => {
+    execFile("git", ["rev-parse", "--show-toplevel"], { cwd: root }, (err, stdout) => {
+      if (err) return resolve(null);
+      resolve(String(stdout ?? "").trim().split("\n").pop()!.trim() || null);
+    });
+  });
+  if (!toplevel || norm(toplevel) !== norm(root)) return out;
+  const stdout = await new Promise<string>((resolve) => {
+    const child = execFile(
+      "git",
+      ["-c", "core.quotepath=off", "check-ignore", "--stdin"],
+      { cwd: root },
+      (_err, stdout) => resolve(String(stdout ?? "")),
+    );
+    child.stdin?.write(rels.join("\n"));
+    child.stdin?.end();
+  });
+  for (const line of stdout.split("\n")) {
+    const t = line.trim();
+    if (t) out.add(t);
+  }
+  return out;
+}
+
+/** Flag ignored nodes in place, propagating through ignored dirs (git
+ *  reports `dist/` once — everything under it inherits). */
+function markIgnored(nodes: FileNode[], ignored: Set<string>, parentIgnored = false): void {
+  for (const n of nodes) {
+    const self = parentIgnored || ignored.has(n.path);
+    if (self) n.ignored = true;
+    if (n.children) markIgnored(n.children, ignored, self);
+  }
 }
 
 export type ReadResult =
@@ -197,7 +300,7 @@ export async function searchProject(
     }
     for (const e of entries) {
       if (hits.length >= MAX_SEARCH_RESULTS) return;
-      if (SKIP_DIRS.has(e.name)) continue;
+      if (SEARCH_SKIP_DIRS.has(e.name)) continue;
       const childAbs = path.join(dir, e.name);
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) {

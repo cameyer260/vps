@@ -7,6 +7,8 @@ export interface TreeModalItem {
   /** Presence of children makes the row expandable (tap toggles). */
   children?: TreeModalItem[];
   defaultExpanded?: boolean;
+  /** Greyed-out row (git-ignored files in the IDE tree, VS Code style). */
+  dimmed?: boolean;
 }
 
 export interface TreeModalSearch {
@@ -116,7 +118,7 @@ function TreeRow({
     return (
       <button
         type="button"
-        className="tree-modal-row"
+        className={`tree-modal-row${item.dimmed ? " tree-modal-row-dim" : ""}`}
         style={{ paddingLeft: 12 + depth * 16 }}
         onClick={() => onSelect(item)}
       >
@@ -132,7 +134,7 @@ function TreeRow({
     <>
       <button
         type="button"
-        className="tree-modal-row tree-modal-parent"
+        className={`tree-modal-row tree-modal-parent${item.dimmed ? " tree-modal-row-dim" : ""}`}
         style={{ paddingLeft: 12 + depth * 16 }}
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}

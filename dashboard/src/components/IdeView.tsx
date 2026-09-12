@@ -471,11 +471,13 @@ function toTreeItems(nodes: TreeNode[], depth: number): TreeModalItem[] {
           title: n.name,
           children: toTreeItems(n.children ?? [], depth + 1),
           defaultExpanded: depth === 0,
+          dimmed: n.ignored,
         }
       : {
           key: n.path,
           title: n.name,
           subtitle: n.kind && n.kind !== "md" ? n.kind : undefined,
+          dimmed: n.ignored,
         },
   );
 }
