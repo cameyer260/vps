@@ -7,7 +7,7 @@
  *  - same-origin static assets (vite /assets/, icons, manifest): stale-while-revalidate
  *  - everything else (API, WebSockets): untouched
  */
-const VERSION = "v1";
+const VERSION = "v2"; // bump after PWA chrome fixes so installed PWAs update
 const SHELL_CACHE = `shell-${VERSION}`;
 const ASSET_CACHE = `assets-${VERSION}`;
 const SHELL_URL = "/";

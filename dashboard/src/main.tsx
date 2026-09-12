@@ -19,6 +19,11 @@ function syncViewportHeight() {
   const h = window.visualViewport?.height ?? window.innerHeight;
   document.documentElement.style.setProperty("--app-h", `${Math.round(h)}px`);
 }
+// Sync eagerly: the first values during a PWA splash→standalone transition
+// can predate settled chrome metrics (the floating pill then sits high
+// until a scroll corrects it), so re-sync on every signal that metrics
+// may have settled — load, pageshow (bfcache), orientation, and once on
+// the first scroll as a backstop.
 syncViewportHeight();
 window.visualViewport?.addEventListener("resize", syncViewportHeight);
 window.visualViewport?.addEventListener("scroll", syncViewportHeight);
@@ -27,6 +32,17 @@ window.addEventListener("resize", () => {
   // Undo the pan iOS applies to the layout viewport when the keyboard opens.
   window.scrollTo(0, 0);
 });
+window.addEventListener("load", syncViewportHeight);
+window.addEventListener("pageshow", syncViewportHeight);
+window.addEventListener("orientationchange", syncViewportHeight);
+window.addEventListener(
+  "scroll",
+  () => {
+    syncViewportHeight();
+    window.scrollTo(0, 0);
+  },
+  { once: true },
+);
 
 // PWA: register the service worker in production builds only — vite's dev
 // server would otherwise cache-bust modules the SW can't serve.

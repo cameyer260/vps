@@ -61,7 +61,18 @@ body,
   margin: 0;
 }
 
+/* PWA shell lockdown: only inner containers (overview, messages, editor
+   panes) ever scroll. Letting the document itself pan/rubber-band drags
+   viewport-anchored chrome (bottom pill) with it on iOS standalone, where
+   the pill then sits high until the first scroll resets the pan. */
+html,
 body {
+  overscroll-behavior: none;
+}
+
+body {
+  overflow: hidden;
+}
   background: var(--bg);
   color: var(--text);
   font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
@@ -1832,6 +1843,7 @@ div.agent-row {
 /* ---- Phase 1: global tab chrome (TabHeader + BottomNav) ---- */
 
 .app-shell {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: var(--app-h, 100dvh);
@@ -1908,8 +1920,11 @@ div.agent-row {
 }
 
 /* floating rounded bottom pill — always visible, above modals */
+/* anchored to the keyboard-aware shell (not the pannable layout viewport)
+   so the pill tracks --app-h on iOS standalone instead of floating high
+   until the first scroll */
 .bottom-nav {
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
   bottom: calc(10px + env(safe-area-inset-bottom));
@@ -1963,6 +1978,10 @@ div.agent-row {
 .app-shell .chat-head,
 .app-shell .notes-head {
   padding-left: 14px;
+  /* single notch inset lives on .tab-header above; sub-headers go back to
+     plain 8px so the standalone PWA doesn't double-count the safe area
+     (invisible in browser tabs, where the inset is 0) */
+  padding-top: 8px;
 }
 
 .app-shell .chat-head .back,
