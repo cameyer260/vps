@@ -205,7 +205,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
           </button>
           <button
             type="button"
-            className="btn primary"
+            className="btn go"
             onClick={() => void start()}
             disabled={busy || !effectiveProject}
           >
