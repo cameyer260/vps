@@ -4,7 +4,7 @@ import type { AgentInfo } from "./types";
 import { AgentsSections } from "./components/AgentsSections";
 import { Chat } from "./components/Chat";
 import { GeneralChat } from "./components/GeneralChat";
-import { IdeView } from "./components/IdeView";
+import { IdeView, IdeHeaderActions, type IdeHeaderState } from "./components/IdeView";
 import { StartDialog } from "./components/StartDialog";
 import { TabHeader } from "./components/TabHeader";
 import { BottomNav, type TabKey } from "./components/BottomNav";
@@ -21,6 +21,9 @@ export default function App() {
   // view drops it when its container vanishes.
   const [gcAgentId, setGcAgentId] = useState<string | null>(null);
   const [gcHome, setGcHome] = useState(0);
+  // IDE TabHeader actions descriptor published by IdeView (null off-tab).
+  const [ideHeader, setIdeHeader] = useState<IdeHeaderState | null>(null);
+  const handleIdeHeader = useCallback((h: IdeHeaderState | null) => setIdeHeader(h), []);
   // Agent chat is a sub-state of the Agents tab (agents / agent-chat).
   const [chatAgentId, setChatAgentId] = useState<string | null>(null);
   const [startOpen, setStartOpen] = useState(false);
@@ -179,6 +182,9 @@ export default function App() {
         tab={tab}
         onHome={goHome}
         onStart={!chatAgentId && tab === "agents" ? () => openStart() : undefined}
+        actions={
+          tab === "ide" && ideHeader ? <IdeHeaderActions header={ideHeader} /> : undefined
+        }
       />
 
       <main className="tab-content" data-tab={tab}>
@@ -201,7 +207,7 @@ export default function App() {
             </div>
           ))}
 
-        {tab === "ide" && <IdeView homeSignal={ideHome} />}
+        {tab === "ide" && <IdeView homeSignal={ideHome} onHeader={handleIdeHeader} />}
 
         {tab === "gc" && (
           <GeneralChat

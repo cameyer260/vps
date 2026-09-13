@@ -19,22 +19,47 @@ import { TreeModal, type TreeModalItem } from "./TreeModal";
  * a `Select` button opening the project-picker modal (search input on top,
  * scrollable notes+projects list, type-to-filter, tap selects the root).
  *
- * Project state, sub-header left-to-right per the sketch: file-tree button
- * (opens the tree modal sliding from the left; folders expand/collapse, tap
- * a file to open + close) → path/breadcrumb → search button (search modal
- * over files in the project dir) → pencil `EditToggle` (default
- * read-only) — plus the project button and commit & push. Body renders one
+ * Project state, sub-header left-to-right: file-tree button (opens the
+ * tree modal sliding from the left; folders expand/collapse, tap a file
+ * to open + close) → project button → `at /path` breadcrumb. Search,
+ * pencil `EditToggle` (default read-only), and commit & push live in the
+ * global TabHeader (right-aligned: search, pencil, commit) via the
+ * published `IdeHeaderState`. Body renders one
  * open file at a time (no multi-file tabs): md = live-preview editor,
  * csv = grid, other text = monospace + line numbers, binary = "not shown".
  * All editing goes through the toggle; autosave + session-scoped commit &
  * push are unchanged from the old viewer.
  */
 
+/**
+ * Descriptor published to App for the IDE's TabHeader actions
+ * (right-aligned: search → pencil → commit). The search/commit modals
+ * stay in IdeView; these are stable openers plus the display/enabled
+ * state the navbar buttons need. Null = no IDE header (other tab).
+ */
+export interface IdeHeaderState {
+  project: string | null;
+  editing: boolean;
+  editDisabled: boolean;
+  commitDisabled: boolean;
+  searchDisabled: boolean;
+  editedCount: number;
+  onSearch: () => void;
+  onCommit: () => void;
+  onEditingChange: (next: boolean) => void;
+}
+
 const IDE_PROJECT_KEY = "ide.project";
 
 type FileKind = "md" | "csv" | "text" | "binary";
 
-export function IdeView({ homeSignal }: { homeSignal: number }) {
+export function IdeView({
+  homeSignal,
+  onHeader,
+}: {
+  homeSignal: number;
+  onHeader?: (h: IdeHeaderState | null) => void;
+}) {
   const [projects, setProjects] = useState<string[]>([]);
   const [notesName, setNotesName] = useState("notes");
   const [project, setProject] = useState<string | null>(() => {
@@ -60,6 +85,12 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [commitOpen, setCommitOpen] = useState(false);
   const openReq = useRef(0);
+
+  // Stable openers published to the global TabHeader (see IdeHeaderState)
+  // — setState functions are stable, so the publish effect below only
+  // re-fires on real state changes.
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const openCommit = useCallback(() => setCommitOpen(true), []);
 
   // Same project source as everywhere else.
   useEffect(() => {
@@ -208,10 +239,9 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
   const openPathRef = useRef(openPath);
   openPathRef.current = openPath;
 
-  // Group E: the project button already shows the project name, so the
-  // breadcrumb shows only the open file path (or a placeholder) — no more
-  // "notes … notes" duplication in the IDE sub-header.
-  const crumbText = !project ? "No project" : (openPath ?? "No file open");
+  // The project button already names the project, so the breadcrumb shows
+  // only `at /path` (or a placeholder) — no "notes … notes" duplication.
+  const crumbText = !project ? "No project" : openPath ? `at /${openPath}` : "at /";
   const crumbTitle = !project
     ? "No project"
     : openPath
@@ -240,6 +270,28 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
   const dirty = content !== saved;
   const editableOpen = !!project && !!openPath && kind !== null && kind !== "binary";
 
+  // Publish the TabHeader actions descriptor (search → pencil → commit).
+  // App renders it right-aligned in the global navbar via
+  // IdeHeaderActions; the search/commit modals themselves stay here.
+  useEffect(() => {
+    onHeader?.({
+      project,
+      editing,
+      editDisabled: !editableOpen || loadingFile,
+      commitDisabled: !project || edited.size === 0,
+      searchDisabled: !project,
+      editedCount: edited.size,
+      onSearch: openSearch,
+      onCommit: openCommit,
+      onEditingChange: setEditing,
+    });
+  }, [onHeader, project, editing, editableOpen, loadingFile, edited, openSearch, openCommit]);
+
+  // Clearing is unmount-only (a cleanup on the publish effect would flash
+  // null before every re-publish); tab switches unmount this view and
+  // drop the navbar actions.
+  useEffect(() => () => onHeader?.(null), [onHeader]);
+
   return (
     <div className="notes ide">
       <header className="notes-head ide-head">
@@ -255,41 +307,6 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
             <path d="M9 4v16" />
           </svg>
         </button>
-        <span className="notes-title" title={crumbTitle}>
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-            <path d="M14 3v5h5" />
-          </svg>
-          {crumbText}
-        </span>
-        <button
-          className="btn ghost"
-          onClick={() => setSearchOpen(true)}
-          disabled={!project}
-          aria-label="Search files"
-          title={project ? `Search files — ${project}` : "Pick a project first"}
-        >
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }}>
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-          <span className="ide-search-label">search</span>
-        </button>
-        {project && (
-          <EditToggle
-            editing={editing}
-            onChange={setEditing}
-            disabled={!editableOpen || loadingFile}
-          />
-        )}
-        <button
-          className="btn primary small ide-commit-btn"
-          onClick={() => setCommitOpen(true)}
-          disabled={!project || edited.size === 0}
-          title="Stage every file edited in this viewer session, commit, push"
-        >
-          commit &amp; push{edited.size > 0 ? ` (${edited.size})` : ""}
-        </button>
         <button
           className="btn small ide-project-btn"
           onClick={() => {
@@ -300,6 +317,13 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
         >
           {project ?? "Select"}
         </button>
+        <span className="notes-title" title={crumbTitle}>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+            <path d="M14 3v5h5" />
+          </svg>
+          {crumbText}
+        </span>
       </header>
 
       {loadError && (
@@ -460,6 +484,50 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
         />
       )}
     </div>
+  );
+}
+
+/**
+ * IDE actions for the global TabHeader (right-aligned, left-to-right:
+ * search → pencil → commit & push). Rendered by App from the published
+ * IdeHeaderState; same labels, titles, and disabled rules as the old
+ * sub-header buttons. The commit label shortens to `push (n)` on narrow
+ * phones via `.ide-commit-full` / `.ide-commit-short`.
+ */
+export function IdeHeaderActions({ header }: { header: IdeHeaderState }) {
+  return (
+    <>
+      <button
+        className="btn ghost"
+        onClick={header.onSearch}
+        disabled={header.searchDisabled}
+        aria-label="Search files"
+        title={header.project ? `Search files — ${header.project}` : "Pick a project first"}
+      >
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 4 }}>
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <span className="ide-search-label">search</span>
+      </button>
+      {header.project && (
+        <EditToggle
+          editing={header.editing}
+          onChange={header.onEditingChange}
+          disabled={header.editDisabled}
+        />
+      )}
+      <button
+        className="btn primary small ide-commit-btn"
+        onClick={header.onCommit}
+        disabled={header.commitDisabled}
+        title="Stage every file edited in this viewer session, commit, push"
+      >
+        <span className="ide-commit-full">commit &amp; push</span>
+        <span className="ide-commit-short">push</span>
+        {header.editedCount > 0 ? ` (${header.editedCount})` : ""}
+      </button>
+    </>
   );
 }
 

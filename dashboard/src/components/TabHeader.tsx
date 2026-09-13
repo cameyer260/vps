@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { TabKey } from "./BottomNav";
 
 export const TAB_TITLES: Record<TabKey, string> = {
@@ -10,6 +11,8 @@ interface Props {
   tab: TabKey;
   onHome: () => void;
   onStart?: () => void;
+  /** Right-aligned navbar actions — the IDE tab renders search → pencil → commit here. */
+  actions?: ReactNode;
 }
 
 /**
@@ -18,9 +21,11 @@ interface Props {
  * list home) — never a cross-tab home.
  *
  * The Agents tab owns a `+ Start agent` action on the right so the header
- * is the single top navbar (no second overview-head row below it).
+ * is the single top navbar (no second overview-head row below it); the IDE
+ * tab renders its published actions (search → pencil → commit) via the
+ * generic `actions` slot instead.
  */
-export function TabHeader({ tab, onHome, onStart }: Props) {
+export function TabHeader({ tab, onHome, onStart, actions }: Props) {
   const title = TAB_TITLES[tab];
   return (
     <header className="tab-header">
@@ -36,10 +41,15 @@ export function TabHeader({ tab, onHome, onStart }: Props) {
           </button>
           <span className="tab-name">{title}</span>
         </div>
-        {tab === "agents" && onStart && (
-          <button className="btn primary tab-start" onClick={onStart}>
-            + Start agent
-          </button>
+        {actions ? (
+          <div className="tab-header-actions">{actions}</div>
+        ) : (
+          tab === "agents" &&
+          onStart && (
+            <button className="btn primary tab-start" onClick={onStart}>
+              + Start agent
+            </button>
+          )
         )}
       </div>
     </header>

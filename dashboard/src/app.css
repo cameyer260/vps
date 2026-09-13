@@ -1975,6 +1975,36 @@ div.agent-row {
   font-size: 14px;
 }
 
+/* IDE tab actions (search → pencil → commit) published by IdeView —
+   right-aligned in the global navbar; buttons keep their size, and the
+   commit label shortens to `push (n)` on narrow phones (see below). */
+.tab-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tab-header-actions .btn.ghost,
+.tab-header-actions .edit-toggle,
+.tab-header-actions .ide-commit-btn {
+  flex-shrink: 0;
+}
+
+.tab-header-actions .btn.ghost {
+  padding: 6px 9px;
+}
+
+.tab-header-actions .ide-commit-btn {
+  padding: 4px 10px;
+  font-size: 12.5px;
+}
+
+.ide-commit-short {
+  display: none;
+}
+
 .tab-content {
   flex: 1;
   min-height: 0;
@@ -2448,10 +2478,10 @@ html.chat-typing .composer {
 
 /* ---- Phase 5: IDE tab over project dirs (spec §5) ---- */
 
-/* Sub-header row (file-tree button → breadcrumb → search → pencil →
-   commit → project button) stays on ONE row on phones (Group E
-   feedback: no two-row button stack); the old multi-file tab bar and
-   inline tree are gone — everything rides TreeModal + EditToggle. */
+/* Sub-header row (file-tree button → project button → `at /path`
+   breadcrumb) stays on ONE row on phones; search, pencil, and commit live
+   in the global TabHeader. The old multi-file tab bar and inline tree are
+   gone — everything rides TreeModal + EditToggle. */
 .ide-head {
   flex-wrap: nowrap;
   gap: 6px;
@@ -2607,9 +2637,42 @@ html.chat-typing .composer {
 }
 
 @media (max-width: 430px) {
-  /* icon-only search on narrow phones so the sub-header fits one row */
+  /* icon-only search on narrow phones so the navbar row fits */
   .ide-search-label {
     display: none;
+  }
+
+  /* top navbar + 3 IDE actions must share ~390px: shrink the titles and
+     shorten commit & push to push (count kept) */
+  .tab-header-inner {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .tab-header-titles {
+    gap: 8px;
+  }
+
+  .tab-home,
+  .tab-name {
+    font-size: 17px;
+  }
+
+  .tab-header-actions {
+    gap: 5px;
+  }
+
+  .tab-header-actions .ide-commit-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .ide-commit-full {
+    display: none;
+  }
+
+  .ide-commit-short {
+    display: inline;
   }
 }
 
