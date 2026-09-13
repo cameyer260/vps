@@ -80,13 +80,16 @@ export async function stopAndRemove(id: string): Promise<void> {
   try {
     await c.stop({ t: 10 });
   } catch (err) {
-    // 304 = already stopped; fine
-    if (!isDockerStatusErr(err, 304)) throw err;
+    // 304 = already stopped; 404 = already gone; 409 = removal already in
+    // progress — all converge on "going away", which is success here.
+    if (!isDockerStatusErr(err, 304) && !isDockerStatusErr(err, 404) && !isDockerStatusErr(err, 409))
+      throw err;
   }
   try {
     await c.remove({ force: true });
   } catch (err) {
-    if (!isDockerStatusErr(err, 404)) throw err;
+    // 404 = already removed; 409 = removal already in progress — success.
+    if (!isDockerStatusErr(err, 404) && !isDockerStatusErr(err, 409)) throw err;
   }
 }
 

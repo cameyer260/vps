@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import type { AgentInfo } from "../types";
 import { CopyButton } from "./CopyButton";
 
@@ -11,14 +11,13 @@ interface Props {
 
 /**
  * Terminate (stop + remove). Any dirty working tree warns first with
- * "stop anyway" / "cancel" — the dashboard never commits on the user's
+ * "stop anyway" / "back to chat" — the dashboard never commits on the user's
  * behalf; commit & push is the agent's job when asked in the chat. Agents
  * may leave uncommitted work behind and the git policy is
  * use-at-your-own-risk.
  */
 export function TerminateButton({ agent, small, onTerminated }: Props) {
   const [stage, setStage] = useState<"confirm" | "dirty" | "error" | null>(null);
-  const [porcelain, setPorcelain] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -27,7 +26,6 @@ export function TerminateButton({ agent, small, onTerminated }: Props) {
     try {
       const status = await api.gitStatus(agent.project);
       if (status.dirty) {
-        setPorcelain(status.porcelain);
         setStage("dirty");
         setBusy(false);
         return;
@@ -46,6 +44,14 @@ export function TerminateButton({ agent, small, onTerminated }: Props) {
       setStage(null);
       onTerminated();
     } catch (e) {
+      // 409 = removal already in progress (docker stop/remove race): the
+      // container is going away, so treat it as success instead of
+      // flashing a phantom "Stop failed" after a good kill.
+      if (e instanceof ApiError && e.status === 409) {
+        setStage(null);
+        onTerminated();
+        return;
+      }
       setErrorMessage(String((e as Error).message ?? e));
       setStage("error");
       setBusy(false);
@@ -108,15 +114,8 @@ export function TerminateButton({ agent, small, onTerminated }: Props) {
       {stage === "dirty" && (
         <div className="modal-scrim" onClick={close}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Uncommitted changes in {agent.project}</h2>
-            <pre className="porcelain">{porcelain}</pre>
-            <p className="dim">
-              Stopping now leaves this work uncommitted. Cancel and ask the agent in the
-              chat to commit &amp; push first — or stop anyway if you don't need it saved.
-            </p>
-            <div className="modal-actions">
-              <CopyButton text={porcelain} label="copy status" />
-              <span style={{ flex: 1 }} />
+            <h2>You have uncommitted changes in {agent.project}</h2>
+            <div className="modal-actions center">
               <button className="btn" onClick={close}>
                 back to chat
               </button>

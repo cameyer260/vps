@@ -1164,6 +1164,16 @@ details.thinking summary {
   z-index: 50;
   padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
     calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  /* Group D: the scrim itself never pans or rubber-bands (the modal
+     swipe-around bug) — vertical touch panning lives only on the dialog
+     and its scrollable list below. Chained scrolls stay contained. */
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.modal-scrim .modal,
+.tree-modal-list {
+  touch-action: pan-y;
 }
 
 .modal {
@@ -1189,6 +1199,11 @@ details.thinking summary {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
+}
+
+/* Group D: centered two-button confirm (uncommitted-changes stop flow) */
+.modal-actions.center {
+  justify-content: center;
 }
 
 .field-label {
@@ -2065,6 +2080,13 @@ div.agent-row {
    Scoped to composer focus (not global keyboard detection) so modal
    keyboard behavior stays with Group D. */
 html.chat-typing .bottom-nav {
+  display: none;
+}
+
+/* Group D: while a modal search input is focused (software keyboard up
+   over a picker) hide the global bottom pill too, so the modal never
+   overlaps it. Cleared on blur/unmount in TreeModal. */
+html.modal-typing .bottom-nav {
   display: none;
 }
 

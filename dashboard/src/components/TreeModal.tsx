@@ -58,7 +58,13 @@ export function TreeModal({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      // The search may still hold focus when the modal unmounts (e.g.
+      // tap-a-row selects while the keyboard is up) — always drop the
+      // pill-hiding flag so the nav can't stick hidden.
+      document.documentElement.classList.remove("modal-typing");
+    };
   }, [onClose]);
 
   return (
@@ -83,10 +89,21 @@ export function TreeModal({
           <div className="tree-modal-search">
             <input
               className="input"
-              autoFocus
               placeholder={search.placeholder ?? "filter…"}
               value={search.value}
               onChange={(e) => search.onChange(e.target.value)}
+              // No autoFocus: the keyboard must only appear when the user
+              // taps the input. Auto-focusing pans the iOS layout viewport
+              // and leaves the modal swipeable mid-screen. While focused
+              // (keyboard up) the floating bottom pill hides so the modal
+              // never overlaps it — same pattern as chat-typing.
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              enterKeyHint="search"
+              inputMode="search"
+              onFocus={() => document.documentElement.classList.add("modal-typing")}
+              onBlur={() => document.documentElement.classList.remove("modal-typing")}
             />
           </div>
         )}
