@@ -1862,37 +1862,48 @@ div.agent-row {
 
 .tab-header-inner {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   max-width: 960px;
   margin: 0 auto;
-  padding: 12px 16px;
-  font-size: 17px;
+  padding: 10px 16px;
+  font-size: 20px;
   letter-spacing: -0.01em;
+}
+
+.tab-header-titles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .tab-home {
   font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
+  font-size: 20px;
   white-space: nowrap;
   border-radius: 4px;
+  padding: 2px 0;
 }
 
 .tab-home:hover {
   color: var(--accent-strong);
 }
 
-.tab-sep,
 .tab-name {
   color: var(--text-dim);
-}
-
-.tab-name {
+  font-size: 20px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tab-start {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 14px;
 }
 
 .tab-content {
@@ -1914,8 +1925,8 @@ div.agent-row {
 .app-shell .overview {
   flex: 1;
   min-height: 0;
-  /* clearance for the floating pill */
-  padding-bottom: 110px;
+  /* clearance for the floating pill (pill ~48px + tight bottom gap) */
+  padding-bottom: 96px;
 }
 
 /* floating rounded bottom pill — always visible, above modals */
@@ -1926,7 +1937,7 @@ div.agent-row {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  bottom: calc(6px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
   padding: 0 16px;
@@ -2287,6 +2298,18 @@ div.agent-row {
 .ide-head .notes-title {
   flex: 1 1 auto;
   min-width: 96px;
+  align-self: center;
+}
+
+/* file-tree button sits optically high next to the breadcrumb text — pin
+   it to the row center with icon-sized padding so the two line up. */
+.ide-head .tree-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  padding: 6px 9px;
+  line-height: 1;
 }
 
 /* IDE empty states reuse .empty; the action button needs the same top

@@ -169,7 +169,11 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <TabHeader tab={tab} onHome={goHome} />
+      <TabHeader
+        tab={tab}
+        onHome={goHome}
+        onStart={!chatAgentId && tab === "agents" ? () => openStart() : undefined}
+      />
 
       <main className="tab-content" data-tab={tab}>
         {tab === "agents" &&
@@ -182,12 +186,6 @@ export default function App() {
             />
           ) : (
             <div className="overview">
-              <div className="overview-head">
-                <h1>Agents</h1>
-                <button className="btn primary" onClick={() => openStart()}>
-                  + Start agent
-                </button>
-              </div>
               <AgentsSections
                 agents={agents}
                 notesName={notesName}

@@ -9,33 +9,38 @@ export const TAB_TITLES: Record<TabKey, string> = {
 interface Props {
   tab: TabKey;
   onHome: () => void;
+  onStart?: () => void;
 }
 
 /**
- * Global chrome header: `Dashboard - <Tab>`. Tapping `Dashboard` homes
- * *within* the current tab (agents overview / IDE no-selection / GC list
- * home) — never a cross-tab home. The per-tab home targets land in later
- * phases; phase 1 wires the agents-overview home, the other tabs are
- * already at home.
+ * Global chrome header: `Dashboard <Tab>` + actions. Tapping `Dashboard`
+ * homes *within* the current tab (agents overview / IDE no-selection / GC
+ * list home) — never a cross-tab home.
+ *
+ * The Agents tab owns a `+ Start agent` action on the right so the header
+ * is the single top navbar (no second overview-head row below it).
  */
-export function TabHeader({ tab, onHome }: Props) {
+export function TabHeader({ tab, onHome, onStart }: Props) {
   const title = TAB_TITLES[tab];
   return (
     <header className="tab-header">
       <div className="tab-header-inner">
-        <button
-          className="tab-home"
-          onClick={onHome}
-          title={`Back to the ${title} start`}
-          aria-label={`Dashboard home — back to the ${title} start`}
-        >
-          Dashboard
-        </button>
-        <span className="tab-sep" aria-hidden="true">
-          {" "}
-          -{" "}
-        </span>
-        <span className="tab-name">{title}</span>
+        <div className="tab-header-titles">
+          <button
+            className="tab-home"
+            onClick={onHome}
+            title={`Back to the ${title} start`}
+            aria-label={`Dashboard home — back to the ${title} start`}
+          >
+            Dashboard
+          </button>
+          <span className="tab-name">{title}</span>
+        </div>
+        {tab === "agents" && onStart && (
+          <button className="btn primary tab-start" onClick={onStart}>
+            + Start agent
+          </button>
+        )}
       </div>
     </header>
   );
