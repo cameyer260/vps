@@ -102,7 +102,11 @@ export class FakePi {
   constructor(opts: FakePiOptions) {
     this.id = opts.id;
     this.project = opts.project;
-    this.sessionName = opts.name ?? "mock chat";
+    // Unnamed spawns stay unnamed (empty title) until the client titles
+    // them from the first message via set_session_name (Group F: no docker
+    // container names, no placeholder names). Seeded/resumed chats keep
+    // their explicit names.
+    this.sessionName = opts.name ?? "";
     this.sessionFile = sessionFileFor(opts.id);
     this.readOnly = !!opts.readOnly;
     this.generalChat = !!opts.generalChat;

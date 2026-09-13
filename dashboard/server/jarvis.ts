@@ -26,6 +26,9 @@ export function startAgent(opts: StartAgentOptions): Promise<string> {
 
   const env: NodeJS.ProcessEnv = { ...process.env };
   if (opts.readOnly) env.PI_DASHBOARD_READONLY = "1";
+  // General Chat spawns carry the GC label (Group F: the Agents tab reads
+  // `agent.generalchat` to section open conversations apart).
+  if (opts.generalChat) env.DASHBOARD_GENERAL_CHAT = "1";
 
   return new Promise((resolve, reject) => {
     execFile(

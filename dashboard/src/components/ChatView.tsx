@@ -197,8 +197,22 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
     const text = input.trim();
     if (!text && pendingFiles.length === 0) return;
 
+    // First-message titling (Group F): fresh agents are unnamed — never a
+    // docker container name. The first user message becomes the session
+    // title (persisted via set_session_name so lists pick it up too).
+    const untitled =
+      !state.sessionName && !agent.sessionName && state.items.length === 0;
+    const titleForFirst = () => {
+      if (!untitled) return;
+      const firstLine = (text || pendingFiles[0]?.file.name || "")
+        .split("\n")[0]!
+        .trim();
+      if (firstLine) chat.setSessionName(firstLine);
+    };
+
     if (pendingFiles.length === 0) {
       chat.send(text);
+      titleForFirst();
     } else {
       setPreparing(true);
       try {
@@ -232,6 +246,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           image: u.image,
         }));
         chat.send(message || "(see attachments)", images.length > 0 ? images : undefined, attachments);
+        titleForFirst();
         for (const p of pendingFiles) if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
         setPendingFiles([]);
         setInput("");
@@ -290,7 +305,9 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           </svg>
         </button>
         <div className="chat-title">
-          <span className="chat-name">{state.sessionName || agent.sessionName || agent.name || "agent"}</span>
+          {/* Never a docker container name: untitled until pi titles the
+              conversation from the first message (Group F). */}
+          <span className="chat-name">{state.sessionName || agent.sessionName || "New chat"}</span>
           <span className="chat-sub">
             {agent.project}
             <span className={`dot ${streaming ? "streaming" : exited ? "dead" : "idle"}`} />
@@ -339,17 +356,27 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           {state.items.map((item, i) => (
             <MessageView key={i} item={item} />
           ))}
-          {state.items.length === 0 && state.connected && (
+          {state.items.length === 0 && state.connected && (hideHeader ? (
+            <div className="empty">
+              <p>What do you want to talk about?</p>
+            </div>
+          ) : (
             <div className="empty">
               <p>Say something to this agent.</p>
               <p className="dim">It runs in its own container, scoped to {agent.project}.</p>
             </div>
-          )}
+          ))}
         </div>
       </div>
 
       <div className="notices">
-        {state.notices.map((n) => (
+        {/* GC hides its header and carries its own read-only toggle, so the
+            transient "read-only mode is ON" notify is redundant noise there
+            (Group F feedback) — agent chats keep the full rail. */}
+        {(hideHeader
+          ? state.notices.filter((n) => !/read-only mode/i.test(n.text))
+          : state.notices
+        ).map((n) => (
           <div key={n.id} className={`notice ${n.level}`}>
             {n.text}
           </div>

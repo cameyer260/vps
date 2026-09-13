@@ -170,6 +170,10 @@ export class Bridge {
         if (typeof name !== "string") return;
         this.applyState({ sessionName: name });
         this.broadcast({ type: "state", data: { sessionName: name } });
+        // A rename changes what the agent/project lists show (Group F
+        // first-message titling): nudge every client to resync, the same
+        // path container lifecycle events take.
+        broadcastEvent({ type: "agents_changed", action: "rename", id: this.containerId });
         return;
       }
     }

@@ -27,6 +27,10 @@ export interface AgentInfo {
   startedAt: string | null;
   live: "idle" | "streaming" | "exited" | null;
   sessionName: string | null;
+  /** General Chat conversation agent (notes-dir ephemeral chat). Present
+   *  when the runtime reports the `agent.generalchat` label; older agents
+   *  predate the label and read undefined (treated as project agents). */
+  generalChat?: boolean | null;
   model: string | null;
   thinkingLevel: string | null;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import type { SessionSummary } from "../types";
 import { ReadOnlyToggle } from "./ReadOnlyToggle";
@@ -33,6 +33,28 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
   const [readOnly, setReadOnly] = useState(false); // off default: full tools
   const [picker, setPicker] = useState<"project" | "conversation" | null>(null);
   const [gateWarning, setGateWarning] = useState<string | null>(null);
+  const gateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The project gate warning is a transient toast popup, not a persistent
+  // embedded warning (Group F feedback): it floats over the modal and
+  // dismisses itself without shifting the layout.
+  const flashGateWarning = (msg: string) => {
+    setGateWarning(msg);
+    if (gateTimer.current) clearTimeout(gateTimer.current);
+    gateTimer.current = setTimeout(() => setGateWarning(null), 3500);
+  };
+  const clearGateWarning = () => {
+    if (gateTimer.current) {
+      clearTimeout(gateTimer.current);
+      gateTimer.current = null;
+    }
+    setGateWarning(null);
+  };
+  useEffect(
+    () => () => {
+      if (gateTimer.current) clearTimeout(gateTimer.current);
+    },
+    [],
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,14 +107,14 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
   /** Gate: the conversation list does not open until a project is picked. */
   const openConversationPicker = () => {
     if (mode === "new" || !project) {
-      setGateWarning(
+      flashGateWarning(
         mode === "new"
           ? "A new project starts a fresh conversation — nothing to pick yet."
           : "Pick a project first — conversations live under a project.",
       );
       return;
     }
-    setGateWarning(null);
+    clearGateWarning();
     setPicker("conversation");
   };
 
@@ -159,7 +181,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
           className="link"
           onClick={() => {
             setMode(mode === "new" ? "existing" : "new");
-            setGateWarning(null);
+            clearGateWarning();
           }}
         >
           {mode === "existing" ? "+ new project…" : "↩ pick an existing project"}
@@ -173,10 +195,6 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
         <label className="field-label">Read-only</label>
         <div className="check-row">
           <ReadOnlyToggle value={readOnly} onToggle={() => setReadOnly(!readOnly)} />
-          <span>
-            start read-only{" "}
-            <span className="dim">(full tools when off — toggle in chat any time)</span>
-          </span>
         </div>
 
         <label className="field-label">Conversation</label>
@@ -191,7 +209,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
           </button>
         )}
         {gateWarning && (
-          <div className="gate-warning" role="alert">
+          <div className="gate-toast" role="status">
             {gateWarning}
           </div>
         )}
@@ -225,7 +243,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
             } else {
               setMode("existing");
               setProject(item.key);
-              setGateWarning(null);
+              clearGateWarning();
             }
             setPicker(null);
           }}

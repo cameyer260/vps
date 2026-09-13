@@ -49,9 +49,20 @@ interface Props {
 export function AgentsSections({ agents, notesName, onOpenChat, onStart }: Props) {
   const now = useNow();
   const managed = useMemo(() => agents.filter((a) => a.origin === "dashboard"), [agents]);
+  // General Chat conversations are ephemeral notes agents: they read under
+  // their own "Open conversations" section (Group F), never mixed into
+  // the project groups. Everything else groups by project as before.
+  const conversations = useMemo(
+    () =>
+      managed
+        .filter((a) => a.generalChat)
+        .sort((x, y) => (y.startedAt ?? "").localeCompare(x.startedAt ?? "")),
+    [managed],
+  );
   const sections = useMemo(() => {
     const map = new Map<string, AgentInfo[]>();
     for (const a of managed) {
+      if (a.generalChat) continue;
       const list = map.get(a.project) ?? [];
       list.push(a);
       map.set(a.project, list);
@@ -80,6 +91,14 @@ export function AgentsSections({ agents, notesName, onOpenChat, onStart }: Props
 
   return (
     <div className="agents-list">
+      {conversations.length > 0 && (
+        <section key="__conversations__" className="agent-group">
+          <h2 className="agent-group-title">Open conversations</h2>
+          {conversations.map((a) => (
+            <AgentRow key={a.id} agent={a} now={now} onOpenChat={onOpenChat} />
+          ))}
+        </section>
+      )}
       {sections.map(([project, list]) => (
         <section key={project} className="agent-group">
           <h2 className="agent-group-title">{project}</h2>
@@ -102,7 +121,9 @@ function AgentRow({
   onOpenChat: (agentId: string) => void;
 }) {
   const dot = statusDot(agent);
-  const title = agent.sessionName || agent.name || agent.id.slice(0, 12);
+  // Never a docker container name (Group F): untitled until pi titles the
+  // conversation from the first message.
+  const title = agent.sessionName || "New chat";
   return (
     <div
       className="agent-row"

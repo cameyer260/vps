@@ -59,6 +59,10 @@ export default function App() {
         refetch();
       }, 250);
     };
+    // Group F: one delayed resync after boot. Session names (the only
+    // titles we show — never docker container names) arrive via lazy
+    // bridge attach + get_state, which the initial fetches can beat; this
+    // picks them up without polling.
 
     const connect = () => {
       if (!alive) return;
@@ -102,11 +106,13 @@ export default function App() {
 
     refetch();
     connect();
+    const lateResync = setTimeout(() => alive && refetch(), 2500);
 
     return () => {
       alive = false;
       if (retry) clearTimeout(retry);
       if (refetchDelay) clearTimeout(refetchDelay);
+      clearTimeout(lateResync);
       const sock = ws;
       ws = null;
       // See useChat: never abort a connecting handshake (browser warning);

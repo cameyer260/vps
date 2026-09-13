@@ -528,6 +528,10 @@ interface ChatApi {
   abort: () => void;
   setModel: (provider: string, modelId: string) => void;
   setThinkingLevel: (level: string) => void;
+  /** Persist a display title for the conversation (pi `set_session_name`).
+   *  Used for first-message titling: fresh agents stay unnamed until the
+   *  first user message, which becomes the title (never a docker name). */
+  setSessionName: (name: string) => void;
   /** Push a client-side notice into the chat's notice rail. */
   notice: (text: string, level?: Notice["level"]) => void;
 }
@@ -776,6 +780,17 @@ export function useChat(agent: AgentInfo): ChatApi {
             if (resp["success"]) {
               dispatch({ type: "state", data: { thinkingLevel: level } });
               dispatch({ type: "notice", text: `thinking → ${level}` });
+            }
+          })
+          .catch(() => {});
+      },
+      setSessionName: (name: string) => {
+        const trimmed = name.replace(/\s+/g, " ").trim().slice(0, 80);
+        if (!trimmed) return;
+        command({ type: "set_session_name", name: trimmed })
+          .then((resp) => {
+            if (resp["success"]) {
+              dispatch({ type: "state", data: { sessionName: trimmed } });
             }
           })
           .catch(() => {});

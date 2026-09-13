@@ -23,6 +23,7 @@ interface MockAgent {
   dir: string;
   name: string;
   origin: string | null;
+  generalChat: boolean;
   state: string;
   startedAt: string;
   fakePi: FakePi;
@@ -88,6 +89,7 @@ export class MockRuntime implements ContainerRuntime {
       startedAt: a.startedAt,
       live: null,
       sessionName: null,
+      generalChat: a.generalChat,
       model: null,
       thinkingLevel: null,
     }));
@@ -103,6 +105,7 @@ export class MockRuntime implements ContainerRuntime {
       "agent.project": a.project,
     };
     if (a.origin) labels["agent.origin"] = a.origin;
+    if (a.generalChat) labels["agent.generalchat"] = "true";
     return Promise.resolve(labels);
   }
 
@@ -157,7 +160,13 @@ export class MockRuntime implements ContainerRuntime {
     const fakePi = new FakePi({
       id,
       project,
-      name: opts.name ?? resumeName ?? "mock chat",
+      // No placeholder name: fresh spawns stay untitled until the first
+      // message titles them (Group F). Resumes keep their session name.
+      ...(opts.name !== undefined
+        ? { name: opts.name }
+        : resumeName !== null
+          ? { name: resumeName }
+          : {}),
       readOnly: opts.readOnly,
       generalChat: opts.generalChat,
       granularity: (process.env.MOCK_GRANULARITY as StreamGranularity | undefined) ?? "word",
@@ -170,6 +179,7 @@ export class MockRuntime implements ContainerRuntime {
       dir,
       name: id,
       origin: "dashboard",
+      generalChat: !!opts.generalChat,
       state: "running",
       startedAt: new Date().toISOString(),
       fakePi,
@@ -216,6 +226,7 @@ export class MockRuntime implements ContainerRuntime {
       dir,
       name: id,
       origin: cfg.origin ?? null,
+      generalChat: !!cfg.generalChat,
       state: "running",
       startedAt: new Date().toISOString(),
       fakePi,

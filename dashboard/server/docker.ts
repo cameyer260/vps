@@ -17,6 +17,8 @@ export interface AgentInfo {
   /** Live chat status from the bridge, when the dashboard has attached. */
   live: "idle" | "streaming" | "exited" | null;
   sessionName: string | null;
+  /** General Chat conversation agent (`agent.generalchat` label, Group F). */
+  generalChat: boolean | null;
   model: string | null;
   thinkingLevel: string | null;
 }
@@ -33,6 +35,7 @@ export async function listPiContainers(): Promise<AgentInfo[]> {
       let sessionName: string | null = null;
       let model: string | null = null;
       let thinkingLevel: string | null = null;
+      const generalChat = labels["agent.generalchat"] === "true";
       try {
         const info = await docker().getContainer(s.Id).inspect();
         startedAt = info.State?.StartedAt ?? null;
@@ -48,6 +51,7 @@ export async function listPiContainers(): Promise<AgentInfo[]> {
         startedAt,
         live: null,
         sessionName,
+        generalChat,
         model,
         thinkingLevel,
       } satisfies AgentInfo;

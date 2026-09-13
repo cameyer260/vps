@@ -30,6 +30,9 @@ Detached `pi --mode rpc` daemon for the dashboard (`docker run -d -i`, never
 TTY corrupts pi's LF-framed JSONL protocol). Adds:
 
 - label `agent.origin=dashboard` (what the dashboard filters on)
+- label `agent.generalchat=true` when `DASHBOARD_GENERAL_CHAT=1` is set in
+  the caller's environment (General Chat spawns; the dashboard sections open
+  conversations apart from project agents)
 - the dashboard's read-only extension via `pi -e`, mounted read-only from
   `dashboard/pi-extension/read-only.ts`; `PI_DASHBOARD_READONLY=1` is passed
   into the container when set in the caller's environment

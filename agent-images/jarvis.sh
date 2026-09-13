@@ -29,6 +29,8 @@
 #       exists in the repo; env PI_DASHBOARD_READONLY=1 is passed into the
 #       container when set, so the extension can start read-only.
 #     - Extra label agent.origin=dashboard (what the dashboard filters on).
+#     - Extra label agent.generalchat=true when DASHBOARD_GENERAL_CHAT=1 is
+#       set (General Chat spawns; the dashboard sections them apart).
 #     - Extra pi args are forwarded as-is (--session, -n, --provider, ...).
 #   models                jarvis models
 #     Prints the full pi model catalog (`pi --list-models`) from an ephemeral
@@ -234,6 +236,12 @@ rpc_cmd() {
 
   base_args "$dir"
   BASE_ARGS+=( --label agent.origin=dashboard )
+  # General Chat spawns (dashboard sets DASHBOARD_GENERAL_CHAT=1) carry a
+  # label so the Agents tab can section open conversations apart from
+  # project agents. Discover via labels, never container names.
+  if [[ -n "${DASHBOARD_GENERAL_CHAT:-}" ]]; then
+    BASE_ARGS+=( --label agent.generalchat=true )
+  fi
 
   local ext_host="$REPO_ROOT/dashboard/pi-extension/read-only.ts"
   local ext_mount=() ext_flags=()

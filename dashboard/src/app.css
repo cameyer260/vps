@@ -2368,14 +2368,29 @@ html.chat-typing .composer {
   flex-shrink: 0;
 }
 
-.gate-warning {
-  margin-top: 8px;
+/* Group F: the project-gate warning is a transient toast popup, not a
+   persistent embedded warning — it floats above the footer on a blurred
+   pill, never shifts the layout, and dismisses itself after a few seconds. */
+.start-modal {
+  position: relative;
+}
+
+.gate-toast {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 78px;
   font-size: 13px;
+  text-align: center;
   border: 1px solid rgba(255, 204, 0, 0.5);
   color: var(--yellow);
-  background: rgba(255, 204, 0, 0.06);
+  background: color-mix(in srgb, var(--bg-3) 82%, transparent);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
   border-radius: var(--radius-sm);
-  padding: 7px 11px;
+  padding: 8px 12px;
+  box-shadow: var(--shadow-pop);
+  z-index: 2;
 }
 
 .start-actions {

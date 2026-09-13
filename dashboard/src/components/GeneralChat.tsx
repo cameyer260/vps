@@ -4,7 +4,6 @@ import type { AgentInfo, SessionSummary } from "../types";
 import { ChatView } from "./ChatView";
 import { ReadOnlyToggle } from "./ReadOnlyToggle";
 import { TreeModal, type TreeModalItem } from "./TreeModal";
-import { statusDot, uptime, useNow } from "./AgentsSections";
 
 /**
  * General Chat tab (spec §6): a ChatGPT-clone over the notes dir.
@@ -59,11 +58,17 @@ export function GeneralChat({ agents, notesName, activeId, onActiveChange, homeS
   const [provisional, setProvisional] = useState<AgentInfo | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
-  // Minute-resolution clock so the running-row elapsed times stay fresh
-  // (same ticker as the Agents tab — no server traffic).
-  const now = useNow();
+
+  /** Best-effort close for the ephemeral GC lifecycle (fire-and-forget:
+   *  the container may already be gone — 404s are fine). */
+  const closeQuietly = (id: string) => {
+    api.terminateAgent(id).catch(() => {});
+  };
 
   const goListHome = () => {
+    // Leaving the chat closes the agent off (ephemeral conversations).
+    // Tab switches keep it: activeId lives in App and unmount never closes.
+    if (activeId) closeQuietly(activeId);
     onActiveChange(null);
     setProvisional(null);
     setConvOpen(false);
@@ -113,28 +118,25 @@ export function GeneralChat({ agents, notesName, activeId, onActiveChange, homeS
   const activeAgent = activeReal ?? (activeId && provisional?.id === activeId ? provisional : null);
   const exited = activeReal?.live === "exited";
 
-  /** Spawn a GC agent (fresh, or resuming a notes session) and open it. */
+  /** Spawn a GC agent (fresh, or resuming a notes session) and open it.
+   *  Fresh spawns are unnamed — no docker container names, no timestamp
+   *  names. The first user message titles the conversation. */
   const startGc = async (sessionPath: string | null) => {
     setStarting(true);
     setStartError(null);
     try {
-      const resume = !!sessionPath;
-      const now = new Date();
       const res = await api.startAgent({
         project: notesName,
-        ...(resume
-          ? { sessionPath: sessionPath as string }
-          : {
-              name: `gc ${now.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`,
-            }),
+        ...(sessionPath ? { sessionPath } : {}),
         readOnly: defaultReadOnly,
         generalChat: true,
       });
       // Optimistic live-toggle: we know what we requested, hello confirms.
       setLiveReadOnly(defaultReadOnly);
+      const leaving = activeId;
       setProvisional({
         id: res.id,
-        name: res.id.slice(0, 12),
+        name: "",
         project: res.project,
         origin: "dashboard",
         state: "running",
@@ -145,6 +147,8 @@ export function GeneralChat({ agents, notesName, activeId, onActiveChange, homeS
         thinkingLevel: null,
       });
       onActiveChange(res.id);
+      // Ephemeral handoff: the chat we just left closes behind us.
+      if (leaving && leaving !== res.id) closeQuietly(leaving);
       setConvOpen(false);
     } catch (e) {
       setStartError(`couldn't start chat: ${String((e as Error).message ?? e)}`);
@@ -153,56 +157,22 @@ export function GeneralChat({ agents, notesName, activeId, onActiveChange, homeS
     }
   };
 
-  // Running notes conversations (every dashboard agent at the notes project
-  // *is* a conversation in the notes dir) + past notes sessions.
-  const running = agents
-    .filter((a) => a.project === notesName && a.origin === "dashboard")
-    .sort((x, y) => (y.startedAt ?? "").localeCompare(x.startedAt ?? ""));
-
+  // Flat conversation list: just the pi sessions for the notes dir. No
+  // Running/Past headers, no expanders (Group F feedback) — conversations
+  // are ephemeral, so there is no running section to manage.
   const sessionTitle = (s: SessionSummary): string =>
     s.name ?? s.preview ?? "session " + s.id.slice(0, 8);
 
   const convItems: TreeModalItem[] = [
-    { key: "__new__", title: "New conversation", subtitle: "fresh chat over notes" },
-    ...(running.length > 0
-      ? [
-          {
-            key: "__running__",
-            title: `Running (${running.length})`,
-            defaultExpanded: true,
-            children: running.map((a) => {
-              const dot = statusDot(a);
-              return {
-                key: `agent:${a.id}`,
-                title: (
-                  <span className="gc-row-title">
-                    <span className={`dot ${dot.cls}`} aria-hidden="true" />
-                    {a.sessionName || a.name || a.id.slice(0, 12)}
-                  </span>
-                ),
-                subtitle: `${uptime(a.startedAt, now)} · ${dot.label}`,
-              };
-            }),
-          } satisfies TreeModalItem,
-        ]
-      : []),
-    ...((sessions ?? []).length > 0
-      ? [
-          {
-            key: "__past__",
-            title: `Past (${(sessions ?? []).length})`,
-            defaultExpanded: running.length === 0,
-            children: (sessions ?? []).map((s) => ({
-              key: `session:${s.file}`,
-              title: sessionTitle(s),
-              subtitle:
-                (s.timestamp ? new Date(s.timestamp).toLocaleString() : "") +
-                (s.timestamp && s.preview && s.preview !== s.name ? " — " : "") +
-                (s.preview && s.preview !== s.name ? s.preview : ""),
-            })),
-          } satisfies TreeModalItem,
-        ]
-      : []),
+    { key: "__new__", title: "New conversation" },
+    ...(sessions ?? []).map((s) => ({
+      key: `session:${s.file}`,
+      title: sessionTitle(s),
+      subtitle:
+        (s.timestamp ? new Date(s.timestamp).toLocaleString() : "") +
+        (s.timestamp && s.preview && s.preview !== s.name ? " — " : "") +
+        (s.preview && s.preview !== s.name ? s.preview : ""),
+    })),
   ];
 
   const selectConversation = (item: TreeModalItem) => {
@@ -211,10 +181,14 @@ export function GeneralChat({ agents, notesName, activeId, onActiveChange, homeS
       return;
     }
     if (item.key.startsWith("agent:")) {
+      // Legacy path (the picker no longer lists running agents): attach
+      // while closing whatever chat we leave behind.
       const id = item.key.slice("agent:".length);
+      const leaving = activeId;
       setLiveReadOnly(false); // hello/state resyncs; GC spawns flip on
       setProvisional(null);
       onActiveChange(id);
+      if (leaving && leaving !== id) closeQuietly(leaving);
       setConvOpen(false);
       return;
     }
@@ -242,8 +216,9 @@ export function GeneralChat({ agents, notesName, activeId, onActiveChange, homeS
           </svg>
           <span className="gc-conv-label">Conversations</span>
         </button>
-        <span className="notes-title gc-title" title={activeReal?.sessionName ?? activeAgent?.name ?? ""}>
-          {activeAgent ? (activeReal?.sessionName || activeAgent.sessionName || activeAgent.name || "chat") : ""}
+        <span className="notes-title gc-title">
+          {/* No name at the top of the open chat (Group F): titles live in
+              the conversation list and the Agents tab. */}
         </span>
         <ReadOnlyToggle
           value={activeAgent ? liveReadOnly : defaultReadOnly}
@@ -262,7 +237,6 @@ export function GeneralChat({ agents, notesName, activeId, onActiveChange, homeS
           {!activeAgent ? (
             <div className="empty gc-home">
               <p>No conversation open, pick one</p>
-              <p className="dim">General chat over your notes — read-only by default.</p>
               <div className="gc-home-actions">
                 <button className="btn" onClick={() => setConvOpen(true)}>
                   Conversations
