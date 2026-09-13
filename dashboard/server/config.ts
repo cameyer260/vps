@@ -10,10 +10,20 @@ export const config = {
   jarvisBin: process.env.JARVIS_BIN ?? "/home/dev/vps/agent-images/jarvis.sh",
   skillsDir: process.env.AGENT_SKILLS_DIR ?? "/home/dev/.agents",
   wwwDir: process.env.WWW_DIR ?? path.resolve(process.cwd(), "dist"),
+  gcIdleTimeoutMs: gcIdleTimeoutMs(),
 };
 
 export function notesName(): string {
   return path.basename(config.notesDir);
+}
+
+/** Idle General Chat reap timeout: GC_IDLE_TIMEOUT_MS, default 1h. Zero or
+ *  negative disables the reaper (dashboards that prefer manual cleanup). */
+function gcIdleTimeoutMs(): number {
+  const raw = process.env.GC_IDLE_TIMEOUT_MS;
+  if (raw === undefined || raw.trim() === "") return 3_600_000;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 3_600_000;
 }
 
 const PROJECT_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;

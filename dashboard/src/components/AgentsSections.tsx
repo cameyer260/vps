@@ -42,27 +42,22 @@ interface Props {
  * row shows the chat name, how long it has been running, and a status dot
  * (green = done/waiting, orange = running/working, dim = exited/dead —
  * see agentStatus.ts); tapping a row opens that agent chat (shared
- * ChatView). Live updates arrive in place via the global events socket in
- * App.tsx — no polling here. The header `+` (App overview-head) and the
+ * ChatView). General Chat conversations are hidden here — they live only
+ * in the GC tab. Live updates arrive in place via the global events socket
+ * in App.tsx — no polling here. The header `+` (App overview-head) and the
  * empty-state `+` both open the New Agent modal.
  */
 export function AgentsSections({ agents, notesName, onOpenChat, onStart }: Props) {
   const now = useNow();
-  const managed = useMemo(() => agents.filter((a) => a.origin === "dashboard"), [agents]);
-  // General Chat conversations are ephemeral notes agents: they read under
-  // their own "Open conversations" section (Group F), never mixed into
-  // the project groups. Everything else groups by project as before.
-  const conversations = useMemo(
-    () =>
-      managed
-        .filter((a) => a.generalChat)
-        .sort((x, y) => (y.startedAt ?? "").localeCompare(x.startedAt ?? "")),
-    [managed],
+  // General Chat conversations live only in the GC tab (restored across
+  // reloads via localStorage, reaped when idle) — never in this list.
+  const managed = useMemo(
+    () => agents.filter((a) => a.origin === "dashboard" && !a.generalChat),
+    [agents],
   );
   const sections = useMemo(() => {
     const map = new Map<string, AgentInfo[]>();
     for (const a of managed) {
-      if (a.generalChat) continue;
       const list = map.get(a.project) ?? [];
       list.push(a);
       map.set(a.project, list);
@@ -91,14 +86,6 @@ export function AgentsSections({ agents, notesName, onOpenChat, onStart }: Props
 
   return (
     <div className="agents-list">
-      {conversations.length > 0 && (
-        <section key="__conversations__" className="agent-group">
-          <h2 className="agent-group-title">Open conversations</h2>
-          {conversations.map((a) => (
-            <AgentRow key={a.id} agent={a} now={now} onOpenChat={onOpenChat} />
-          ))}
-        </section>
-      )}
       {sections.map(([project, list]) => (
         <section key={project} className="agent-group">
           <h2 className="agent-group-title">{project}</h2>

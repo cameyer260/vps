@@ -27,9 +27,12 @@ import { TreeModal, type TreeModalItem } from "./TreeModal";
  * tapping a past session (or New) spawns a GC agent (resuming when a
  * session file is picked). No-chat state mirrors the IDE no-selection
  * pattern (empty + buttons → modal). Tap-to-home (App `homeSignal`) returns
- * here. Termination rides the Agents tab (GC agents are dashboard agents at
- * the notes project); when the active container vanishes elsewhere this
- * view drops back to the list home like the agent chat does.
+ * here. GC agents never appear in the Agents tab — the open id lives in App
+ * (RAM + localStorage restore across PWA reloads, validated against the
+ * agent list on boot), and chats abandoned with no tabs attached are
+ * terminated by the server-side idle reaper (server/gc-reaper.ts). When the
+ * active container vanishes elsewhere this view drops back to the list home
+ * like the agent chat does.
  */
 
 interface Props {

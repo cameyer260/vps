@@ -9,6 +9,9 @@ import { StartDialog } from "./components/StartDialog";
 import { TabHeader } from "./components/TabHeader";
 import { BottomNav, type TabKey } from "./components/BottomNav";
 
+/** localStorage key for the open General Chat conversation (see gcAgentId). */
+const GC_AGENT_KEY = "gc.openChatId";
+
 export default function App() {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [tab, setTab] = useState<TabKey>("agents");
@@ -18,8 +21,46 @@ export default function App() {
   const [ideHome, setIdeHome] = useState(0);
   // General Chat's open conversation (null = conversation list home). Kept
   // in App so tab switches preserve it, like the agent-chat id; the GC
-  // view drops it when its container vanishes.
-  const [gcAgentId, setGcAgentId] = useState<string | null>(null);
+  // view drops it when its container vanishes. Persisted to localStorage so
+  // a killed/reloaded PWA reopens the same chat (validated once against the
+  // first agent-list fetch below — a stale id drops to list home). Without
+  // this the chat would be orphaned: GC agents are hidden from the Agents
+  // tab, so a forgotten id would leave a container nobody can see or close
+  // (until the server-side idle reaper gets it).
+  const [gcAgentId, setGcAgentId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(GC_AGENT_KEY);
+    } catch {
+      return null; // private mode etc — GC just won't survive reloads
+    }
+  });
+  // The id restored from storage on boot (null when there was none). Only
+  // this id is ever validated, exactly once — freshly spawned ids are
+  // covered by the GC view's own provisional/ever-seen logic instead.
+  const bootGcId = useRef<string | null>(gcAgentId);
+  // True once the first agent-list fetch lands (initial [] means unknown).
+  const [agentsReady, setAgentsReady] = useState(false);
+  // Persist the open chat so a reload reopens it.
+  useEffect(() => {
+    try {
+      if (gcAgentId) localStorage.setItem(GC_AGENT_KEY, gcAgentId);
+      else localStorage.removeItem(GC_AGENT_KEY);
+    } catch {
+      /* storage unavailable — GC just won't survive reloads */
+    }
+  }, [gcAgentId]);
+  // One-shot restore check: the boot id may point at a chat that died while
+  // we were away (closed elsewhere / idle-reaped). Drop it instead of
+  // showing a dead home.
+  useEffect(() => {
+    if (!agentsReady) return;
+    const bootId = bootGcId.current;
+    if (bootId === null) return;
+    bootGcId.current = null;
+    if (bootId && !agents.some((a) => a.id === bootId)) {
+      setGcAgentId((cur) => (cur === bootId ? null : cur));
+    }
+  }, [agentsReady, agents]);
   const [gcHome, setGcHome] = useState(0);
   // IDE TabHeader actions descriptor published by IdeView (null off-tab).
   const [ideHeader, setIdeHeader] = useState<IdeHeaderState | null>(null);
@@ -50,7 +91,11 @@ export default function App() {
     const refetch = () => {
       api
         .agents()
-        .then((r) => alive && setAgents(r.agents))
+        .then((r) => {
+          if (!alive) return;
+          setAgents(r.agents);
+          setAgentsReady(true);
+        })
         .catch(() => {});
     };
 

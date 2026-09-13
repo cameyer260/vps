@@ -117,6 +117,9 @@ try {
       AGENT_PROJECTS_DIR: path.join(mockDir, "projects"),
       PI_SESSIONS_DIR: path.join(mockDir, "sessions"),
       AGENT_SKILLS_DIR: path.join(mockDir, "skills"),
+      // Idle-GC reaper (sweep section below): reap client-free GC agents
+      // after 8s; plain agents are never touched.
+      GC_IDLE_TIMEOUT_MS: "8000",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -500,6 +503,27 @@ try {
   const plainLogs = await getJSON(`/api/agents/${plain.id}/logs`);
   check("plain spawn no gc prompt", plainLogs.stderr.some((l) => l.includes("general-chat: off")), JSON.stringify(plainLogs.stderr).slice(0, 200));
   await postJSON(`/api/agents/${plain.id}/terminate`, {});
+  await sleep(600);
+
+  // ---- gc idle reaper --------------------------------------------------------
+  // A GC agent with no connected tabs is reaped after the idle timeout,
+  // while a plain agent left equally alone survives. Poll (don't fixed-sleep)
+  // so the check is timing-robust: pass as soon as the sweep lands.
+  const idleGc = await postJSON("/api/agents/start", { generalChat: true, name: "smoke idle gc" });
+  const idlePlain = await postJSON("/api/agents/start", { project: "alpha", name: "smoke idle plain" });
+  let reaped = false;
+  for (let i = 0; i < 40; i++) {
+    await sleep(1000);
+    const list = await getJSON("/api/agents");
+    if (!list.agents.some((a) => a.id === idleGc.id)) {
+      reaped = true;
+      break;
+    }
+  }
+  check("idle gc agent reaped", reaped);
+  const afterReap = await getJSON("/api/agents");
+  check("idle plain agent survives reaper", afterReap.agents.some((a) => a.id === idlePlain.id));
+  await postJSON(`/api/agents/${idlePlain.id}/terminate`, {});
   await sleep(600);
   ev.close();
 

@@ -99,6 +99,13 @@ out to any number of browser WebSockets:
   backfills history via `get_entries` with a cursor (last entry id); items
   rendered from live events are provisional and get replaced by committed
   entries on backfill, so reconnects neither duplicate nor lose content.
+- General Chat agents are the exception to "never stop": they are hidden
+  from the Agents tab and live only in the GC tab (open id in App state +
+  localStorage restore), so a chat with zero attached tabs for longer than
+  `GC_IDLE_TIMEOUT_MS` (default 1h) is terminated by the idle reaper
+  (`server/gc-reaper.ts`) — otherwise an abandoned PWA would leak
+  containers nobody can see. Briefly backgrounding the app is safe: the
+  timeout only counts continuous client-free time.
 - Agents run with no approval gating — the container boundary is the
   safeguard (isolated container, single project mount, no host access).
 

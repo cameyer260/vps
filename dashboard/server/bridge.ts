@@ -73,6 +73,10 @@ export class Bridge {
   /** Last read-only mode observed from extension notifies; null = never seen. */
   private readOnly: boolean | null = null;
   private clients = new Set<Client>();
+  /** When the last client detached (a live client count means not idle).
+   *  Starts at creation: a bridge with no clients yet is idle from birth.
+   *  Feeds the GC idle reaper (server/gc-reaper.ts). */
+  private idleSince: number = Date.now();
   private routes = new Map<string, Route>();
   private internalWaiters = new Map<string, (resp: Record<string, unknown>) => void>();
   private attached: AttachedAgent | null = null;
@@ -302,6 +306,7 @@ export class Bridge {
 
     const remove = () => {
       this.clients.delete(client);
+      if (this.clients.size === 0) this.idleSince = Date.now();
       for (const [id, route] of this.routes) {
         if (route.client === client) this.routes.delete(id);
       }
@@ -389,6 +394,16 @@ export class Bridge {
         // leave cleanup to the close handler
       }
     }
+  }
+
+  /** Number of browser tabs currently attached to this agent. */
+  get clientCount(): number {
+    return this.clients.size;
+  }
+
+  /** When the bridge last became client-free; null while tabs are attached. */
+  get idleSinceMs(): number | null {
+    return this.clients.size > 0 ? null : this.idleSince;
   }
 
   /** Promise-style internal request (attach-time get_state etc). */

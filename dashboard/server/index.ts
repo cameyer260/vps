@@ -7,6 +7,7 @@ import { config } from "./config.js";
 import { api } from "./routes.js";
 import { bridges, ensureBridge } from "./bridge.js";
 import { addEventsClient, watchDockerEvents } from "./events.js";
+import { startGcReaper } from "./gc-reaper.js";
 import { getRuntime } from "./runtime.js";
 import type { ClientHandle } from "./bridge.js";
 
@@ -109,6 +110,7 @@ app.get("*", async (c) => {
 // ---- go ----------------------------------------------------------------------
 
 watchDockerEvents();
+startGcReaper();
 
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   console.log(`dashboard listening on http://0.0.0.0:${info.port}`);
