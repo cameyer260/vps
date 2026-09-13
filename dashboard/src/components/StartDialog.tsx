@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import type { SessionSummary } from "../types";
 import { ReadOnlyToggle } from "./ReadOnlyToggle";
+import { ModalScrim } from "./Modal";
 import { TreeModal, type TreeModalItem } from "./TreeModal";
 
 interface Props {
@@ -141,7 +142,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
   };
 
   return (
-    <div className="modal-scrim" onClick={onClose}>
+    <ModalScrim onClose={onClose}>
       <div
         className="modal start-modal"
         onClick={(e) => e.stopPropagation()}
@@ -263,6 +264,6 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
           }}
         />
       )}
-    </div>
+    </ModalScrim>
   );
 }

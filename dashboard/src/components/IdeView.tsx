@@ -7,6 +7,7 @@ import { CsvEditor } from "./CsvEditor";
 import { CodePane } from "./CodePane";
 import { EditToggle } from "./EditToggle";
 import { TreeModal, type TreeModalItem } from "./TreeModal";
+import { ModalScrim } from "./Modal";
 
 /**
  * IDE tab (spec §5): notes-first file editor over whichever project is
@@ -638,7 +639,7 @@ function CommitDialog({
   };
 
   return (
-    <div className="modal-scrim" onClick={onClose}>
+    <ModalScrim onClose={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Commit &amp; push {edited.length} file{edited.length === 1 ? "" : "s"}</h2>
         <ul className="commit-files">
@@ -674,6 +675,6 @@ function CommitDialog({
           </button>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

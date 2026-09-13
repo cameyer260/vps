@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, ApiError } from "../api";
 import type { AgentInfo } from "../types";
 import { CopyButton } from "./CopyButton";
+import { ModalScrim } from "./Modal";
 
 interface Props {
   agent: AgentInfo;
@@ -92,7 +93,7 @@ export function TerminateButton({ agent, small, onTerminated }: Props) {
       </button>
 
       {stage === "confirm" && (
-        <div className="modal-scrim" onClick={close}>
+        <ModalScrim onClose={close}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Stop agent?</h2>
             <p className="dim">
@@ -108,11 +109,11 @@ export function TerminateButton({ agent, small, onTerminated }: Props) {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {stage === "dirty" && (
-        <div className="modal-scrim" onClick={close}>
+        <ModalScrim onClose={close}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>You have uncommitted changes in {agent.project}</h2>
             <div className="modal-actions center">
@@ -124,11 +125,11 @@ export function TerminateButton({ agent, small, onTerminated }: Props) {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {stage === "error" && errorMessage && (
-        <div className="modal-scrim" onClick={close}>
+        <ModalScrim onClose={close}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Stop failed</h2>
             <pre className="porcelain">{errorMessage}</pre>
@@ -140,7 +141,7 @@ export function TerminateButton({ agent, small, onTerminated }: Props) {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
     </>
   );

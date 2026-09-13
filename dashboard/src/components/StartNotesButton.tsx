@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { ModalScrim } from "./Modal";
 
 interface Props {
   notesName: string;
@@ -37,7 +38,7 @@ export function StartNotesButton({ notesName, onStarted, label = "+ new conversa
         {busy ? "starting…" : label}
       </button>
       {error && (
-        <div className="modal-scrim" onClick={() => setError(null)}>
+        <ModalScrim onClose={() => setError(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>couldn't start agent</h2>
             <pre className="porcelain">{error}</pre>
@@ -48,7 +49,7 @@ export function StartNotesButton({ notesName, onStarted, label = "+ new conversa
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
     </>
   );

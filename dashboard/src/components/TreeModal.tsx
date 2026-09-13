@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { ModalScrim } from "./Modal";
 
 export interface TreeModalItem {
   key: string;
@@ -68,10 +69,7 @@ export function TreeModal({
   }, [onClose]);
 
   return (
-    <div
-      className={`modal-scrim${left ? " tree-modal-scrim-left" : ""}`}
-      onClick={onClose}
-    >
+    <ModalScrim onClose={onClose} className={left ? "tree-modal-scrim-left" : undefined}>
       <div
         className={`modal tree-modal${left ? " tree-modal-left" : ""}`}
         onClick={(e) => e.stopPropagation()}
@@ -115,7 +113,7 @@ export function TreeModal({
         </div>
         {footer && <div className="tree-modal-foot">{footer}</div>}
       </div>
-    </div>
+    </ModalScrim>
   );
 }
 
