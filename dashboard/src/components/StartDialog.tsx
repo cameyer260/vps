@@ -15,7 +15,7 @@ interface Props {
  * New Agent modal (spec §4): fields top-to-bottom per the sketch —
  * expand-downward project picker (notes + projects, plus a new-project name
  * option fed to the backend autocreate), `ReadOnlyToggle` (off by default),
- * expand-downward conversation select (`New convo` first row, gated on a
+ * expand-downward conversation select (`New conversation` first row, gated on a
  * project being picked), and a green Start / red Exit footer. Start launches
  * via the existing `jarvis rpc` path and opens the new chat; Exit dismisses
  * with no side effects. Picker lists reuse the shared `TreeModal` shell.
@@ -72,14 +72,13 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
   ];
 
   const convoItems: TreeModalItem[] = [
-    { key: "__new__", title: "New convo", subtitle: "start a fresh conversation" },
+    { key: "__new__", title: "New conversation", subtitle: "start a fresh conversation" },
     ...(sessions ?? []).map((s) => ({
       key: s.file,
       title: sessionTitle(s),
-      subtitle:
-        (s.timestamp ? new Date(s.timestamp).toLocaleString() : "") +
-        (s.timestamp && s.preview ? " — " : "") +
-        (s.preview && s.preview !== s.name ? s.preview : ""),
+      // Subtitle is the timestamp only — the preview repeats the title
+      // (feedback: drop the lower repetition and the "—").
+      subtitle: s.timestamp ? new Date(s.timestamp).toLocaleString() : undefined,
     })),
   ];
 
@@ -182,10 +181,10 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
 
         <label className="field-label">Conversation</label>
         {mode === "new" ? (
-          <div className="dim pad">New convo</div>
+          <div className="dim pad">New conversation</div>
         ) : (
           <button type="button" className="picker-field" onClick={openConversationPicker}>
-            <span>{selectedSession ? sessionTitle(selectedSession) : "New convo"}</span>
+            <span>{selectedSession ? sessionTitle(selectedSession) : "New conversation"}</span>
             <span className="picker-chevron" aria-hidden="true">
               ▾
             </span>
@@ -235,7 +234,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
 
       {picker === "conversation" && (
         <TreeModal
-          title={`Conversations — ${project}`}
+          title="Conversations"
           items={convoItems}
           emptyText="no past sessions"
           footer={sessions === null ? <span className="dim">loading sessions…</span> : undefined}

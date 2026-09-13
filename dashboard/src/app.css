@@ -228,6 +228,18 @@ button {
   background: var(--bg-4);
 }
 
+/* Row dividers (Group B feedback): hairline matching the shell border
+   between agent rows in the same project group. */
+.agent-group .agent-row + .agent-row {
+  border-top: 1px solid var(--border);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.agent-group .agent-row:has(+ .agent-row) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 .agent-main {
   flex: 1;
   min-width: 0;
@@ -2088,6 +2100,19 @@ div.agent-row {
   background: var(--bg-3);
 }
 
+/* Row dividers (Group B feedback): 1px lines matching the shell border
+   between picker rows (project picker, conversation picker, and every
+   other TreeModal list — file tree, GC list — since they share this shell). */
+.tree-modal-row + .tree-modal-row {
+  border-top: 1px solid var(--border);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.tree-modal-row:has(+ .tree-modal-row) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 /* git-ignored paths: greyed out like a typical IDE, still tappable */
 .tree-modal-row-dim {
   opacity: 0.45;
@@ -2264,6 +2289,35 @@ div.agent-row {
 
 .start-actions {
   justify-content: space-between;
+}
+
+/* Start/Exit footer (Group B feedback): no solid fills — transparent
+   blurred bg with only the border + text carrying the color
+   (red = Exit, green = Start). */
+.start-actions .btn.danger {
+  background: transparent;
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border-color: rgba(255, 59, 48, 0.55);
+  color: var(--red);
+}
+.start-actions .btn.danger:hover:not(:disabled) {
+  background: rgba(255, 59, 48, 0.08);
+  border-color: var(--red);
+  filter: none;
+}
+.start-actions .btn.go {
+  background: transparent;
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border-color: rgba(52, 199, 89, 0.55);
+  color: var(--green);
+  box-shadow: none;
+}
+.start-actions .btn.go:hover:not(:disabled) {
+  background: rgba(52, 199, 89, 0.08);
+  border-color: var(--green);
+  filter: none;
 }
 
 @media (min-width: 769px) {
