@@ -9,17 +9,35 @@ createRoot(document.getElementById("root")!).render(
   </React.StrictMode>,
 );
 
-// Keyboard-aware viewport height: when the software keyboard opens, iOS
-// Safari doesn't resize the layout viewport — only the visual viewport — so
-// a full-height app shell would leave the chat composer behind the keyboard.
+// Keyboard-aware viewport: when the software keyboard opens, iOS Safari
+// doesn't resize the layout viewport — only the visual viewport — so a
+// full-height app shell would leave the chat composer behind the keyboard.
 // Publish the visual viewport height as --app-h; the shell (default 100vh,
 // correct from cold start in a standalone PWA) tracks the really-visible
 // area and the composer stays above the keyboard.
+//
+// Second half of the same problem: iOS also pans the visual viewport to
+// "reveal" the focused input. The shrunken shell sits at the top of the
+// layout viewport, so a stuck pan views it through an offset window — only
+// the shell's bottom slice (the composer) shows, pinned to the top of the
+// screen with dead background below it. Publish that pan origin as
+// --vv-top; the shell rides it via `top` (see .app-shell in app.css) so it
+// keeps filling the visible band even when the pan sticks. `top` on a
+// relatively-positioned shell is deliberate: unlike transform/translate it
+// doesn't become the containing block for the viewport-fixed bottom pill.
 let maxViewportH = window.visualViewport?.height ?? window.innerHeight;
-function syncViewportHeight() {
-  const h = window.visualViewport?.height ?? window.innerHeight;
+function syncViewport() {
+  const vv = window.visualViewport;
+  const h = vv?.height ?? window.innerHeight;
   maxViewportH = Math.max(maxViewportH, h);
-  document.documentElement.style.setProperty("--app-h", `${Math.round(h)}px`);
+  const root = document.documentElement;
+  root.style.setProperty("--app-h", `${Math.round(h)}px`);
+  const top = vv ? (vv.offsetTop || 0) : 0;
+  root.style.setProperty("--vv-top", `${Math.round(Math.max(0, top))}px`);
+}
+function typingActive(): boolean {
+  const root = document.documentElement;
+  return root.classList.contains("chat-typing") || root.classList.contains("modal-typing");
 }
 // iOS standalone PWA quirk: the first keyboard open shrinks the reported
 // viewport height and it never grows back on close — the shell stays short
@@ -30,18 +48,18 @@ function syncViewportHeight() {
 function healViewport() {
   const cur = window.visualViewport?.height ?? window.innerHeight;
   if (maxViewportH - cur <= 4) {
-    syncViewportHeight();
+    syncViewport();
     return;
   }
   const shell = document.querySelector(".app-shell") as HTMLElement | null;
   if (!shell) {
-    syncViewportHeight();
+    syncViewport();
     return;
   }
   shell.style.display = "none";
   void shell.offsetHeight;
   shell.style.display = "";
-  syncViewportHeight();
+  syncViewport();
   window.scrollTo(0, 0);
 }
 // Sync eagerly: the first values during a PWA splash→standalone transition
@@ -49,25 +67,49 @@ function healViewport() {
 // until a scroll corrects it), so re-sync on every signal that metrics
 // may have settled — load, pageshow (bfcache), orientation, and once on
 // the first scroll as a backstop.
-syncViewportHeight();
-window.visualViewport?.addEventListener("resize", syncViewportHeight);
-window.visualViewport?.addEventListener("scroll", syncViewportHeight);
+syncViewport();
+// visualViewport resize fires on keyboard open/close (the layout viewport
+// never resizes in the standalone PWA, so `window resize` below is dead in
+// exactly the keyboard case — the pan-undo must live here too). The
+// scrollTo is gated on a typing session so pinch-zoom pans are untouched;
+// the --vv-top glue above covers whatever pan remains either way.
+window.visualViewport?.addEventListener("resize", () => {
+  syncViewport();
+  if (typingActive()) window.scrollTo(0, 0);
+});
+// visualViewport scroll IS the keyboard pan event. Re-sync so --vv-top
+// tracks it and the shell rides the pan instead of being seen through it.
+window.visualViewport?.addEventListener("scroll", () => {
+  syncViewport();
+  if (typingActive()) window.scrollTo(0, 0);
+});
 window.addEventListener("resize", () => {
-  syncViewportHeight();
+  syncViewport();
   // Undo the pan iOS applies to the layout viewport when the keyboard opens.
   window.scrollTo(0, 0);
 });
-window.addEventListener("load", syncViewportHeight);
-window.addEventListener("pageshow", syncViewportHeight);
-window.addEventListener("orientationchange", syncViewportHeight);
+window.addEventListener("load", syncViewport);
+window.addEventListener("pageshow", syncViewport);
+window.addEventListener("orientationchange", syncViewport);
 window.addEventListener(
   "scroll",
   () => {
-    syncViewportHeight();
+    syncViewport();
     window.scrollTo(0, 0);
   },
   { once: true },
 );
+// Pre-empt the pan: a text-input focus is always followed by the keyboard
+// (and its pan) on mobile. Reset the scroll before the animation starts;
+// the visualViewport listeners above then track the rest of it. Gated on
+// the event target (React sets the typing classes async after this fires).
+document.addEventListener("focusin", (e) => {
+  const t = e.target;
+  if (t instanceof HTMLElement && (t.tagName === "TEXTAREA" || t.tagName === "INPUT")) {
+    syncViewport();
+    window.scrollTo(0, 0);
+  }
+});
 // The typing flags (chat-typing / modal-typing) clear on blur; once neither
 // is set the keyboard is gone — heal a stuck-shrunk viewport then (see
 // healViewport above). Delayed past the iOS keyboard-close animation so the

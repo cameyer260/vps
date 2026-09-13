@@ -1912,6 +1912,15 @@ div.agent-row {
 
 .app-shell {
   position: relative;
+  /* Keyboard-pan glue (see syncViewport in main.tsx): when iOS pans the
+     visual viewport to reveal the focused composer, the shrunken shell
+     would otherwise be viewed through that offset — only its bottom slice
+     (the composer) showing, pinned to the top of the screen. Riding the
+     pan origin keeps the shell filling the visible band so the composer
+     sits directly above the keyboard. `top` on relative positioning is
+     deliberate: unlike transform/translate it is not a containing block,
+     so the viewport-fixed bottom pill is unaffected. */
+  top: var(--vv-top, 0px);
   display: flex;
   flex-direction: column;
   height: var(--app-h, 100vh);
