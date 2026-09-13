@@ -57,7 +57,13 @@
 html,
 body,
 #root {
-  height: 100%;
+  /* 100vh, not 100%: viewport-fit=cover + black-translucent + height:100%
+     leaves a ~60px dead strip at the bottom of an iOS standalone PWA (the
+     "chin gap") — the percentage resolves against a pre-cover containing
+     block. 100vh is the true screen height from cold start here (no browser
+     toolbar in standalone to disagree with); 100dvh isn't initialized until
+     after a rotation, so it can't be the base. */
+  height: 100vh;
   margin: 0;
 }
 
@@ -135,8 +141,9 @@ button {
 .app {
   display: flex;
   /* --app-h tracks the visual viewport (see main.tsx) so the shell shrinks
-     when the mobile keyboard opens; 100dvh is the fallback. */
-  height: var(--app-h, 100dvh);
+     when the mobile keyboard opens; 100vh is the fallback (correct from
+     cold start — 100dvh isn't initialized yet in a standalone PWA). */
+  height: var(--app-h, 100vh);
   overflow: hidden;
 }
 
@@ -505,7 +512,7 @@ button {
 .chat {
   display: flex;
   flex-direction: column;
-  height: var(--app-h, 100dvh);
+  height: var(--app-h, 100vh);
   position: relative;
 }
 
@@ -869,7 +876,7 @@ details.thinking summary {
      (1/4 of the visible screen height) it scrolls internally instead of
      clipping text. No placeholder — single-line height at rest. */
   min-height: 44px;
-  max-height: calc(var(--app-h, 100dvh) / 4);
+  max-height: calc(var(--app-h, 100vh) / 4);
   overflow-y: auto;
   transition: border-color 0.15s var(--ease);
 }
@@ -1336,7 +1343,7 @@ div.agent-row {
 .notes {
   display: flex;
   flex-direction: column;
-  height: var(--app-h, 100dvh);
+  height: var(--app-h, 100vh);
 }
 
 .notes-head {
@@ -1907,7 +1914,7 @@ div.agent-row {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: var(--app-h, 100dvh);
+  height: var(--app-h, 100vh);
   overflow: hidden;
 }
 
@@ -1992,11 +1999,13 @@ div.agent-row {
 }
 
 /* floating rounded bottom pill — always visible, above modals */
-/* anchored to the keyboard-aware shell (not the pannable layout viewport)
-   so the pill tracks --app-h on iOS standalone instead of floating high
-   until the first scroll */
+/* fixed to the viewport, not the shell: with the document scroll-locked
+   (overflow hidden + overscroll none above) there is nothing to pan it
+   away, and a viewport anchor stays glued to the screen edge even if the
+   JS-tracked shell height ever goes stale (stale shell + absolute was the
+   persistent "floats high" in the iOS PWA). */
 .bottom-nav {
-  position: absolute;
+  position: fixed;
   left: 0;
   right: 0;
   bottom: calc(6px + env(safe-area-inset-bottom));
