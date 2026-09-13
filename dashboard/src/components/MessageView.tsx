@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { api } from "../api";
-import type { Item, PiModel } from "../types";
+import type { Item } from "../types";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -158,115 +157,4 @@ function ToolCard({
 function truncate(s: string, n: number): string {
   const t = s.replace(/\s+/g, " ").trim();
   return t.length > n ? t.slice(0, n - 1) + "…" : t;
-}
-
-// "All models" cache shared across chats — the catalog is agent-independent.
-let allModelsCache: PiModel[] | null = null;
-
-export function ModelPicker({
-  models,
-  current,
-  onPick,
-}: {
-  models: PiModel[] | null; // the agent's configured scope (get_available_models)
-  current: PiModel | null;
-  onPick: (provider: string, id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [source, setSource] = useState<"scoped" | "all">("scoped");
-  const [allModels, setAllModels] = useState<PiModel[] | null>(allModelsCache);
-  const [allError, setAllError] = useState<string | null>(null);
-
-  // Escape closes the menu even when the tap-catching scrim doesn't cover
-  // the tapped area (narrow headers), so it can never trap other controls.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  const label = current ? current.id : "model";
-  const activeModels = source === "scoped" ? models : allModels;
-  const filtered = (activeModels ?? []).filter((m) => {
-    if (!query) return true;
-    const q = query.toLowerCase();
-    return m.id.toLowerCase().includes(q) || (m.name ?? "").toLowerCase().includes(q);
-  });
-
-  const switchSource = (next: "scoped" | "all") => {
-    setSource(next);
-    if (next === "all" && !allModels && !allError) {
-      api
-        .allModels()
-        .then((r) => {
-          allModelsCache = r.models;
-          setAllModels(r.models);
-        })
-        .catch((e) => setAllError(String((e as Error).message ?? e)));
-    }
-  };
-
-  return (
-    <div className="model-picker">
-      <button className="btn ghost" onClick={() => setOpen(!open)}>
-        {label} ▾
-      </button>
-      {open && (
-        <>
-          <div className="scrim" onClick={() => setOpen(false)} />
-          <div className="model-pop">
-            <div className="model-source-toggle" role="tablist">
-              <button
-                className={`chip${source === "scoped" ? " on" : ""}`}
-                onClick={() => switchSource("scoped")}
-                title="Models this agent has configured"
-              >
-                scoped ({models?.length ?? "…"})
-              </button>
-              <button
-                className={`chip${source === "all" ? " on" : ""}`}
-                onClick={() => switchSource("all")}
-                title="Everything the pi CLI catalog lists"
-              >
-                all models
-              </button>
-            </div>
-            <input
-              className="input"
-              autoFocus
-              placeholder="filter models…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <div className="model-list">
-              {source === "all" && allError && <div className="dim pad">{allError}</div>}
-              {source === "all" && !allModels && !allError && (
-                <div className="dim pad">loading catalog…</div>
-              )}
-              {filtered.length === 0 && (source === "scoped" || allModels) && (
-                <div className="dim pad">no models match</div>
-              )}
-              {filtered.map((m) => (
-                <button
-                  key={`${m.provider}/${m.id}`}
-                  className={`model-row${current?.id === m.id && current?.provider === m.provider ? " current" : ""}`}
-                  onClick={() => {
-                    onPick(m.provider, m.id);
-                    setOpen(false);
-                  }}
-                >
-                  <span>{m.name ?? m.id}</span>
-                  {m.name && m.name !== m.id && <span className="dim">{m.id}</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
 }

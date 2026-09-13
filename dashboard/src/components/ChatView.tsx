@@ -3,8 +3,9 @@ import { useChat } from "../chat";
 import { api } from "../api";
 import type { AgentInfo, AttachmentView, SkillInfo, UploadedFile } from "../types";
 import type { PromptImage } from "../chat";
-import { MessageView, ModelPicker } from "./MessageView";
+import { MessageView } from "./MessageView";
 import { ReadOnlyToggle } from "./ReadOnlyToggle";
+import { SessionInfoPopover } from "./SessionInfoPopover";
 import { TerminateButton } from "./TerminateButton";
 
 interface PendingFile {
@@ -65,6 +66,9 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
   const { state } = chat;
   const [input, setInput] = useState("");
   const [composing, setComposing] = useState(false);
+  // Header info modal (ⓘ left of the power button): model, effort, and
+  // session stats live here now — the chat-head row keeps title + icons.
+  const [infoOpen, setInfoOpen] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
   // While the composer is focused the software keyboard is up: flag the
   // document so the global bottom pill can hide and the composer can sit
@@ -316,27 +320,35 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           </span>
         </div>
         <div className="chat-controls">
-          <ModelPicker
-            models={state.models}
-            current={state.model}
-            onPick={(provider, id) => chat.setModel(provider, id)}
-          />
-          {state.thinkingLevels && state.thinkingLevels.length > 1 && (
-            <select
-              className="select small"
-              value={state.thinkingLevel ?? "off"}
-              onChange={(e) => chat.setThinkingLevel(e.target.value)}
-              title="Thinking level"
-            >
-              {state.thinkingLevels.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          )}
+          <button
+            className="btn ghost info-btn"
+            onClick={() => setInfoOpen(true)}
+            title="Model, effort & session info"
+            aria-label="Session info"
+            aria-haspopup="dialog"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 11v5" />
+              <path d="M12 8h.01" />
+            </svg>
+          </button>
           {!exited && <TerminateButton agent={agent} onTerminated={onTerminated} />}
         </div>
+        {infoOpen && (
+          <SessionInfoPopover
+            model={state.model}
+            models={state.models}
+            thinkingLevel={state.thinkingLevel}
+            thinkingLevels={state.thinkingLevels}
+            status={state.status}
+            exited={exited}
+            onPickModel={(provider, id) => chat.setModel(provider, id)}
+            onPickThinkingLevel={(level) => chat.setThinkingLevel(level)}
+            onStats={() => chat.getSessionStats()}
+            onClose={() => setInfoOpen(false)}
+          />
+        )}
       </header>
       )}
       {/* Read-only floats below the header, right-aligned over the

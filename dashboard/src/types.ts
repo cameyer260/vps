@@ -99,6 +99,34 @@ export interface PiModel {
   contextWindow?: number;
 }
 
+/** Token/cost/context stats from pi `get_session_stats` (shape per
+ *  docs/rpc.md). `contextUsage` is omitted when no model or context window
+ *  is available, and its tokens/percent are null right after compaction
+ *  until a fresh post-compaction response lands — every field is optional
+ *  so the UI can render graceful `—` states. */
+export interface SessionStats {
+  sessionFile?: string;
+  sessionId?: string;
+  userMessages?: number;
+  assistantMessages?: number;
+  toolCalls?: number;
+  toolResults?: number;
+  totalMessages?: number;
+  tokens?: {
+    input?: number;
+    output?: number;
+    cacheRead?: number;
+    cacheWrite?: number;
+    total?: number;
+  };
+  cost?: number;
+  contextUsage?: {
+    tokens?: number | null;
+    contextWindow?: number;
+    percent?: number | null;
+  } | null;
+}
+
 export interface PiEvent {
   type: string;
   message?: PiMessage;

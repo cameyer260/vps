@@ -430,6 +430,15 @@ try {
   const stateNotice = await stateP;
   check("set_model broadcasts state", !!stateNotice);
 
+  const stats = await cmd({ type: "get_session_stats" });
+  check(
+    "get_session_stats round-trip",
+    stats.success === true &&
+      stats.data?.contextUsage?.contextWindow === 200000 &&
+      typeof stats.data?.cost === "number",
+    JSON.stringify(stats.data?.contextUsage),
+  );
+
   const roOnP = wsWait(chat, (m) => m.type === "read_only" && m.value === true, 10_000, "read_only on");
   chat.send(JSON.stringify({ type: "cmd", command: { type: "prompt", message: "/read-only on", id: "ro1" } }));
   const roOn = await roOnP;

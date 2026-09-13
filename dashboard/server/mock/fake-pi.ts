@@ -10,8 +10,9 @@ import type { AttachedAgent } from "../runtime.js";
  *
  * Command/event catalog v1 is closed (§5.1 of the plan): get_state, set_model,
  * set_thinking_level, set_session_name, get_available_models,
- * get_available_thinking_levels, get_entries, prompt, abort. New pi event
- * types go through "extend catalog + add golden" later, not drive-by.
+ * get_available_thinking_levels, get_session_stats, get_entries, prompt,
+ * abort. New pi event types go through "extend catalog + add golden"
+ * later, not drive-by.
  *
  * Protocol notes (match `docs/rpc.md` + the bridge/client expectations):
  * - Every response echoes the command's `id` and names its `command`.
@@ -20,6 +21,8 @@ import type { AttachedAgent } from "../runtime.js";
  *   state notice off this).
  * - `get_available_models` data: { models }; `get_available_thinking_levels`
  *   data: { levels }.
+ * - `get_session_stats` data mirrors docs/rpc.md (tokens, cost,
+ *   contextUsage) with scripted numbers for the header info modal.
  * - `get_entries` data: { entries, leafId }; unknown `since` → success false
  *   with error "unknown cursor" (exercises the client's full-reload fallback).
  * - Events fan out to ALL currently attached pipes; responses go only to the
@@ -364,6 +367,22 @@ export class FakePi {
       }
       case "get_available_thinking_levels": {
         this.respond(stdout, cmd, true, { levels: [...DEFAULT_LEVELS] });
+        return;
+      }
+      case "get_session_stats": {
+        // Scripted numbers for the header info modal (shape per docs/rpc.md).
+        this.respond(stdout, cmd, true, {
+          sessionFile: this.sessionFile,
+          sessionId: this.id,
+          userMessages: 2,
+          assistantMessages: 2,
+          toolCalls: 1,
+          toolResults: 1,
+          totalMessages: 6,
+          tokens: { input: 50000, output: 10000, cacheRead: 40000, cacheWrite: 5000, total: 105000 },
+          cost: 0.45,
+          contextUsage: { tokens: 60000, contextWindow: 200000, percent: 30 },
+        });
         return;
       }
       case "get_entries": {

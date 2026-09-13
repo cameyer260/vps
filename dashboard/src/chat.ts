@@ -10,6 +10,7 @@ import type {
   PiEvent,
   PiMessage,
   PiModel,
+  SessionStats,
   ToolView,
 } from "./types";
 
@@ -532,6 +533,11 @@ interface ChatApi {
    *  Used for first-message titling: fresh agents stay unnamed until the
    *  first user message, which becomes the title (never a docker name). */
   setSessionName: (name: string) => void;
+  /** One-shot token/cost/context fetch for the header info modal
+   *  (pi `get_session_stats`, via the generic bridge cmd path — no
+   *  server change needed). Resolves null on any failure so the modal
+   *  can render its `—` states instead of trapping the UI. */
+  getSessionStats: () => Promise<SessionStats | null>;
   /** Push a client-side notice into the chat's notice rail. */
   notice: (text: string, level?: Notice["level"]) => void;
 }
@@ -797,6 +803,15 @@ export function useChat(agent: AgentInfo): ChatApi {
       },
       notice: (text: string, level?: Notice["level"]) =>
         dispatch({ type: "notice", text, level }),
+      getSessionStats: () => {
+        return command({ type: "get_session_stats" })
+          .then((resp) => {
+            if (!resp["success"]) return null;
+            const data = resp["data"];
+            return data && typeof data === "object" ? (data as SessionStats) : null;
+          })
+          .catch(() => null);
+      },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state],

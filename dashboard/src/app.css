@@ -1082,24 +1082,110 @@ details.thinking summary {
   max-width: 100%;
 }
 
-/* model picker */
-
-.model-picker {
-  position: relative;
+/* session info modal (chat-head ⓘ): the same portaled modal shell as every
+   other dialog, but anchored top-right and narrower than a centered dialog
+   — it hovers over the screen under the header instead of taking it over.
+   The portaled scrim (see Modal.tsx) is what lets it escape chat-head's
+   backdrop-filter containing block; no mobile re-pinning needed. */
+.modal-scrim.info-modal-scrim {
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-top: calc(60px + env(safe-area-inset-top));
+  padding-right: 12px;
 }
 
-.model-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  width: min(420px, calc(100vw - 40px));
-  background: color-mix(in srgb, var(--bg-4) 88%, transparent);
-  backdrop-filter: var(--glass);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  padding: 10px;
-  z-index: 40;
-  box-shadow: var(--shadow-pop);
+.modal.info-modal {
+  width: min(340px, 100%);
+  padding: 6px;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* rows with the shared divider-line treatment (cf. .tree-modal-row) */
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+}
+
+button.info-row:hover {
+  background: var(--bg-3);
+}
+
+.info-row + .info-row {
+  border-top: 1px solid var(--border);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.info-row:has(+ .info-row) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.info-row-dim {
+  opacity: 0.45;
+}
+
+button.info-row:disabled {
+  cursor: default;
+}
+button.info-row:disabled:hover {
+  background: none;
+}
+
+.info-label {
+  color: var(--text-dim);
+  flex-shrink: 0;
+  min-width: 62px;
+}
+
+.info-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-weight: 550;
+}
+
+.info-chevron {
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.info-subhead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 8px;
+}
+
+.info-subhead-title {
+  font-weight: 650;
+  font-size: 14px;
+}
+
+/* nested picker lists reuse the shared model-list styles */
+.info-modal .model-source-toggle {
+  padding: 2px 6px 0;
+}
+
+.info-modal .input {
+  margin: 8px 6px 0;
+  width: calc(100% - 12px);
+}
+
+.info-modal .model-list {
+  max-height: 40dvh;
 }
 
 .model-source-toggle {
@@ -1816,12 +1902,6 @@ div.agent-row {
     font-size: 11.5px;
   }
 
-  .chat-head .select.small {
-    padding: 4px 6px;
-    font-size: 12px;
-    max-width: 118px;
-  }
-
   .chat-name {
     font-size: 14.5px;
   }
@@ -1838,32 +1918,7 @@ div.agent-row {
 
   .chat-controls {
     min-width: 0;
-  }
-
-  /* .model-picker (not its button) is the flex item — without min-width:0
-     its max-content floor keeps the row overflowing the screen */
-  .chat-controls .model-picker {
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  /* Model picker popover: the narrow wrapped header puts the picker's box
-     at the row's edge, so the edge-anchored absolute panel lands off-screen
-     (and is clipped by the picker's overflow:hidden above) — an invisible
-     menu whose scrim then traps header taps. Pin the panel below the header
-     bar, full width, instead. Note: chat-head's backdrop-filter is the
-     containing block for fixed descendants, so top:100% anchors just under
-     the bar. Desktop rendering is untouched (outside this media query). */
-  .chat-controls .model-pop {
-    position: fixed;
-    left: 8px;
-    right: 8px;
-    top: calc(100% + 6px);
-    width: auto;
-  }
-
-  .chat-controls .model-list {
-    max-height: 40dvh;
+    flex-shrink: 0;
   }
 
   .chat-controls .btn.ghost {
@@ -1874,17 +1929,8 @@ div.agent-row {
   }
 
   .chat-controls .ro-toggle,
-  .chat-controls .select.small,
   .chat-controls .stop-agent {
     flex-shrink: 0;
-  }
-
-  /* tiny phones: the thinking level goes first, so the model picker keeps
-     a tappable width */
-  @media (max-width: 360px) {
-    .chat-controls .select.small {
-      display: none;
-    }
   }
 
   .chat-head .back {
