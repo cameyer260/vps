@@ -506,19 +506,53 @@ button {
   display: flex;
   flex-direction: column;
   height: var(--app-h, 100dvh);
+  position: relative;
 }
 
+/* Group C: borderless header — translucent blur at the top fading to
+   transparent at the bottom. The fade lives in the background gradient so
+   it spans only the current header height; the read-only toggle below is
+   outside the blur entirely. */
 .chat-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+  padding: calc(8px + env(safe-area-inset-top)) 14px 12px;
   min-height: 52px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-2) 78%, transparent);
+  border-bottom: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg-2) 82%, transparent) 0%,
+    color-mix(in srgb, var(--bg-2) 55%, transparent) 55%,
+    transparent 100%
+  );
   backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
   position: relative;
   z-index: 5;
+}
+
+/* Group C: read-only toggle floats below the header, right-aligned over
+   the messages. Transparent, no border extension, no layout height — the
+   negative margin pulls the messages up underneath so this consumes zero
+   vertical space. Container is click-through except the toggle itself. */
+.chat-ro-float {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 14px 0;
+  margin-bottom: -32px;
+  position: relative;
+  z-index: 4;
+  pointer-events: none;
+  background: transparent;
+}
+
+.chat-ro-float .ro-toggle {
+  pointer-events: auto;
+  /* solid enough to read over scrolling text */
+  background: color-mix(in srgb, var(--bg-2) 82%, transparent);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
 }
 
 .chat-title {
@@ -832,9 +866,10 @@ details.thinking summary {
   line-height: 1.45;
   padding: 10px 14px;
   /* grows with content (Chat.tsx sets height from scrollHeight); at the cap
-     it scrolls internally instead of clipping text */
+     (1/4 of the visible screen height) it scrolls internally instead of
+     clipping text. No placeholder — single-line height at rest. */
   min-height: 44px;
-  max-height: min(220px, 32dvh);
+  max-height: calc(var(--app-h, 100dvh) / 4);
   overflow-y: auto;
   transition: border-color 0.15s var(--ease);
 }
@@ -2022,6 +2057,20 @@ div.agent-row {
 /* composer sits above the floating pill, never under it */
 .app-shell .composer {
   padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+
+/* Group C: while the composer is focused (software keyboard up) hide the
+   global bottom pill so the input lines up right above the keyboard, and
+   drop the pill clearance from the composer. Shown at all other times.
+   Scoped to composer focus (not global keyboard detection) so modal
+   keyboard behavior stays with Group D. */
+html.chat-typing .bottom-nav {
+  display: none;
+}
+
+html.chat-typing .app-shell .composer,
+html.chat-typing .composer {
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
 }
 
 .app-shell .note-render {

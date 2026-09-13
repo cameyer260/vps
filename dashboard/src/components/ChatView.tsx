@@ -64,7 +64,16 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
   const chat = useChat(agent);
   const { state } = chat;
   const [input, setInput] = useState("");
+  const [composing, setComposing] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  // While the composer is focused the software keyboard is up: flag the
+  // document so the global bottom pill can hide and the composer can sit
+  // right above the keyboard (Group C). Cleared on blur/unmount so the
+  // pill shows at all other times.
+  useEffect(() => {
+    document.documentElement.classList.toggle("chat-typing", composing);
+    return () => document.documentElement.classList.remove("chat-typing");
+  }, [composing]);
 
   // Auto-grow composer (ChatGPT-style): the textarea grows with its content
   // up to the CSS max-height, then scrolls internally instead of clipping.
@@ -290,11 +299,6 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           </span>
         </div>
         <div className="chat-controls">
-          <ReadOnlyToggle
-            value={state.readOnly}
-            onToggle={toggleReadOnly}
-            disabled={exited}
-          />
           <ModelPicker
             models={state.models}
             current={state.model}
@@ -317,6 +321,17 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           {!exited && <TerminateButton agent={agent} onTerminated={onTerminated} />}
         </div>
       </header>
+      )}
+      {/* Read-only floats below the header, right-aligned over the
+          messages — no border extension, no extra header height (Group C). */}
+      {!hideHeader && (
+        <div className="chat-ro-float">
+          <ReadOnlyToggle
+            value={state.readOnly}
+            onToggle={toggleReadOnly}
+            disabled={exited}
+          />
+        </div>
       )}
 
       <div className="chat-messages" ref={scrollRef} onScroll={onScroll}>
@@ -419,8 +434,10 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           <textarea
             ref={taRef}
             value={input}
-            placeholder={streaming ? "agent is running — stop it to send…" : "message the agent… ( / for skills)"}
+            aria-label="Message the agent"
             onChange={(e) => setInput(e.target.value)}
+            onFocus={() => setComposing(true)}
+            onBlur={() => setComposing(false)}
             onKeyDown={onComposerKeyDown}
             onPaste={(e) => {
               const files = Array.from(e.clipboardData.files);
