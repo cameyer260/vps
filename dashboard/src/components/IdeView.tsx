@@ -21,7 +21,8 @@ import { TreeModal, type TreeModalItem } from "./TreeModal";
  *
  * Project state, sub-header left-to-right: file-tree button (opens the
  * tree modal sliding from the left; folders expand/collapse, tap a file
- * to open + close) → project button → `at /path` breadcrumb. Search,
+ * to open + close) → project button. No path breadcrumb — the open
+ * file's path already shows in the note toolbar above the file. Search,
  * pencil `EditToggle` (default read-only), and commit & push live in the
  * global TabHeader (right-aligned: search, pencil, commit) via the
  * published `IdeHeaderState`. Body renders one
@@ -239,15 +240,6 @@ export function IdeView({
   const openPathRef = useRef(openPath);
   openPathRef.current = openPath;
 
-  // The project button already names the project, so the breadcrumb shows
-  // only `at /path` (or a placeholder) — no "notes … notes" duplication.
-  const crumbText = !project ? "No project" : openPath ? `at /${openPath}` : "at /";
-  const crumbTitle = !project
-    ? "No project"
-    : openPath
-      ? `${project} / ${openPath}`
-      : project;
-
   const allProjects = [notesName, ...projects.filter((p) => p !== notesName)];
   const pickerItems: TreeModalItem[] = allProjects
     .filter((p) => p.toLowerCase().includes(pickerFilter.trim().toLowerCase()))
@@ -317,13 +309,6 @@ export function IdeView({
         >
           {project ?? "Select"}
         </button>
-        <span className="notes-title" title={crumbTitle}>
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-            <path d="M14 3v5h5" />
-          </svg>
-          {crumbText}
-        </span>
       </header>
 
       {loadError && (

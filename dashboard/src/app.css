@@ -2478,10 +2478,10 @@ html.chat-typing .composer {
 
 /* ---- Phase 5: IDE tab over project dirs (spec §5) ---- */
 
-/* Sub-header row (file-tree button → project button → `at /path`
-   breadcrumb) stays on ONE row on phones; search, pencil, and commit live
-   in the global TabHeader. The old multi-file tab bar and inline tree are
-   gone — everything rides TreeModal + EditToggle. */
+/* Sub-header row (file-tree button → project button) stays on ONE row
+   on phones; search, pencil, and commit live in the global TabHeader.
+   The old multi-file tab bar and inline tree are gone — everything
+   rides TreeModal + EditToggle. */
 .ide-head {
   flex-wrap: nowrap;
   gap: 6px;
@@ -2510,16 +2510,7 @@ html.chat-typing .composer {
   flex-shrink: 0;
 }
 
-/* the breadcrumb shrinks to nothing (ellipsis) before the header is ever
-   allowed to wrap — the project button already names the project */
-.ide-head .notes-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  align-self: center;
-}
-
-/* file-tree button sits optically high next to the breadcrumb text — pin
-   it to the row center with icon-sized padding so the two line up. */
+/* file-tree button: icon-sized padding, pinned to the row center. */
 .ide-head .tree-btn {
   display: inline-flex;
   align-items: center;
