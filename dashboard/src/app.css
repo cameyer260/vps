@@ -2212,11 +2212,17 @@ html.chat-typing .composer {
   text-overflow: ellipsis;
 }
 
+/* Group E: bigger folder disclosure triangle (the old 12px chevron
+   rendered as a tiny dot on phones). */
 .tree-modal-chevron {
   color: var(--text-dim);
-  font-size: 12px;
-  width: 14px;
+  font-size: 19px;
+  line-height: 1;
+  width: 24px;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.15s var(--ease);
 }
 
@@ -2239,16 +2245,30 @@ html.chat-typing .composer {
   padding: 0;
 }
 
+/* Group E (IDE file tree): docked panel, not a full-screen takeover — it
+   drops from below the global tab header + IDE sub-header down to the
+   bottom of the screen, stays narrow enough that the editor peeks through
+   on the right, and its list flexes to fill the panel (no dead empty
+   space below a half-filled scroll box). Row dividers ride the shared
+   TreeModal shell (Group B), so no extra rules here. */
 .modal.tree-modal-left {
-  margin: 0;
-  height: 100%;
+  margin: calc(env(safe-area-inset-top) + 100px) 0 0 0;
+  height: calc(100dvh - env(safe-area-inset-top) - 100px);
   max-height: none;
-  width: min(360px, 88vw);
+  width: min(300px, 78vw);
   border-radius: 0;
-  border-top: none;
+  border-top: 1px solid var(--border-strong);
   border-bottom: none;
   border-left: none;
   animation: tree-slide-in 0.18s var(--ease);
+}
+
+/* the list is the panel body: fill every pixel of available height and
+   scroll inside it */
+.modal.tree-modal-left .tree-modal-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 @keyframes tree-slide-in {
@@ -2405,10 +2425,12 @@ html.chat-typing .composer {
 /* ---- Phase 5: IDE tab over project dirs (spec §5) ---- */
 
 /* Sub-header row (file-tree button → breadcrumb → search → pencil →
-   commit → project button) wraps on narrow screens; the old multi-file tab
-   bar and inline tree are gone — everything rides TreeModal + EditToggle. */
+   commit → project button) stays on ONE row on phones (Group E
+   feedback: no two-row button stack); the old multi-file tab bar and
+   inline tree are gone — everything rides TreeModal + EditToggle. */
 .ide-head {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  gap: 6px;
   row-gap: 6px;
 }
 
@@ -2416,13 +2438,29 @@ html.chat-typing .composer {
   max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
-/* the breadcrumb may shrink, but never to slivers — the header wraps to a
-   second row before the path becomes unreadable */
+/* header buttons keep their size — only the breadcrumb shrinks */
+.ide-head .tree-btn,
+.ide-head .btn.ghost,
+.ide-head .edit-toggle {
+  flex-shrink: 0;
+}
+
+/* Group E: compact commit button (the default .btn.primary padding made it
+   dominate the row and force the wrap to two lines). */
+.ide-head .ide-commit-btn {
+  padding: 4px 10px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+/* the breadcrumb shrinks to nothing (ellipsis) before the header is ever
+   allowed to wrap — the project button already names the project */
 .ide-head .notes-title {
   flex: 1 1 auto;
-  min-width: 96px;
+  min-width: 0;
   align-self: center;
 }
 

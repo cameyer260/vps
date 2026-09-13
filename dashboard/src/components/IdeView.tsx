@@ -208,7 +208,11 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
   const openPathRef = useRef(openPath);
   openPathRef.current = openPath;
 
-  const crumbText = !project
+  // Group E: the project button already shows the project name, so the
+  // breadcrumb shows only the open file path (or a placeholder) — no more
+  // "notes … notes" duplication in the IDE sub-header.
+  const crumbText = !project ? "No project" : (openPath ?? "No file open");
+  const crumbTitle = !project
     ? "No project"
     : openPath
       ? `${project} / ${openPath}`
@@ -251,7 +255,7 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
             <path d="M9 4v16" />
           </svg>
         </button>
-        <span className="notes-title" title={crumbText}>
+        <span className="notes-title" title={crumbTitle}>
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
             <path d="M14 3v5h5" />
@@ -279,7 +283,7 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
           />
         )}
         <button
-          className="btn primary"
+          className="btn primary small ide-commit-btn"
           onClick={() => setCommitOpen(true)}
           disabled={!project || edited.size === 0}
           title="Stage every file edited in this viewer session, commit, push"
@@ -344,10 +348,6 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
               ) : (
                 <>
                   <p>Open a file from the file tree.</p>
-                  <p className="dim">
-                    Edited files are saved as you type; “commit &amp; push” stages everything
-                    edited in this session.
-                  </p>
                   <button className="btn" onClick={() => setTreeOpen(true)}>
                     Files
                   </button>
@@ -463,6 +463,8 @@ export function IdeView({ homeSignal }: { homeSignal: number }) {
   );
 }
 
+/* Group E: raw names with extensions, no parsing, no file-type subtitle;
+   folders start collapsed (tap to expand). */
 function toTreeItems(nodes: TreeNode[], depth: number): TreeModalItem[] {
   return nodes.map((n) =>
     n.type === "dir"
@@ -470,13 +472,12 @@ function toTreeItems(nodes: TreeNode[], depth: number): TreeModalItem[] {
           key: n.path,
           title: n.name,
           children: toTreeItems(n.children ?? [], depth + 1),
-          defaultExpanded: depth === 0,
+          defaultExpanded: false,
           dimmed: n.ignored,
         }
       : {
           key: n.path,
           title: n.name,
-          subtitle: n.kind && n.kind !== "md" ? n.kind : undefined,
           dimmed: n.ignored,
         },
   );
