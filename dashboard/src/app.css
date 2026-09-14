@@ -546,19 +546,20 @@ button {
   --chat-head-h: 0px;
 }
 
-/* Agent chat header — an overlay pinned to the top of .chat, styled like
-   .notes-head (GC / IDE): translucent chrome + strong blur + hairline
-   border so scrolled messages blur beneath it instead of showing through
-   between the floating pills. Heights are still measured into
-   --chat-head-h so the scroll pads clear. */
+/* Agent chat header — a borderless frosted overlay pinned to the top of
+   .chat: a light translucent tint + strong backdrop blur so scrolled
+   messages smear beneath it instead of showing through sharply between
+   the floating pills. No border, no gradient layer — the frost is the
+   blend. Heights are still measured into --chat-head-h so the scroll
+   pads clear. */
 .chat-head {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: calc(8px + env(safe-area-inset-top)) 14px 12px;
   min-height: 52px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-2) 78%, transparent);
+  border-bottom: none;
+  background: color-mix(in srgb, var(--bg-2) 60%, transparent);
   -webkit-backdrop-filter: var(--glass-strong);
   backdrop-filter: var(--glass-strong);
   position: absolute;
@@ -1672,8 +1673,8 @@ div.agent-row {
   gap: 8px;
   padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
   min-height: 52px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-2) 78%, transparent);
+  border-bottom: none;
+  background: color-mix(in srgb, var(--bg-2) 60%, transparent);
   -webkit-backdrop-filter: var(--glass-strong);
   backdrop-filter: var(--glass-strong);
 }
