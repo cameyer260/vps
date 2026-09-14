@@ -100,6 +100,31 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
   // inlined as fenced blocks so model and UI see the same content.
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [preparing, setPreparing] = useState(false);
+  // Attachments popover: the paperclip toggles a floating panel (badge
+  // shows the count) instead of an inline strip, so the composer can fade
+  // to transparent with nothing opaque sitting in the fade zone. Paste /
+  // picker only bump the badge — the panel never auto-opens.
+  const [attachOpen, setAttachOpen] = useState(false);
+  const attachPopRef = useRef<HTMLDivElement>(null);
+  const attachBtnRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!attachOpen) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (attachPopRef.current?.contains(t)) return;
+      if (attachBtnRef.current?.contains(t)) return;
+      setAttachOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAttachOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [attachOpen]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     return () => {
@@ -217,6 +242,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
     if (pendingFiles.length === 0) {
       chat.send(text);
       titleForFirst();
+      setAttachOpen(false);
     } else {
       setPreparing(true);
       try {
@@ -251,6 +277,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
         }));
         chat.send(message || "(see attachments)", images.length > 0 ? images : undefined, attachments);
         titleForFirst();
+        setAttachOpen(false);
         for (const p of pendingFiles) if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
         setPendingFiles([]);
         setInput("");
@@ -269,6 +296,12 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
   };
 
   const streaming = state.status === "streaming";
+
+  // The attach button is disabled while streaming, so it can't toggle the
+  // panel closed — drop the panel the moment a turn starts instead.
+  useEffect(() => {
+    if (streaming) setAttachOpen(false);
+  }, [streaming]);
 
   const onComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (skillMatches && skillMatches.length > 0) {
@@ -421,29 +454,52 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
               ))}
             </div>
           )}
-          {pendingFiles.length > 0 && (
-            <div className="pending-files">
-              {pendingFiles.map((p) => (
-                <span key={p.id} className="pending-file">
-                  {p.previewUrl ? (
-                    <img src={p.previewUrl} alt={p.file.name} className="pending-thumb" />
-                  ) : (
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                    </svg>
-                  )}
-                  <span className="pending-name" title={p.file.name}>{p.file.name}</span>
-                  <span className="pending-size">{formatSize(p.file.size)}</span>
-                  <button
-                    type="button"
-                    className="pending-remove"
-                    onClick={() => removePending(p.id)}
-                    aria-label={`Remove ${p.file.name}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+          {attachOpen && (
+            <div className="attach-pop" ref={attachPopRef} role="dialog" aria-label="Attached files">
+              <div className="attach-pop-head">
+                <span>Attached · {pendingFiles.length}</span>
+                <button
+                  type="button"
+                  className="attach-pop-close"
+                  onClick={() => setAttachOpen(false)}
+                  aria-label="Close attachments"
+                >
+                  ×
+                </button>
+              </div>
+              {pendingFiles.length > 0 && (
+                <div className="attach-list">
+                  {pendingFiles.map((p) => (
+                    <span key={p.id} className="pending-file">
+                      {p.previewUrl ? (
+                        <img src={p.previewUrl} alt={p.file.name} className="pending-thumb" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                        </svg>
+                      )}
+                      <span className="pending-name" title={p.file.name}>{p.file.name}</span>
+                      <span className="pending-size">{formatSize(p.file.size)}</span>
+                      <button
+                        type="button"
+                        className="pending-remove"
+                        onClick={() => removePending(p.id)}
+                        aria-label={`Remove ${p.file.name}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                className="btn attach-add"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={streaming || preparing}
+              >
+                + Add photos or files
+              </button>
             </div>
           )}
           <input
@@ -459,16 +515,22 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
             }}
           />
           <button
+            ref={attachBtnRef}
             type="button"
             className="btn ghost attach-btn"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setAttachOpen((v) => !v)}
             disabled={streaming || preparing}
             title="Attach images or text files"
-            aria-label="Attach files"
+            aria-label={pendingFiles.length > 0 ? `Attached files, ${pendingFiles.length} attached` : "Attach files"}
+            aria-haspopup="dialog"
+            aria-expanded={attachOpen}
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
+            {pendingFiles.length > 0 && (
+              <span className="attach-count" aria-hidden="true">{pendingFiles.length}</span>
+            )}
           </button>
           <textarea
             ref={taRef}

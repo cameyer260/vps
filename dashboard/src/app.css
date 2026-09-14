@@ -846,7 +846,12 @@ details.thinking summary {
   color: var(--red);
 }
 
-/* composer — floating glass bar */
+/* composer — floating controls over a bottom fade. The bar itself is
+   transparent with no top border: a ::before layer carries a gradient
+   (transparent at top → blurred chrome at bottom) so the input and
+   buttons float over scrolled messages. backdrop-filter blurs uniformly,
+   so the fade applies via mask-image on that layer — the standard trick
+   for a blur that dissolves toward transparent. */
 
 .composer {
   position: relative;
@@ -855,9 +860,26 @@ details.thinking summary {
   gap: 8px;
   align-items: flex-end;
   padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-2) 78%, transparent);
-  backdrop-filter: var(--glass);
+  border-top: none;
+  background: transparent;
+}
+
+.composer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--bg-2) 45%, transparent) 42%,
+    color-mix(in srgb, var(--bg-2) 82%, transparent) 100%
+  );
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 45%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 45%);
 }
 
 .composer textarea {
@@ -878,6 +900,7 @@ details.thinking summary {
   min-height: 44px;
   max-height: calc(var(--app-h, 100vh) / 4);
   overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   transition: border-color 0.15s var(--ease);
 }
 
@@ -919,7 +942,12 @@ details.thinking summary {
   white-space: nowrap;
 }
 
-.attach-btn {
+/* the paperclip floats like the other controls: its own translucent
+   surface + blur so it stays legible over scrolled messages now that the
+   bar behind it is transparent. position:relative anchors the count badge. */
+
+.btn.attach-btn {
+  position: relative;
   min-width: 44px;
   height: 44px;
   padding: 0;
@@ -928,21 +956,101 @@ details.thinking summary {
   align-items: center;
   justify-content: center;
   color: var(--text-dim);
+  background: color-mix(in srgb, var(--bg-3) 82%, transparent);
+  border-color: var(--border);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
-.attach-btn:hover {
+.btn.attach-btn:hover:not(:disabled) {
   color: var(--text);
+  background: var(--bg-3);
+  border-color: var(--border-strong);
 }
 
-/* pending attachments row (above the input) */
+/* attachment count badge: small accent pill on the paperclip corner */
 
-.pending-files {
-  order: -1;
-  flex-basis: 100%;
+.attach-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* attachments popover: floats above the input like .skill-pop (same glass
+   surface, same anchor). Chips stack vertically and scroll past ~3 so the
+   panel never covers the chat; the + button opens the file picker. */
+
+.attach-pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 12px;
+  width: min(320px, calc(100vw - 48px));
+  background: color-mix(in srgb, var(--bg-4) 88%, transparent);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-pop);
+  z-index: 25;
+  padding: 8px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attach-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  padding: 2px 4px 0;
+}
+
+.attach-pop-close {
+  color: var(--text-dim);
+  font-size: 17px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.attach-pop-close:hover {
+  color: var(--text);
+  background: var(--bg-3);
+}
+
+.attach-list {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  padding-bottom: 4px;
+  /* ~3 chips, then scroll */
+  max-height: 126px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.attach-list .pending-file {
+  max-width: none;
+}
+
+.attach-add {
+  width: 100%;
 }
 
 .pending-file {
