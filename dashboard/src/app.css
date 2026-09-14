@@ -546,43 +546,33 @@ button {
   --chat-head-h: 0px;
 }
 
-/* Agent chat header — a floating overlay pinned to the top of .chat,
-   mirroring .composer: the bar itself is transparent with no backdrop
-   blur of its own; a ::before layer carries a plain top-down gradient
-   (chrome at the top dissolving to transparent) so scrolled messages
-   fade out behind the pills. Gradient only — no backdrop-filter, no
-   mask — so it can never cover the controls: the pills sit above it
-   with their own glass surfaces + shadows and blur live scrolling text.
-   Heights are still measured into --chat-head-h so the scroll pads clear. */
+/* Agent chat header — a frosted-glass bar pinned to the top of .chat.
+   The bar is an absolute overlay over the full-bleed message scroll, so
+   it needs a real glass SURFACE (not a bare tint, not transparency):
+   the same tokens as the surfaces that read correctly on-device —
+   .bottom-pill / .tab-header — i.e. a lighter raised base (bg-4, not
+   the near-black bg-2), strong backdrop blur, a hairline bottom border
+   and a soft shadow. A dark translucent tint alone renders as a flat
+   black rectangle (bg-2 over the canvas is ~black, and 32px blur erases
+   all passing-text variation); the border + shadow + lighter base are
+   what make it read as glass. Heights are still measured into
+   --chat-head-h so the scroll pads clear. */
 .chat-head {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: calc(8px + env(safe-area-inset-top)) 14px 12px;
   min-height: 52px;
-  border-bottom: none;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  border-bottom: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--bg-4) 82%, transparent);
+  -webkit-backdrop-filter: var(--glass-strong);
+  backdrop-filter: var(--glass-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   z-index: 5;
-}
-
-.chat-head::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bg-2) 88%, transparent) 0%,
-    color-mix(in srgb, var(--bg-2) 55%, transparent) 60%,
-    transparent 100%
-  );
 }
 
 .chat-head > * {
