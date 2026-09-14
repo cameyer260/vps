@@ -1,17 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
 import type { ChatState } from "../chat";
 import type { PiModel, SessionStats } from "../types";
 import { ModalScrim } from "./Modal";
 
-// "All models" cache shared across chats — the catalog is agent-independent.
-// (Moved here with the picker list when the header ModelPicker was folded
-// into this modal, so the scoped/all toggle keeps its cross-chat cache.)
-let allModelsCache: PiModel[] | null = null;
-
 interface Props {
   model: PiModel | null;
-  models: PiModel[] | null; // the agent's configured scope (get_available_models)
+  models: PiModel[] | null; // available models (get_available_models)
   thinkingLevel: string | null;
   thinkingLevels: string[] | null;
   status: ChatState["status"];
@@ -224,7 +218,7 @@ export function SessionInfoPopover({
   );
 }
 
-/** Nested model picker list (scoped/all + filter), reusing the shared
+/** Nested model picker list (filter), reusing the shared
  *  model-list styles. Split out so the main/effort views stay readable. */
 function ModelListView({
   models,
@@ -238,29 +232,16 @@ function ModelListView({
   onPick: (provider: string, id: string) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [source, setSource] = useState<"scoped" | "all">("scoped");
-  const [allModels, setAllModels] = useState<PiModel[] | null>(allModelsCache);
-  const [allError, setAllError] = useState<string | null>(null);
 
-  const activeModels = source === "scoped" ? models : allModels;
-  const filtered = (activeModels ?? []).filter((m) => {
+  const filtered = (models ?? []).filter((m) => {
     if (!query) return true;
     const q = query.toLowerCase();
-    return m.id.toLowerCase().includes(q) || (m.name ?? "").toLowerCase().includes(q);
+    return (
+      m.id.toLowerCase().includes(q) ||
+      m.provider.toLowerCase().includes(q) ||
+      (m.name ?? "").toLowerCase().includes(q)
+    );
   });
-
-  const switchSource = (next: "scoped" | "all") => {
-    setSource(next);
-    if (next === "all" && !allModels && !allError) {
-      api
-        .allModels()
-        .then((r) => {
-          allModelsCache = r.models;
-          setAllModels(r.models);
-        })
-        .catch((e) => setAllError(String((e as Error).message ?? e)));
-    }
-  };
 
   return (
     <div>
@@ -270,21 +251,8 @@ function ModelListView({
         </button>
         <span className="info-subhead-title">Model</span>
       </div>
-      <div className="model-source-toggle" role="tablist">
-        <button
-          className={`chip${source === "scoped" ? " on" : ""}`}
-          onClick={() => switchSource("scoped")}
-          title="Models this agent has configured"
-        >
-          scoped ({models?.length ?? "…"})
-        </button>
-        <button
-          className={`chip${source === "all" ? " on" : ""}`}
-          onClick={() => switchSource("all")}
-          title="Everything the pi CLI catalog lists"
-        >
-          all models
-        </button>
+      <div className="dim pad">
+        {models ? `${models.length} models · from configured providers` : "loading models…"}
       </div>
       <input
         className="input"
@@ -294,13 +262,7 @@ function ModelListView({
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="model-list">
-        {source === "all" && allError && <div className="dim pad">{allError}</div>}
-        {source === "all" && !allModels && !allError && (
-          <div className="dim pad">loading catalog…</div>
-        )}
-        {filtered.length === 0 && (source === "scoped" || allModels) && (
-          <div className="dim pad">no models match</div>
-        )}
+        {models && filtered.length === 0 && <div className="dim pad">no models match</div>}
         {filtered.map((m) => (
           <button
             key={`${m.provider}/${m.id}`}

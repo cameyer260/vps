@@ -1,5 +1,4 @@
 import type { AgentInfo } from "./docker.js";
-import type { AllModel } from "./piModels.js";
 import { DockerRuntime } from "./runtime-docker.js";
 import { MockRuntime } from "./mock/runtime.js";
 
@@ -51,8 +50,6 @@ export interface ContainerRuntime {
   stopAndRemove(id: string): Promise<void>;
   /** → start route (returns id). */
   spawn(opts: SpawnOptions): Promise<string>;
-  /** → GET /api/models (full catalog, wider than an agent's scope). */
-  listModels(): Promise<AllModel[]>;
   /** → /ws/events. Returns an unsubscriber. */
   onLifecycle(cb: (e: LifecycleEvent) => void): () => void;
 }

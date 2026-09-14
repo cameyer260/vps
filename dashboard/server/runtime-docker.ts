@@ -2,7 +2,6 @@ import { PassThrough } from "node:stream";
 import type { Duplex } from "node:stream";
 import { containerLabels, docker, listPiContainers, stopAndRemove } from "./docker.js";
 import { startAgent } from "./jarvis.js";
-import { listAllModels, type AllModel } from "./piModels.js";
 import type { AttachedAgent, ContainerRuntime, LifecycleEvent, SpawnOptions } from "./runtime.js";
 
 /**
@@ -48,10 +47,6 @@ export class DockerRuntime implements ContainerRuntime {
       readOnly: opts.readOnly,
       generalChat: opts.generalChat,
     });
-  }
-
-  listModels(): Promise<AllModel[]> {
-    return listAllModels();
   }
 
   onLifecycle(cb: (e: LifecycleEvent) => void): () => void {

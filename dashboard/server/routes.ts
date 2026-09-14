@@ -127,19 +127,6 @@ api.get("/sessions", async (c) => {
   return c.json({ sessions });
 });
 
-// ---- models (picker "all" source) -----------------------------------------
-
-api.get("/models", async (c) => {
-  // Full catalog via the runtime seam: jarvis models in prod, the
-  // deterministic fixture in mock. The MOCK_VPS + production guard lives in
-  // getRuntime(), so no env branch is needed here.
-  try {
-    return c.json({ models: await getRuntime().listModels() });
-  } catch (err) {
-    return c.json({ error: String(err instanceof Error ? err.message : err) }, 502);
-  }
-});
-
 // ---- skills (composer autocomplete) ----------------------------------------
 
 api.get("/skills", async (c) => {

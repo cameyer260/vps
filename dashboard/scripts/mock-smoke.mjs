@@ -158,9 +158,6 @@ try {
   const sessions = await getJSON("/api/sessions?project=alpha");
   check("sessions fixture", sessions.sessions.length >= 1 && sessions.sessions[0].file.endsWith(".jsonl"));
 
-  const models = await getJSON("/api/models");
-  check("models fixture", models.models.length >= 3 && models.models.some((m) => m.id === "mock-sonnet") && models.models.some((m) => m.id === "mock-haiku"));
-
   const skills = await getJSON("/api/skills");
   check("skills fixture", skills.skills.length === 2);
 
@@ -354,6 +351,16 @@ try {
     "get_state round-trip",
     st.success === true && st.data?.model?.provider === "openrouter" && typeof st.data?.sessionName === "string",
     JSON.stringify(st.data).slice(0, 160),
+  );
+  chat0.send(JSON.stringify({ type: "cmd", command: { type: "get_available_models", id: "s2m" } }));
+  const am = await wsWait(chat0, (m) => m.type === "response" && m.id === "s2m", 5_000, "get_available_models");
+  check(
+    "picker models source (ws get_available_models)",
+    am.success === true &&
+      Array.isArray(am.data?.models) &&
+      am.data.models.some((m) => m.id === "mock-sonnet") &&
+      am.data.models.some((m) => m.id === "mock-haiku"),
+    JSON.stringify(am.data).slice(0, 200),
   );
   chat0.send(JSON.stringify({ type: "backfill", reqId: "s3", since: "no-such-id" }));
   const badCursor = await wsWait(chat0, (m) => m.type === "backfill" && m.reqId === "s3", 5_000, "unknown-cursor backfill");

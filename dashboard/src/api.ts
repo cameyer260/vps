@@ -1,4 +1,4 @@
-import type { AgentInfo, PiModel, SessionSummary, SkillInfo, TreeNode, UploadedFile } from "./types";
+import type { AgentInfo, SessionSummary, SkillInfo, TreeNode, UploadedFile } from "./types";
 
 /** Error with the full API response body attached — callers that need more
  *  than the message (e.g. the git output in a 409) read `body`. */
@@ -26,7 +26,6 @@ export const api = {
     fetch(`/api/sessions?project=${encodeURIComponent(project)}`).then((r) =>
       json<{ sessions: SessionSummary[] }>(r),
     ),
-  allModels: () => fetch("/api/models").then((r) => json<{ models: PiModel[] }>(r)),
   skills: () => fetch("/api/skills").then((r) => json<{ skills: SkillInfo[] }>(r)),
   upload: (file: File) => {
     const fd = new FormData();

@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { config, projectDir } from "../config.js";
 import type { AgentInfo } from "../docker.js";
-import type { AllModel } from "../piModels.js";
 import type { AttachedAgent, ContainerRuntime, LifecycleEvent, SpawnOptions } from "../runtime.js";
 import { FakePi, type FakePiHistoryEntry, type MockModel, type StreamGranularity } from "./fake-pi.js";
 
@@ -128,20 +127,6 @@ export class MockRuntime implements ContainerRuntime {
     this.emit({ action: "die", id });
     this.emit({ action: "destroy", id });
     return Promise.resolve();
-  }
-
-  listModels(): Promise<AllModel[]> {
-    // Mock mode serves the deterministic fixture; prod lists via jarvis models.
-    try {
-      const raw = fs.readFileSync(mockModelsPath(), "utf8");
-      const parsed = JSON.parse(raw) as AllModel[];
-      if (Array.isArray(parsed)) return Promise.resolve(parsed);
-    } catch {
-      /* fall through to the helpful error below */
-    }
-    return Promise.reject(
-      new Error("mock models fixture missing (run npm run mock-seed)"),
-    );
   }
 
   spawn(opts: SpawnOptions): Promise<string> {
