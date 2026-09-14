@@ -510,11 +510,12 @@ button {
   position: relative;
 }
 
-/* Floating header — no strip chrome. The header itself is transparent;
-   a ::before layer carries a top-down fade (blurred chrome at the top
-dissolving to transparent at the bottom) so the pill buttons stay
-   legible over scrolled content. Same mask-fade trick as
-   .composer::before. The read-only toggle below is outside the blur. */
+/* Floating header — no strip chrome. Transparent bar, no background
+   blur: the back/info/power pills each carry their own glass surface
+   so they float over scrolled messages (Grok-style). No ::before layer —
+   a full-width masked backdrop blur painted over the controls and broke
+   input legibility, so the blur lives on the pills only. The read-only
+   toggle below is outside the header entirely. */
 .chat-head {
   display: flex;
   align-items: center;
@@ -527,29 +528,6 @@ dissolving to transparent at the bottom) so the pill buttons stay
   -webkit-backdrop-filter: none;
   position: relative;
   z-index: 5;
-}
-
-.chat-head::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bg-2) 82%, transparent) 0%,
-    color-mix(in srgb, var(--bg-2) 45%, transparent) 60%,
-    transparent 100%
-  );
-  backdrop-filter: blur(16px) saturate(1.1);
-  -webkit-backdrop-filter: blur(16px) saturate(1.1);
-  mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
-}
-
-.chat-head > * {
-  position: relative;
-  z-index: 1;
 }
 
 /* Status dot sits immediately right of the back button (title / project /
@@ -913,12 +891,12 @@ details.thinking summary {
   color: var(--red);
 }
 
-/* composer — floating controls over a bottom fade. The bar itself is
-   transparent with no top border: a ::before layer carries a gradient
-   (transparent at top → blurred chrome at bottom) so the input and
-   buttons float over scrolled messages. backdrop-filter blurs uniformly,
-   so the fade applies via mask-image on that layer — the standard trick
-   for a blur that dissolves toward transparent. */
+/* composer — floating glass controls, no bar chrome. The bar itself is
+   fully transparent (no background, border, or backdrop blur): the
+   textarea, paperclip, and send buttons each carry their own glass
+   surface + shadow so they hover over scrolled messages (Grok-style).
+   No ::before layer — the previous full-width masked backdrop blur
+   stacked above the static controls and obscured the input text. */
 
 .composer {
   position: relative;
@@ -929,30 +907,16 @@ details.thinking summary {
   padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
   border-top: none;
   background: transparent;
-}
-
-.composer::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    color-mix(in srgb, var(--bg-2) 45%, transparent) 42%,
-    color-mix(in srgb, var(--bg-2) 82%, transparent) 100%
-  );
-  backdrop-filter: blur(16px) saturate(1.1);
-  -webkit-backdrop-filter: blur(16px) saturate(1.1);
-  mask-image: linear-gradient(to bottom, transparent 0%, black 45%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 45%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .composer textarea {
   flex: 1;
   resize: none;
-  background: var(--bg);
+  background: color-mix(in srgb, var(--bg-3) 82%, transparent);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
   border: 1px solid var(--border);
   border-radius: 14px;
   color: var(--text);
