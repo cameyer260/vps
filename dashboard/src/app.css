@@ -546,40 +546,26 @@ button {
   --chat-head-h: 0px;
 }
 
-/* Floating header — an overlay pinned to the top of .chat, not an
-   in-flow strip. Messages scroll full-bleed beneath it; a ::before layer
-   carries a plain top-down gradient (chrome dissolving to transparent)
-   for the blend. Gradient only — no backdrop-filter, no mask. The blur
-   lives on the pills, which now blur live scrolling text (liquid glass). */
+/* Agent chat header — an overlay pinned to the top of .chat, styled like
+   .notes-head (GC / IDE): translucent chrome + strong blur + hairline
+   border so scrolled messages blur beneath it instead of showing through
+   between the floating pills. Heights are still measured into
+   --chat-head-h so the scroll pads clear. */
 .chat-head {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: calc(8px + env(safe-area-inset-top)) 14px 12px;
   min-height: 52px;
-  border-bottom: none;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-2) 78%, transparent);
+  -webkit-backdrop-filter: var(--glass-strong);
+  backdrop-filter: var(--glass-strong);
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   z-index: 5;
-}
-
-.chat-head::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bg-2) 88%, transparent) 0%,
-    color-mix(in srgb, var(--bg-2) 55%, transparent) 60%,
-    transparent 100%
-  );
 }
 
 .chat-head > * {
@@ -1688,7 +1674,8 @@ div.agent-row {
   min-height: 52px;
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-2) 78%, transparent);
-  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass-strong);
+  backdrop-filter: var(--glass-strong);
 }
 
 .notes-title {
