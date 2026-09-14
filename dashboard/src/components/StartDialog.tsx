@@ -37,7 +37,6 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
   const [relDir, setRelDir] = useState("");
   const [dirValid, setDirValid] = useState<boolean | null>(null);
   const [dirNormalized, setDirNormalized] = useState<string | null>(null);
-  const [dirProject, setDirProject] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [sessionPath, setSessionPath] = useState<string | null>(null);
   const [readOnly, setReadOnly] = useState(false); // off default: full tools
@@ -86,7 +85,6 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
     if (!rel) {
       setDirValid(null);
       setDirNormalized(null);
-      setDirProject(null);
       return;
     }
     const value = `/home/dev/${rel}`;
@@ -98,17 +96,14 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
           if (r.ok) {
             setDirValid(true);
             setDirNormalized(r.directory);
-            setDirProject(r.project);
           } else {
             setDirValid(false);
             setDirNormalized(null);
-            setDirProject(null);
           }
         })
         .catch(() => {
           setDirValid(false);
           setDirNormalized(null);
-          setDirProject(null);
         });
     }, 250);
     return () => clearTimeout(t);
@@ -260,12 +255,9 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
 
         {!jarvis ? (
           <>
-            <div className="start-label-row">
-              <label className="field-label" htmlFor="start-directory">
-                Directory
-              </label>
-              <span className="dim start-label-note">from /home/dev</span>
-            </div>
+            <label className="field-label" htmlFor="start-directory">
+              Directory
+            </label>
             <div className="host-dir-row">
               <span className="host-prefix" aria-hidden="true">
                 /home/dev/
@@ -293,11 +285,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
                 }
               />
             </div>
-            {dirValid === true && dirNormalized ? (
-              <div className="dim pad">
-                {dirProject} — {dirNormalized}
-              </div>
-            ) : dirValid === false && relDir.trim() !== "" ? (
+            {dirValid === false && relDir.trim() !== "" ? (
               <div className="dim pad">not a directory under /home/dev</div>
             ) : null}
             <div className="dim pad host-warn">

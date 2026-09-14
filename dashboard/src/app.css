@@ -2710,18 +2710,6 @@ html.chat-typing .composer {
   min-width: 0;
 }
 
-/* Directory heading row: label left, "from /home/dev" note right. */
-.start-label-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-.start-label-note {
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 /* Jarvis-off tag: marks bare-metal host agents (no container isolation). */
 .jarvis-off-pill {
   display: inline-block;
