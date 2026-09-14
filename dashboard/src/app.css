@@ -546,12 +546,14 @@ button {
   --chat-head-h: 0px;
 }
 
-/* Agent chat header — a borderless frosted overlay pinned to the top of
-   .chat: a light translucent tint + strong backdrop blur so scrolled
-   messages smear beneath it instead of showing through sharply between
-   the floating pills. No border, no gradient layer — the frost is the
-   blend. Heights are still measured into --chat-head-h so the scroll
-   pads clear. */
+/* Agent chat header — a floating overlay pinned to the top of .chat,
+   mirroring .composer: the bar itself is transparent with no backdrop
+   blur of its own; a ::before layer carries a plain top-down gradient
+   (chrome at the top dissolving to transparent) so scrolled messages
+   fade out behind the pills. Gradient only — no backdrop-filter, no
+   mask — so it can never cover the controls: the pills sit above it
+   with their own glass surfaces + shadows and blur live scrolling text.
+   Heights are still measured into --chat-head-h so the scroll pads clear. */
 .chat-head {
   display: flex;
   align-items: center;
@@ -559,14 +561,28 @@ button {
   padding: calc(8px + env(safe-area-inset-top)) 14px 12px;
   min-height: 52px;
   border-bottom: none;
-  background: color-mix(in srgb, var(--bg-2) 60%, transparent);
-  -webkit-backdrop-filter: var(--glass-strong);
-  backdrop-filter: var(--glass-strong);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   z-index: 5;
+}
+
+.chat-head::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg-2) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg-2) 55%, transparent) 60%,
+    transparent 100%
+  );
 }
 
 .chat-head > * {
