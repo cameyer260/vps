@@ -1054,16 +1054,18 @@ details.thinking summary {
   opacity: 0.4;
 }
 
-/* composer buttons stay fully opaque (messages scroll beneath the
-   composer, so no transparency): the disabled send keeps a solid
-   muted-navy fill instead of fading, and stop keeps a solid dark-red
-   fill instead of the transparent outline. */
+/* composer buttons stay legible over scrolling messages: the disabled
+   send matches the attach button's glass surface (dimmed arrow) instead
+   of fading translucent, and stop keeps a solid dark-red fill instead of
+   the transparent outline. */
 .btn.primary.send-btn:disabled {
   opacity: 1;
-  background: #16283f;
-  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--bg-3) 82%, transparent);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border-color: var(--border);
   color: var(--text-dim);
-  box-shadow: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 .btn.stop.send-btn {
