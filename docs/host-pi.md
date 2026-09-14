@@ -93,6 +93,12 @@ journalctl --user -u pi-host-supervisor.service -f
 ls /run/user/$(id -u)/pi-host-supervisor.sock
 ```
 
+Restart coupling: the dashboard container bind-mounts the socket *file*
+(see `dashboard/deploy.sh`), and a supervisor restart replaces that file
+(unlink + re-bind = new inode) — so after any supervisor restart, also
+`docker restart dashboard`, or the dashboard keeps dialing the stale inode
+and every host spawn fails with "host supervisor not running".
+
 Prerequisites: the unit pins `PI_BIN` to the absolute nvm pi path and
 prepends the same nvm `bin/` to `PATH` (plain `pi`/`node` on systemd's
 default PATH resolve to node v18, while pi 0.85+ needs node 22+ — spawning
