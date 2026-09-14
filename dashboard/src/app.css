@@ -547,11 +547,14 @@ button {
 }
 
 /* Agent chat header — a transparent overlay over the message scroll,
-   mirroring .composer: the header itself has no surface, border, or blur.
-   The fade is only a light top-down blend; the glass lives on the
-   individual back/info/power controls, using the same treatment as the
-   composer controls and bottom pill. Heights are still measured into
-   --chat-head-h so the scroll pads clear. */
+   mirroring .composer exactly: the header itself has no surface, border,
+   or blur; a ::before layer carries the edge-anchored gradient (the
+   composer's stops, flipped) and the glass lives on the individual
+   back/info/power controls, same treatment as the paperclip/input/send.
+   Messages slide beneath it because .chat-messages spans the full .chat
+   height — keep every sibling between them (see .chat-ro-float) out of
+   flow. Heights are still measured into --chat-head-h so the scroll pads
+   clear. */
 .chat-head {
   display: flex;
   align-items: center;
@@ -575,10 +578,12 @@ button {
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  /* exact mirror of .composer::before's stops (transparent → 55% → 88%
+     toward the screen edge) so top and bottom fade identically */
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--bg-2) 62%, transparent) 0%,
-    color-mix(in srgb, var(--bg-2) 32%, transparent) 55%,
+    color-mix(in srgb, var(--bg-2) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg-2) 55%, transparent) 58%,
     transparent 100%
   );
 }
@@ -643,16 +648,21 @@ button {
 }
 
 /* Group C: read-only toggle floats over the messages, right-aligned just
-   below the overlay header. Transparent, no layout height — the top
-   padding clears the header overlay (tracked via --chat-head-h) and the
-   negative margin pulls the messages up underneath so this consumes zero
-   vertical space. Container is click-through except the toggle itself. */
+   below the overlay header. Absolute like .chat-head/.composer — it must
+   never sit in flow: an in-flow spacer here pushed the .chat-messages
+   scroll viewport below the header overlay, so text could never slide
+   beneath the top bar (the fade/glass then painted over empty space and
+   read as an opaque bar). Top padding clears the header overlay (tracked
+   via --chat-head-h); messages scroll under the toggle itself, which is
+   the intended float. Container is click-through except the toggle. */
 .chat-ro-float {
   display: flex;
   justify-content: flex-end;
   padding: calc(var(--chat-head-h) + 2px) 14px 0;
-  margin-bottom: -32px;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 4;
   pointer-events: none;
   background: transparent;
