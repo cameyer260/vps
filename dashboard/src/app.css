@@ -549,13 +549,13 @@ button {
 /* Agent chat header — floating pills over the message scroll, no
    full-width surface. The bar is an absolute overlay pinned to the top
    of .chat: transparent, no backdrop blur of its own; a ::before layer
-   carries a plain top-down gradient (chrome dissolving to transparent)
-   so scrolled text fades behind the pills. Gradient only — no
-   backdrop-filter, no mask. The glass lives on the pills (same tokens
-   as .attach-btn / the bottom pills), which is what reads as frosted
-   on-device; every full-width tint tried here photographed as a flat
-   slab. Heights are still measured into --chat-head-h so the scroll
-   pads clear. */
+   carries a soft translucent top-down gradient so scrolled text ghosts
+   behind the button row and melts away below it — the same treatment
+   as the composer zone. Gradient only, kept light (never near-opaque)
+   — no backdrop-filter, no mask. The blur lives on the pills, which
+   share the composer pills' glass tokens (bg-3 82% + blur + hairline
+   border + shadow). Heights are still measured into --chat-head-h so
+   the scroll pads clear. */
 .chat-head {
   display: flex;
   align-items: center;
@@ -581,8 +581,8 @@ button {
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--bg-2) 88%, transparent) 0%,
-    color-mix(in srgb, var(--bg-2) 55%, transparent) 60%,
+    color-mix(in srgb, var(--bg-2) 62%, transparent) 0%,
+    color-mix(in srgb, var(--bg-2) 32%, transparent) 55%,
     transparent 100%
   );
 }
