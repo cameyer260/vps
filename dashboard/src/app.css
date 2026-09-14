@@ -1058,6 +1058,11 @@ details.thinking summary {
 
 .btn.stop.send-btn {
   background: #2a1210;
+  /* square like the attach button: kill the wide .send-btn side padding
+     so the button stays 44x44 instead of stretching rectangular. */
+  width: 44px;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .btn.stop.send-btn:hover:not(:disabled) {

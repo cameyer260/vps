@@ -584,7 +584,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           {streaming ? (
             <button className="btn stop send-btn" onClick={() => chat.abort()} title="Stop" aria-label="Stop">
               <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
-                <rect x="2" y="2" width="20" height="20" rx="5" />
+                <rect x="1" y="1" width="22" height="22" rx="6" />
               </svg>
             </button>
           ) : (
