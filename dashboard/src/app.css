@@ -510,12 +510,11 @@ button {
   position: relative;
 }
 
-/* Floating header — no strip chrome. Transparent bar, no background
-   blur: the back/info/power pills each carry their own glass surface
-   so they float over scrolled messages (Grok-style). No ::before layer —
-   a full-width masked backdrop blur painted over the controls and broke
-   input legibility, so the blur lives on the pills only. The read-only
-   toggle below is outside the header entirely. */
+/* Floating header — no strip chrome. Transparent bar; a ::before layer
+   carries a plain top-down gradient (chrome at the top dissolving to
+   transparent) so scrolled messages fade out behind the pills. Gradient
+   only — no backdrop-filter, no mask — so there is nothing that can
+   stack over or blur the controls themselves. */
 .chat-head {
   display: flex;
   align-items: center;
@@ -528,6 +527,25 @@ button {
   -webkit-backdrop-filter: none;
   position: relative;
   z-index: 5;
+}
+
+.chat-head::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg-2) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg-2) 55%, transparent) 60%,
+    transparent 100%
+  );
+}
+
+.chat-head > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Status dot sits immediately right of the back button (title / project /
@@ -891,12 +909,13 @@ details.thinking summary {
   color: var(--red);
 }
 
-/* composer — floating glass controls, no bar chrome. The bar itself is
-   fully transparent (no background, border, or backdrop blur): the
-   textarea, paperclip, and send buttons each carry their own glass
-   surface + shadow so they hover over scrolled messages (Grok-style).
-   No ::before layer — the previous full-width masked backdrop blur
-   stacked above the static controls and obscured the input text. */
+/* composer — floating glass controls, no bar chrome. The bar itself has
+   no background/border of its own; a ::before layer carries a plain
+   bottom-anchored gradient (transparent at top → chrome at bottom) so
+   scrolled messages fade out before sliding under the pills. Gradient
+   only — no backdrop-filter, no mask — so it can never blur or cover
+   the input: the textarea, paperclip, and send buttons sit above it
+   (z-index) with their own glass surfaces + shadows (Grok-style). */
 
 .composer {
   position: relative;
@@ -910,6 +929,28 @@ details.thinking summary {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+
+.composer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--bg-2) 55%, transparent) 42%,
+    color-mix(in srgb, var(--bg-2) 88%, transparent) 100%
+  );
+}
+
+.composer > :not(.attach-pop):not(.skill-pop) {
+  position: relative;
+  z-index: 1;
+}
+
+/* .attach-pop and .skill-pop keep their own absolute positioning +
+   z-index 25 above the gradient; the rule above must not touch them. */
 
 .composer textarea {
   flex: 1;
