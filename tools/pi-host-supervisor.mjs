@@ -156,13 +156,18 @@ async function doSpawn(req) {
   }
   const name = typeof req.name === "string" ? req.name.trim().slice(0, 200) || undefined : undefined;
   const id = newId();
-  const args = ["--mode", "rpc", "-a"];
+  const args = [PI_BIN, "--mode", "rpc", "-a"];
   if (sessionPath) args.push("--session", sessionPath);
   if (name) args.push("-n", name);
   args.push("--append-system-prompt", HOST_CONTEXT);
+  // Run pi under THIS node (process.execPath), not the PATH-resolved one:
+  // PI_BIN's shebang is `#!/usr/bin/env node`, and systemd's default PATH
+  // only has the system node (v18) — pi 0.85+ needs fs.globSync (node 22+)
+  // and dies instantly otherwise. The supervisor itself always runs on a
+  // new-enough node, so its own binary is the correct runtime for pi too.
   let child;
   try {
-    child = spawn(PI_BIN, args, {
+    child = spawn(process.execPath, args, {
       cwd: directory,
       env: { ...process.env },
       stdio: ["pipe", "pipe", "pipe"],
@@ -170,11 +175,11 @@ async function doSpawn(req) {
   } catch (err) {
     return { ok: false, error: `spawn failed: ${String(err?.message ?? err)}` };
   }
-  // Gate on the child actually starting: an unresolvable PI_BIN (e.g. a
-  // systemd PATH without nvm) fails async with 'error' (ENOENT) while
-  // `spawn()` itself returns fine. Registering the agent anyway is what
-  // stranded dashboards on "no response for prompt" — fail the RPC instead
-  // so the UI shows the error immediately and no ghost agent lingers.
+  // Gate on the child actually starting: if pi dies instantly (bad node,
+  // missing binary, crashing flags), 'error'/'close' fire before any client
+  // attaches. Registering the agent anyway is what stranded dashboards on
+  // "no response for prompt" — fail the RPC instead so the UI shows the
+  // error immediately and no ghost agent lingers.
   const spawnErr = await new Promise((resolve) => {
     child.once("spawn", () => resolve(null));
     child.once("error", resolve);
@@ -527,7 +532,7 @@ try {
   log("socket pre-check failed:", String(err?.message ?? err));
 }
 await fs.promises.mkdir(path.dirname(SOCK), { recursive: true }).catch(() => {});
-server.listen(SOCK, () => log(`listening on ${SOCK} (pid ${process.pid}, PI_BIN=${PI_BIN})`));
+server.listen(SOCK, () => log(`listening on ${SOCK} (pid ${process.pid}, node ${process.version}, PI_BIN=${PI_BIN})`));
 server.on("error", (err) => {
   log("server error:", String(err?.message ?? err));
   process.exit(1);

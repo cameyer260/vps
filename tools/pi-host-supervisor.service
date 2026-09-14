@@ -8,6 +8,10 @@ Type=simple
 # with plain "pi" fails with ENOENT (every host prompt then hangs with no
 # response). Pin the absolute path here; update it if the node version changes.
 Environment=PI_BIN=/home/dev/.nvm/versions/node/v24.19.0/bin/pi
+# Same nvm prefix for PATH: pi children/toolchains (mcp, npx) inherit it.
+# (The supervisor itself spawns pi via its own node binary, so the daemon
+# never depends on PATH resolution — this is for everything below pi.)
+Environment=PATH=/home/dev/.nvm/versions/node/v24.19.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
 # bash -lc resolves node via nvm (no version pin here).
 ExecStart=/bin/bash -lc 'exec node /home/dev/vps/tools/pi-host-supervisor.mjs'
 Restart=on-failure

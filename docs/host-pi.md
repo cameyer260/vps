@@ -93,11 +93,14 @@ journalctl --user -u pi-host-supervisor.service -f
 ls /run/user/$(id -u)/pi-host-supervisor.sock
 ```
 
-Prerequisites: the unit pins `PI_BIN` to the absolute nvm pi path — plain
-`pi` is NOT on systemd's default PATH, and spawning without it fails every
-host agent with `ENOENT` (update the pin if the node version changes). A
-spawn whose child fails to start returns `ok: false` instead of a ghost id,
-and the service logs a `WARNING` at boot when `PI_BIN` isn't executable.
+Prerequisites: the unit pins `PI_BIN` to the absolute nvm pi path and
+prepends the same nvm `bin/` to `PATH` (plain `pi`/`node` on systemd's
+default PATH resolve to node v18, while pi 0.85+ needs node 22+ — spawning
+without this fails every host agent; update the pin if the node version
+changes, and note the supervisor launches pi via its own node binary so the
+daemon itself never depends on PATH). A spawn whose child fails to start
+returns `ok: false` instead of a ghost id, and the service logs a `WARNING`
+at boot when `PI_BIN` isn't executable.
 Lingering already enabled (AGENTS.md). Stopping the service stops all
 host agents; the dashboard list drops them via the `die`/`destroy` events.
 
