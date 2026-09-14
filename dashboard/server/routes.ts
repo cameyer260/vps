@@ -14,6 +14,7 @@ import {
 } from "./files.js";
 import { listSessions } from "./sessions.js";
 import { listSkills } from "./skills.js";
+import { readScopePatterns } from "./modelScope.js";
 import { bridges, ensureBridge } from "./bridge.js";
 
 export const api = new Hono();
@@ -125,6 +126,14 @@ api.get("/sessions", async (c) => {
   if (!dir) return c.json({ error: `invalid project name: ${project}` }, 400);
   const sessions = await listSessions(dir);
   return c.json({ sessions });
+});
+
+// ---- model scope (picker "scoped" tab) --------------------------------------
+// The `enabledModels` patterns from pi's global settings file — the same
+// source pi resolves session scope from. Matched against the available list
+// client-side. Null when no scope is configured (picker shows one list).
+api.get("/models/scope", async (c) => {
+  return c.json({ patterns: readScopePatterns() });
 });
 
 // ---- skills (composer autocomplete) ----------------------------------------

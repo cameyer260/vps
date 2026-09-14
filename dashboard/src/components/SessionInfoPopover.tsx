@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { api } from "../api";
 import type { ChatState } from "../chat";
 import type { PiModel, SessionStats } from "../types";
 import { ModalScrim } from "./Modal";
@@ -219,7 +220,14 @@ export function SessionInfoPopover({
 }
 
 /** Nested model picker list (filter), reusing the shared
- *  model-list styles. Split out so the main/effort views stay readable. */
+ *  model-list styles. Split out so the main/effort views stay readable.
+ *
+ *  The scoped tab shows the `enabledModels` patterns from pi's global
+ *  settings (via /api/models/scope) matched against this chat's available
+ *  list — the same source pi resolves session scope from. Patterns with no
+ *  live counterpart render dimmed/disabled (pi marks them unavailable too;
+ *  `set_model` would reject them). No scope configured → the single
+ *  available list, no toggle. */
 function ModelListView({
   models,
   current,
@@ -232,14 +240,56 @@ function ModelListView({
   onPick: (provider: string, id: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  // undefined = loading, null = no scope configured.
+  const [scope, setScope] = useState<string[] | null | undefined>(undefined);
+  const [source, setSource] = useState<"scoped" | "all">("scoped");
+  useEffect(() => {
+    let alive = true;
+    api
+      .scope()
+      .then((r) => {
+        if (alive) setScope(r.patterns);
+      })
+      .catch(() => {
+        if (alive) setScope(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  const filtered = (models ?? []).filter((m) => {
+  const scoped =
+    scope == null
+      ? null
+      : scope.map((pattern) => {
+          const p = pattern.toLowerCase();
+          const model =
+            (models ?? []).find(
+              (m) =>
+                `${m.provider}/${m.id}`.toLowerCase() === p || m.id.toLowerCase() === p,
+            ) ?? null;
+          return { key: `scope:${pattern}`, pattern, model };
+        });
+
+  const showToggle = scoped !== null && scoped.length > 0;
+  const active = !showToggle || source === "all" ? null : scoped;
+  const filteredModels = (models ?? []).filter((m) => {
     if (!query) return true;
     const q = query.toLowerCase();
     return (
       m.id.toLowerCase().includes(q) ||
       m.provider.toLowerCase().includes(q) ||
       (m.name ?? "").toLowerCase().includes(q)
+    );
+  });
+  const filteredScoped = (active ?? []).filter((s) => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (
+      s.pattern.toLowerCase().includes(q) ||
+      (s.model?.id.toLowerCase().includes(q) ?? false) ||
+      (s.model?.provider.toLowerCase().includes(q) ?? false) ||
+      (s.model?.name ?? "").toLowerCase().includes(q)
     );
   });
 
@@ -252,8 +302,30 @@ function ModelListView({
         <span className="info-subhead-title">Model</span>
       </div>
       <div className="dim pad">
-        {models ? `${models.length} models · from configured providers` : "loading models…"}
+        {scope === undefined
+          ? "loading models…"
+          : showToggle
+            ? `scoped (${scoped?.length}) · from pi settings`
+            : `${models?.length ?? "…"} models · from configured providers`}
       </div>
+      {showToggle && (
+        <div className="model-source-toggle" role="tablist">
+          <button
+            className={`chip${source === "scoped" ? " on" : ""}`}
+            onClick={() => setSource("scoped")}
+            title="Models enabled in pi settings"
+          >
+            scoped ({scoped?.length})
+          </button>
+          <button
+            className={`chip${source === "all" ? " on" : ""}`}
+            onClick={() => setSource("all")}
+            title="Everything this agent can use"
+          >
+            all models
+          </button>
+        </div>
+      )}
       <input
         className="input"
         autoFocus
@@ -262,17 +334,45 @@ function ModelListView({
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="model-list">
-        {models && filtered.length === 0 && <div className="dim pad">no models match</div>}
-        {filtered.map((m) => (
-          <button
-            key={`${m.provider}/${m.id}`}
-            className={`model-row${current?.id === m.id && current?.provider === m.provider ? " current" : ""}`}
-            onClick={() => onPick(m.provider, m.id)}
-          >
-            <span>{m.name ?? m.id}</span>
-            {m.name && m.name !== m.id && <span className="dim">{m.id}</span>}
-          </button>
-        ))}
+        {active ? (
+          filteredScoped.length === 0 ? (
+            <div className="dim pad">no models match</div>
+          ) : (
+            filteredScoped.map((s) =>
+              s.model ? (
+                <button
+                  key={s.key}
+                  className={`model-row${current?.id === s.model.id && current?.provider === s.model.provider ? " current" : ""}`}
+                  onClick={() => onPick(s.model!.provider, s.model!.id)}
+                >
+                  <span>{s.model.name ?? s.model.id}</span>
+                  {s.model.name && s.model.name !== s.model.id && (
+                    <span className="dim">{s.model.id}</span>
+                  )}
+                </button>
+              ) : (
+                <button key={s.key} className="model-row" disabled title="Not in this agent's available models">
+                  <span>{s.pattern}</span>
+                  <span className="dim">unavailable</span>
+                </button>
+              ),
+            )
+          )
+        ) : (
+          filteredModels.length === 0 &&
+          models && <div className="dim pad">no models match</div>
+        )}
+        {!active &&
+          filteredModels.map((m) => (
+            <button
+              key={`${m.provider}/${m.id}`}
+              className={`model-row${current?.id === m.id && current?.provider === m.provider ? " current" : ""}`}
+              onClick={() => onPick(m.provider, m.id)}
+            >
+              <span>{m.name ?? m.id}</span>
+              {m.name && m.name !== m.id && <span className="dim">{m.id}</span>}
+            </button>
+          ))}
       </div>
     </div>
   );

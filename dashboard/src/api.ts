@@ -26,6 +26,7 @@ export const api = {
     fetch(`/api/sessions?project=${encodeURIComponent(project)}`).then((r) =>
       json<{ sessions: SessionSummary[] }>(r),
     ),
+  scope: () => fetch("/api/models/scope").then((r) => json<{ patterns: string[] | null }>(r)),
   skills: () => fetch("/api/skills").then((r) => json<{ skills: SkillInfo[] }>(r)),
   upload: (file: File) => {
     const fd = new FormData();

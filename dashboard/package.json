@@ -7,7 +7,7 @@
     "dev:server": "tsx watch server/index.ts",
     "dev:web": "vite",
     "mock-seed": "node scripts/mock-seed.mjs",
-    "dev:mock": "npm run mock-seed && MOCK_VPS=1 MOCK_SCENARIO=${MOCK_SCENARIO:-sidebar-full} NOTES_DIR=$(pwd)/testdata/mock/notes AGENT_PROJECTS_DIR=$(pwd)/testdata/mock/projects PI_SESSIONS_DIR=$(pwd)/testdata/mock/sessions AGENT_SKILLS_DIR=$(pwd)/testdata/mock/skills tsx watch server/index.ts",
+    "dev:mock": "npm run mock-seed && MOCK_VPS=1 MOCK_SCENARIO=${MOCK_SCENARIO:-sidebar-full} NOTES_DIR=$(pwd)/testdata/mock/notes AGENT_PROJECTS_DIR=$(pwd)/testdata/mock/projects PI_SESSIONS_DIR=$(pwd)/testdata/mock/sessions AGENT_SKILLS_DIR=$(pwd)/testdata/mock/skills PI_SETTINGS_FILE=$(pwd)/testdata/mock/settings.json tsx watch server/index.ts",
     "build": "npm run build:web && npm run build:server",
     "build:web": "vite build",
     "build:server": "node scripts/build-server.mjs",

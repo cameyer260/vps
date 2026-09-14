@@ -208,6 +208,22 @@ write(
   ) + "\n",
 );
 
+// ---- settings.json (scoped-models fixture) ------------------------------------
+// Mirrors the shape of pi's global settings file: the picker's scoped tab
+// reads `enabledModels` from here (PI_SETTINGS_FILE). Two entries resolve
+// against models.json; the third dangles to exercise the "unavailable" row.
+write(
+  path.join(mockDir, "settings.json"),
+  JSON.stringify(
+    {
+      defaultProvider: "openrouter",
+      enabledModels: ["openrouter/mock-sonnet", "openrouter/mock-haiku", "openrouter/mock-retired"],
+    },
+    null,
+    2,
+  ) + "\n",
+);
+
 // ---- scenarios.json --------------------------------------------------------------
 
 const history = (userId, userText, asstId, asstText) => [

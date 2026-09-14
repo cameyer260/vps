@@ -117,6 +117,7 @@ try {
       AGENT_PROJECTS_DIR: path.join(mockDir, "projects"),
       PI_SESSIONS_DIR: path.join(mockDir, "sessions"),
       AGENT_SKILLS_DIR: path.join(mockDir, "skills"),
+      PI_SETTINGS_FILE: path.join(mockDir, "settings.json"),
       // Idle-GC reaper (sweep section below): reap client-free GC agents
       // after 8s; plain agents are never touched.
       GC_IDLE_TIMEOUT_MS: "8000",
@@ -160,6 +161,15 @@ try {
 
   const skills = await getJSON("/api/skills");
   check("skills fixture", skills.skills.length === 2);
+
+  const scope = await getJSON("/api/models/scope");
+  check(
+    "scope fixture (enabledModels)",
+    Array.isArray(scope.patterns) &&
+      scope.patterns.includes("openrouter/mock-sonnet") &&
+      scope.patterns.includes("openrouter/mock-retired"),
+    JSON.stringify(scope),
+  );
 
   const tree = await getJSON("/api/files/tree?project=notes");
   check("notes tree", JSON.stringify(tree).includes("welcome.md"));

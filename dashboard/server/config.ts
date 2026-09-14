@@ -9,6 +9,9 @@ export const config = {
   sessionsDir: process.env.PI_SESSIONS_DIR ?? "/home/dev/.pi/agent/sessions",
   jarvisBin: process.env.JARVIS_BIN ?? "/home/dev/vps/agent-images/jarvis.sh",
   skillsDir: process.env.AGENT_SKILLS_DIR ?? "/home/dev/.agents",
+  /** Global pi settings file — the picker's scoped tab reads `enabledModels`
+   *  from here (same file pi resolves session scope from at startup). */
+  piSettingsFile: process.env.PI_SETTINGS_FILE ?? "/home/dev/.pi/agent/settings.json",
   wwwDir: process.env.WWW_DIR ?? path.resolve(process.cwd(), "dist"),
   gcIdleTimeoutMs: gcIdleTimeoutMs(),
 };
