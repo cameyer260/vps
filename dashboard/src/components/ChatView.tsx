@@ -336,31 +336,26 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
     <div className={`chat${hideHeader ? " gc-chat" : ""}`}>
       {!hideHeader && (
       <header className="chat-head">
-        <button className="btn ghost back" onClick={onBack} aria-label="Back">
+        <button className="btn ghost chat-head-btn back" onClick={onBack} aria-label="Back">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M19 12H5m7-7-7 7 7 7" />
           </svg>
         </button>
-        <div className="chat-title">
-          {/* Never a docker container name: untitled until pi titles the
-              conversation from the first message (Group F). */}
-          <span className="chat-name">{state.sessionName || agent.sessionName || "New chat"}</span>
-          <span className="chat-sub">
-            {agent.project}
-            <span className={`dot ${streaming ? "streaming" : exited ? "dead" : "idle"}`} />
-            {streaming ? "streaming" : exited ? "exited" : state.connected ? "idle" : "connecting…"}
-            {state.queued.followUp > 0 && ` · ${state.queued.followUp} queued`}
-          </span>
-        </div>
+        <span
+          className={`dot chat-dot ${streaming ? "streaming" : exited ? "dead" : "idle"}`}
+          aria-hidden="true"
+          title={streaming ? "streaming" : exited ? "exited" : state.connected ? "idle" : "connecting"}
+        />
+        <div className="chat-spacer" aria-hidden="true" />
         <div className="chat-controls">
           <button
-            className="btn ghost info-btn"
+            className="btn ghost chat-head-btn info-btn"
             onClick={() => setInfoOpen(true)}
             title="Model, effort & session info"
             aria-label="Session info"
             aria-haspopup="dialog"
           >
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 11v5" />
               <path d="M12 8h.01" />

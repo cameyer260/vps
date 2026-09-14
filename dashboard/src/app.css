@@ -201,6 +201,12 @@ button {
   gap: 18px;
 }
 
+.agent-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .agent-group-title {
   margin: 0;
   padding: 2px 6px 8px;
@@ -217,10 +223,10 @@ button {
   width: 100%;
   text-align: left;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: 9px 10px;
-  margin-bottom: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 0;
   transition:
     background-color 0.15s var(--ease),
     border-color 0.15s var(--ease);
@@ -228,23 +234,11 @@ button {
 
 .agent-row:hover {
   background: var(--bg-3);
-  border-color: var(--border);
+  border-color: var(--border-strong);
 }
 
 .agent-row:active {
   background: var(--bg-4);
-}
-
-/* Row dividers (Group B feedback): hairline matching the shell border
-   between agent rows in the same project group. */
-.agent-group .agent-row + .agent-row {
-  border-top: 1px solid var(--border);
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-}
-.agent-group .agent-row:has(+ .agent-row) {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
 }
 
 .agent-main {
@@ -516,10 +510,11 @@ button {
   position: relative;
 }
 
-/* Group C: borderless header — translucent blur at the top fading to
-   transparent at the bottom. The fade lives in the background gradient so
-   it spans only the current header height; the read-only toggle below is
-   outside the blur entirely. */
+/* Floating header — no strip chrome. The header itself is transparent;
+   a ::before layer carries a top-down fade (blurred chrome at the top
+dissolving to transparent at the bottom) so the pill buttons stay
+   legible over scrolled content. Same mask-fade trick as
+   .composer::before. The read-only toggle below is outside the blur. */
 .chat-head {
   display: flex;
   align-items: center;
@@ -527,16 +522,88 @@ button {
   padding: calc(8px + env(safe-area-inset-top)) 14px 12px;
   min-height: 52px;
   border-bottom: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  position: relative;
+  z-index: 5;
+}
+
+.chat-head::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background: linear-gradient(
     to bottom,
     color-mix(in srgb, var(--bg-2) 82%, transparent) 0%,
-    color-mix(in srgb, var(--bg-2) 55%, transparent) 55%,
+    color-mix(in srgb, var(--bg-2) 45%, transparent) 60%,
     transparent 100%
   );
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+}
+
+.chat-head > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Status dot sits immediately right of the back button (title / project /
+   state text removed). */
+.chat-dot {
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+.chat-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Floating square pills — one shared 40px box so back/info/power line up.
+   Same glass surface as .attach-btn. Scoped to .chat-head so the
+   agent-list .stop-agent.small keeps its compact style. */
+.chat-head .btn.ghost.chat-head-btn,
+.chat-head .btn.ghost.stop-agent {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-3) 82%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   backdrop-filter: var(--glass);
   -webkit-backdrop-filter: var(--glass);
-  position: relative;
-  z-index: 5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  color: var(--text-dim);
+}
+
+.chat-head .btn.ghost.chat-head-btn:hover:not(:disabled),
+.chat-head .btn.ghost.stop-agent:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-3);
+  border-color: var(--border-strong);
+}
+
+.chat-head .btn.ghost.stop-agent:hover:not(:disabled),
+.chat-head .btn.ghost.stop-agent:focus-visible {
+  color: var(--red);
+  border-color: rgba(255, 59, 48, 0.5);
+  background: rgba(255, 59, 48, 0.08);
+}
+
+.chat-head .btn.ghost.chat-head-btn svg,
+.chat-head .btn.ghost.stop-agent svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 /* Group C: read-only toggle floats below the header, right-aligned over
@@ -1995,14 +2062,17 @@ div.agent-row {
   .chat-head {
     padding-left: 56px;
     padding-right: 10px;
-    gap: 6px;
-    min-height: 48px;
+    gap: 8px;
+    min-height: 52px;
   }
 
-  /* compact controls so the header fits beside the title on a phone */
-  .chat-head .btn.ghost:not(.back) {
-    padding: 5px 8px;
-    font-size: 12.5px;
+  /* floating pills keep their square box on phones (no title to fit beside) */
+  .chat-head .btn.ghost.chat-head-btn,
+  .chat-head .btn.ghost.stop-agent {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    padding: 0;
   }
 
   .ro-toggle {
@@ -2010,33 +2080,11 @@ div.agent-row {
     font-size: 11.5px;
   }
 
-  .chat-name {
-    font-size: 14.5px;
-  }
-
-  .chat-sub {
-    font-size: 11px;
-  }
-
-  /* tight row: title never fully collapses, the model button ellipsizes
-     instead of pushing the power button off-screen */
-  .chat-title {
-    min-width: 72px;
-  }
-
   .chat-controls {
     min-width: 0;
     flex-shrink: 0;
   }
 
-  .chat-controls .btn.ghost {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .chat-controls .ro-toggle,
   .chat-controls .stop-agent {
     flex-shrink: 0;
   }
