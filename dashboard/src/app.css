@@ -1034,6 +1034,26 @@ details.thinking summary {
   opacity: 0.4;
 }
 
+/* composer buttons stay fully opaque (messages scroll beneath the
+   composer, so no transparency): the disabled send keeps a solid
+   muted-navy fill instead of fading, and stop keeps a solid dark-red
+   fill instead of the transparent outline. */
+.btn.primary.send-btn:disabled {
+  opacity: 1;
+  background: #16283f;
+  border-color: var(--border-strong);
+  color: var(--text-dim);
+  box-shadow: none;
+}
+
+.btn.stop.send-btn {
+  background: #2a1210;
+}
+
+.btn.stop.send-btn:hover:not(:disabled) {
+  background: #3a1613;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
