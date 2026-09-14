@@ -85,6 +85,32 @@ curl -s -X POST localhost:3000/api/agents/start \
 # → project still "notes" (GC forces the notes dir)
 ```
 
+## Host agents (Jarvis toggle off)
+
+`POST /api/agents/start` accepts `runtime: "host"` + `directory` (absolute
+path under `/home/dev`, validated by `resolveHostDir` — the home-prefix check
+is skipped under `MOCK_VPS=1` so fixture dirs validate offline). Host spawns
+reject `generalChat` and ignore `readOnly` (no read-only extension on the
+host). `GET /api/host-validate?path=` powers the modal's green/red dot;
+`GET /api/sessions?directory=` feeds the conversation picker. The mock
+records host spawns as `host-mock-<n>` ids with `runtime: "host"` +
+`directory` (same `FakePi` chat flow otherwise).
+
+`mock-smoke` asserts the host contract: validate ok/missing/file,
+sessions-by-directory, spawn id/directory/runtime, `agents_changed` start,
+list row with `runtime`+`directory`, backfill over `/ws/agent/<host-id>`,
+missing/bad-dir/`generalChat` rejections, and terminate → destroy → drop.
+
+Direct checks (from `dashboard/`, mock server on `:3000`):
+
+```bash
+curl -s "localhost:3000/api/host-validate?path=$(pwd)/testdata/mock/projects/alpha"
+# → {"ok":true,"directory":".../alpha","project":"alpha"}
+curl -s -X POST localhost:3000/api/agents/start \
+  -H 'Content-Type: application/json' -d '{"runtime":"host","directory":"'$(pwd)'/testdata/mock/projects/alpha"}'
+# → {"id":"host-mock-N","project":"alpha","directory":"...","runtime":"host",...}
+```
+
 ## Commands (all from `dashboard/`)
 
 - `npm run mock-seed` — regenerate the fixtures (idempotent; absolute paths

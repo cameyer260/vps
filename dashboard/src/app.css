@@ -2652,6 +2652,66 @@ html.chat-typing .composer {
   position: relative;
 }
 
+/* New Agent header row: title left, Jarvis toggle right (green = container
+   on, red = host off — same switch language as ReadOnlyToggle). */
+.start-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.start-head-row h2 {
+  margin: 0;
+}
+
+/* Host directory input + instant validation dot (green = valid, red =
+   invalid, dim = unchecked). */
+.host-dir-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.host-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.host-dot.ok {
+  background: var(--green);
+  opacity: 1;
+  box-shadow: 0 0 8px rgba(52, 199, 89, 0.7);
+}
+
+.host-dot.bad {
+  background: var(--red);
+  opacity: 1;
+  box-shadow: 0 0 8px rgba(255, 59, 48, 0.7);
+}
+
+/* Host agents: warning pill in the agents list + notice text in chat. */
+.host-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid rgba(255, 204, 0, 0.5);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--yellow);
+  background: rgba(255, 204, 0, 0.08);
+  vertical-align: middle;
+}
+
+.host-warn {
+  color: var(--yellow);
+}
+
 .gate-toast {
   position: absolute;
   left: 22px;

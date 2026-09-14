@@ -531,6 +531,58 @@ try {
   await postJSON(`/api/agents/${plain.id}/terminate`, {});
   await sleep(600);
 
+  // ---- host agents (bare-metal pi, docs/host-pi.md) ------------------------
+  // Mock mode relaxes the /home/dev whitelist so fixture dirs validate.
+  const alphaAbs = `${mockDir}/projects/alpha`;
+  const hvOk = await getJSON(`/api/host-validate?path=${encodeURIComponent(alphaAbs)}`);
+  check("host-validate accepts fixture dir", hvOk.ok === true && hvOk.project === "alpha", JSON.stringify(hvOk).slice(0, 160));
+  const hvBad = await getJSON("/api/host-validate?path=/no/such/dir-xyz");
+  check("host-validate rejects missing dir", hvBad.ok === false, JSON.stringify(hvBad).slice(0, 120));
+  const hvFile = await getJSON(`/api/host-validate?path=${encodeURIComponent(`${mockDir}/projects/alpha/src/app.js`)}`);
+  check("host-validate rejects files", hvFile.ok === false, JSON.stringify(hvFile).slice(0, 120));
+  const hostSessions = await getJSON(`/api/sessions?directory=${encodeURIComponent(alphaAbs)}`);
+  check("host sessions by directory", hostSessions.sessions.length >= 1 && hostSessions.project === "alpha", JSON.stringify(hostSessions).slice(0, 160));
+  const hostBadSess = await fetch(`${base}/api/sessions?directory=${encodeURIComponent("/no/such/dir-xyz")}`);
+  check("host sessions reject bad dir", hostBadSess.status === 400, `got ${hostBadSess.status}`);
+  const host = await postJSON("/api/agents/start", { runtime: "host", directory: alphaAbs, name: "smoke host" });
+  check("host spawn returns host id", typeof host.id === "string" && host.id.startsWith("host-"), JSON.stringify(host));
+  check("host spawn reports directory", host.directory === alphaAbs && host.runtime === "host", JSON.stringify(host));
+  const hostId = host.id;
+  await sleep(600);
+  check("events: agents_changed start (host)", evSeen.some((m) => m.type === "agents_changed" && m.action === "start" && m.id === hostId));
+  const hostList = await getJSON("/api/agents");
+  const hostRow = hostList.agents.find((a) => a.id === hostId);
+  check("host agent lists with runtime+directory", !!hostRow && hostRow.runtime === "host" && hostRow.directory === alphaAbs, JSON.stringify(hostRow).slice(0, 200));
+  const hostChat = await wsConnect(`/ws/agent/${hostId}`);
+  await wsWait(hostChat, (m) => m.type === "hello", 5_000, "hello (host)");
+  hostChat.send(JSON.stringify({ type: "backfill", reqId: "h1" }));
+  const hostBf = await wsWait(hostChat, (m) => m.type === "backfill" && m.reqId === "h1", 5_000, "backfill (host)");
+  check("host backfill works", hostBf.success === true, JSON.stringify(hostBf).slice(0, 120));
+  hostChat.close();
+  const hostMissing = await fetch(`${base}/api/agents/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runtime: "host" }),
+  });
+  check("host spawn requires directory", hostMissing.status === 400, `got ${hostMissing.status}`);
+  const hostBadDir = await fetch(`${base}/api/agents/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runtime: "host", directory: "/no/such/dir-xyz" }),
+  });
+  check("host spawn rejects bad dir", hostBadDir.status === 400, `got ${hostBadDir.status}`);
+  const hostGc = await fetch(`${base}/api/agents/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runtime: "host", directory: alphaAbs, generalChat: true }),
+  });
+  check("host spawn rejects generalChat", hostGc.status === 400, `got ${hostGc.status}`);
+  await postJSON(`/api/agents/${hostId}/terminate`, {});
+  await sleep(600);
+  check("events: agents_changed destroy (host)", evSeen.some((m) => m.type === "agents_changed" && (m.action === "destroy" || m.action === "die") && m.id === hostId));
+  const afterHost = await getJSON("/api/agents");
+  check("terminated host drops from list", !afterHost.agents.some((a) => a.id === hostId));
+
   // ---- gc idle reaper --------------------------------------------------------
   // A GC agent with no connected tabs is reaped after the idle timeout,
   // while a plain agent left equally alone survives. Poll (don't fixed-sleep)

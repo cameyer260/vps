@@ -26,6 +26,7 @@ interface MockAgent {
   state: string;
   startedAt: string;
   fakePi: FakePi;
+  runtime: "jarvis" | "host";
 }
 
 interface ScenarioAgentConfig {
@@ -91,6 +92,8 @@ export class MockRuntime implements ContainerRuntime {
       generalChat: a.generalChat,
       model: null,
       thinkingLevel: null,
+      runtime: a.runtime,
+      directory: a.runtime === "host" ? a.dir : null,
     }));
     out.sort((x, y) => x.project.localeCompare(y.project) || x.name.localeCompare(y.name));
     return Promise.resolve(out);
@@ -105,6 +108,10 @@ export class MockRuntime implements ContainerRuntime {
     };
     if (a.origin) labels["agent.origin"] = a.origin;
     if (a.generalChat) labels["agent.generalchat"] = "true";
+    if (a.runtime === "host") {
+      labels["agent.runtime"] = "host";
+      labels["agent.directory"] = a.dir;
+    }
     return Promise.resolve(labels);
   }
 
@@ -130,7 +137,8 @@ export class MockRuntime implements ContainerRuntime {
   }
 
   spawn(opts: SpawnOptions): Promise<string> {
-    const id = `mock-${++this.seq}`;
+    const host = opts.runtime === "host";
+    const id = host ? `host-mock-${++this.seq}` : `mock-${++this.seq}`;
     const project = path.basename(opts.project);
     const dir = opts.project;
     let history: FakePiHistoryEntry[] | undefined;
@@ -168,6 +176,7 @@ export class MockRuntime implements ContainerRuntime {
       state: "running",
       startedAt: new Date().toISOString(),
       fakePi,
+      runtime: host ? "host" : "jarvis",
     });
     this.emit({ action: "start", id });
     return Promise.resolve(id);
@@ -215,6 +224,7 @@ export class MockRuntime implements ContainerRuntime {
       state: "running",
       startedAt: new Date().toISOString(),
       fakePi,
+      runtime: "jarvis",
     });
   }
 

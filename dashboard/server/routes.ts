@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import fs from "node:fs";
 import path from "node:path";
-import { config, notesName, projectDir } from "./config.js";
+import { config, notesName, projectDir, resolveHostDir } from "./config.js";
 import type { AgentInfo } from "./docker.js";
 import { getRuntime } from "./runtime.js";
 import { gitCommitPush, gitStatus } from "./git.js";
@@ -69,12 +69,44 @@ api.get("/agents", async (c) => {
 api.post("/agents/start", async (c) => {
   const body = (await c.req.json()) as {
     project?: string;
+    directory?: string;
+    runtime?: string;
     sessionPath?: string;
     name?: string;
     readOnly?: boolean;
     generalChat?: boolean;
   };
+  const runtime = body.runtime === "host" ? "host" : "jarvis";
   const generalChat = !!body.generalChat;
+
+  // Bare-metal host agents (docs/host-pi.md): cwd anywhere under /home/dev,
+  // no read-only extension, no General Chat. Whitelist enforced here and
+  // again in the supervisor.
+  if (runtime === "host") {
+    if (generalChat) return c.json({ error: "generalChat is not supported for host agents" }, 400);
+    if (!body.directory?.trim()) return c.json({ error: "directory is required for host agents" }, 400);
+    const dir = await resolveHostDir(body.directory);
+    if (!dir) return c.json({ error: `invalid directory (must exist under ${config.homeDir}): ${body.directory}` }, 400);
+    let sessionPath: string | undefined;
+    if (body.sessionPath) {
+      const abs = path.resolve(body.sessionPath);
+      if (!abs.startsWith(config.sessionsDir + path.sep) || !abs.endsWith(".jsonl")) {
+        return c.json({ error: "sessionPath must be a pi session file under the sessions dir" }, 400);
+      }
+      sessionPath = abs;
+    }
+    const name = body.name?.trim().slice(0, 200) || undefined;
+    const project = path.basename(dir);
+    let id: string;
+    try {
+      id = await getRuntime().spawn({ project: dir, sessionPath, name, readOnly: false, generalChat: false, runtime: "host" });
+    } catch (err) {
+      return c.json({ error: String(err instanceof Error ? err.message : err) }, 502);
+    }
+    await ensureBridge(id, project, { explicitName: name }).catch(() => undefined);
+    return c.json({ id, project, directory: dir, runtime: "host", generalChat: false });
+  }
+
   // GC spawns are always notes-dir agents: force the project even when the
   // caller sends another (or none). Non-GC spawns still require a project.
   const project = generalChat ? notesName() : body.project?.trim();
@@ -95,11 +127,11 @@ api.post("/agents/start", async (c) => {
   // false` opts out. Project agents keep today's default-off semantics.
   const readOnly = generalChat ? body.readOnly !== false : !!body.readOnly;
 
-  const containerId = await getRuntime().spawn({ project: dir, sessionPath, name, readOnly, generalChat });
+  const containerId = await getRuntime().spawn({ project: dir, sessionPath, name, readOnly, generalChat, runtime: "jarvis" });
   // Pass the spawn name so the bridge can pin it: pi's auto-generated
   // session_info titles must never override a user-provided name.
   await ensureBridge(containerId, project, { explicitName: name }).catch(() => undefined);
-  return c.json({ id: containerId, project, generalChat });
+  return c.json({ id: containerId, project, runtime: "jarvis", generalChat });
 });
 
 api.post("/agents/:id/terminate", async (c) => {
@@ -120,12 +152,30 @@ api.get("/agents/:id/logs", (c) => {
 // ---- sessions (resume) --------------------------------------------------
 
 api.get("/sessions", async (c) => {
+  // Host mode passes an absolute directory instead of a project name
+  // (docs/host-pi.md); same session store, same cwd matching.
+  const directory = c.req.query("directory");
+  if (directory) {
+    const dir = await resolveHostDir(directory);
+    if (!dir) return c.json({ error: `invalid directory: ${directory}` }, 400);
+    const sessions = await listSessions(dir);
+    return c.json({ sessions, directory: dir, project: path.basename(dir) });
+  }
   const project = c.req.query("project");
   if (!project) return c.json({ error: "project query param is required" }, 400);
   const dir = projectDir(project);
   if (!dir) return c.json({ error: `invalid project name: ${project}` }, 400);
   const sessions = await listSessions(dir);
   return c.json({ sessions });
+});
+
+// ---- host directory validation (New Agent modal green/red dot) -----------
+
+api.get("/host-validate", async (c) => {
+  const input = c.req.query("path") ?? "";
+  const dir = await resolveHostDir(input);
+  if (!dir) return c.json({ ok: false as const, error: `not a directory under ${config.homeDir}` });
+  return c.json({ ok: true as const, directory: dir, project: path.basename(dir) });
 });
 
 // ---- model scope (picker "scoped" tab) --------------------------------------

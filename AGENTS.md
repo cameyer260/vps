@@ -29,8 +29,11 @@ environment) and [docs/jarvis.md](docs/jarvis.md) (the jarvis contract).
 truth for its behavior — the dashboard shells out to it and never re-derives
 the flags. Rules:
 
-- The dashboard starts agents **only** by shelling out to `jarvis rpc`. It
+- The dashboard starts jarvis agents by shelling out to `jarvis rpc`. It
   uses the Docker API only to list/inspect/attach/stop containers.
+  Bare-metal host agents (New Agent modal with the Jarvis toggle off) spawn
+  through the host supervisor socket instead — see [docs/host-pi.md](docs/host-pi.md).
+  Both show up as agents in the same list (`runtime: jarvis | host`).
 - Discover agents via labels — `agent.kind=pi` (all agents),
   `agent.project=<basename>`, `agent.origin=dashboard` (dashboard-managed) —
   **never by container name** (containers get no `--name`; multiple agents

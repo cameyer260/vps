@@ -11,13 +11,15 @@ How the dashboard works inside. Usage and deployment:
       ▼
     dashboard container (Node/TypeScript, Hono)
       ├─ serves React SPA (Vite build)
-      ├─ starts agents by shelling out to `jarvis rpc`
+      ├─ starts jarvis agents by shelling out to `jarvis rpc`, host agents
+      │    via the host supervisor socket (docs/host-pi.md)
       ├─ talks to agents through the `ContainerRuntime` seam
-      │    (server/runtime.ts): `DockerRuntime` in prod — list / inspect /
-      │    attach / stop containers via the Docker API (dockerode), plus the
-      │    daemon's event stream (container lifecycle → /ws/events); the
-      │    `MockRuntime` in-memory fake swaps in under `MOCK_VPS=1` (dev
-      │    only, never production — see docs/testing.md)
+      │    (server/runtime.ts): `CombinedRuntime` in prod — `DockerRuntime`
+      │    (list / inspect / attach / stop containers via the Docker API +
+      │    daemon event stream) merged with `HostRuntime` (bare-metal pi via
+      │    the supervisor socket + its subscribe stream); lifecycle from both
+      │    feeds /ws/events. `MockRuntime` in-memory fake swaps in under
+      │    `MOCK_VPS=1` (dev only, never production — see docs/testing.md)
       ├─ WebSocket per open chat, relays pi RPC JSONL both ways
       ├─ global events WebSocket (/ws/events): agent list push, no polling
       └─ host-side git operations (status / commit / push; remotes auth
@@ -160,14 +162,11 @@ is container isolation.
   (`/preview/:agent/:port`) riding the existing Cloudflare tunnel + Access
   auth. Alternative (worse): per-agent `cloudflared` quick tunnels —
   public URLs that bypass Access.
-- **Bare-metal pi agent option**: spawn a regular pi agent directly on the
-  host (no jarvis/container) and drive it from the dashboard UI. This
-  punches through the container-isolation model the jarvis contract is
-  built on; it would need a host-side socket-activated bridge service
-  (like `jarvis-git-bridge`), an args/project whitelist, its own doc in
-  `docs/`, and an explicit decision on the isolation tradeoff. Note
-  jarvis already accepts absolute project paths, which covers most of the
-  motivating use case.
+- **Bare-metal pi agent option**: shipped (docs/host-pi.md) — the New Agent
+  modal's Jarvis toggle spawns host agents via the supervisor socket when
+  off. Host agents carry `runtime: "host"` + `directory`, hide the
+  read-only toggle, and show a `host` pill; the supervisor owns its pi
+  children so they are never orphaned.
 - **More file formats in the notes IDE** (the markdown live editor and the
   CSV grid shipped; further formats ride the same editor shell).
 - **Delete sessions from the UI.**

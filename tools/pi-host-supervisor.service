@@ -1,0 +1,18 @@
+[Unit]
+Description=pi host supervisor (bare-metal dashboard agents, no containers)
+After=network.target
+
+[Service]
+Type=simple
+# bash -lc resolves node via nvm (no version pin here).
+ExecStart=/bin/bash -lc 'exec node /home/dev/vps/tools/pi-host-supervisor.mjs'
+Restart=on-failure
+RestartSec=5
+# The supervisor owns its pi children (direct spawn, pipes held here):
+# stopping it stops them too — host agents are never orphaned.
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target

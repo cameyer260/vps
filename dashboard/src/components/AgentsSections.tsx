@@ -111,6 +111,7 @@ function AgentRow({
   // Never a docker container name (Group F): untitled until pi titles the
   // conversation from the first message.
   const title = agent.sessionName || "New chat";
+  const isHost = agent.runtime === "host";
   return (
     <div
       className="agent-row"
@@ -118,11 +119,18 @@ function AgentRow({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onOpenChat(agent.id)}
-      title={title}
+      title={isHost && agent.directory ? `${title} — ${agent.directory}` : title}
     >
       <span className={`dot ${dot.cls}`} aria-hidden="true" />
       <span className="agent-main">
-        <span className="agent-title">{title}</span>
+        <span className="agent-title">
+          {title}
+          {isHost && (
+            <span className="host-pill" title={agent.directory ?? "bare-metal host pi"}>
+              host
+            </span>
+          )}
+        </span>
       </span>
       <span className="agent-side">
         <span className="agent-meta">{uptime(agent.startedAt, now)}</span>

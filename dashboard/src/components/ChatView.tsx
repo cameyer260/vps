@@ -64,6 +64,7 @@ interface Props {
 export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlyState }: Props) {
   const chat = useChat(agent);
   const { state } = chat;
+  const isHost = agent.runtime === "host";
   const [input, setInput] = useState("");
   const [composing, setComposing] = useState(false);
   // Header info modal (ⓘ left of the power button): model, effort, and
@@ -406,8 +407,9 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
       </header>
       )}
       {/* Read-only floats below the header, right-aligned over the
-          messages — no border extension, no extra header height (Group C). */}
-      {!hideHeader && (
+          messages — no border extension, no extra header height (Group C).
+          Host agents load no read-only extension, so they carry no toggle. */}
+      {!hideHeader && !isHost && (
         <div className="chat-ro-float">
           <ReadOnlyToggle
             value={state.readOnly}
@@ -429,7 +431,11 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           ) : (
             <div className="empty">
               <p>Say something to this agent.</p>
-              <p className="dim">It runs in its own container, scoped to {agent.project}.</p>
+              {isHost ? (
+                <p className="dim host-warn">Runs on the host with full dev permissions{agent.directory ? ` in ${agent.directory}` : ""} — no container isolation.</p>
+              ) : (
+                <p className="dim">It runs in its own container, scoped to {agent.project}.</p>
+              )}
             </div>
           ))}
         </div>

@@ -65,5 +65,6 @@ exec docker run -d --name "$NAME" \
   -v "$HOME/.gitconfig:/home/dev/.gitconfig:ro" \
   -v "$HOME/.config/gh:/home/dev/.config/gh:ro" \
   -v "/run/user/$(id -u)/jarvis-git-bridge.sock:/run/user/$(id -u)/jarvis-git-bridge.sock" \
+  -v "/run/user/$(id -u)/pi-host-supervisor.sock:/run/user/$(id -u)/pi-host-supervisor.sock" \
   -p "127.0.0.1:${HOST_PORT}:3000" \
   dashboard

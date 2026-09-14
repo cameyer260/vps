@@ -33,6 +33,10 @@ export interface AgentInfo {
   generalChat?: boolean | null;
   model: string | null;
   thinkingLevel: string | null;
+  /** Spawn path: jarvis containers vs bare-metal host pi (docs/host-pi.md). */
+  runtime?: "jarvis" | "host" | null;
+  /** Full host directory for host agents; null for jarvis containers. */
+  directory?: string | null;
 }
 
 export interface SessionSummary {

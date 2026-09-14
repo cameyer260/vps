@@ -26,6 +26,14 @@ export const api = {
     fetch(`/api/sessions?project=${encodeURIComponent(project)}`).then((r) =>
       json<{ sessions: SessionSummary[] }>(r),
     ),
+  sessionsByDir: (directory: string) =>
+    fetch(`/api/sessions?directory=${encodeURIComponent(directory)}`).then((r) =>
+      json<{ sessions: SessionSummary[]; directory: string; project: string }>(r),
+    ),
+  validateHostDir: (path: string) =>
+    fetch(`/api/host-validate?path=${encodeURIComponent(path)}`).then((r) =>
+      json<{ ok: true; directory: string; project: string } | { ok: false; error: string }>(r),
+    ),
   scope: () => fetch("/api/models/scope").then((r) => json<{ patterns: string[] | null }>(r)),
   skills: () => fetch("/api/skills").then((r) => json<{ skills: SkillInfo[] }>(r)),
   upload: (file: File) => {
@@ -34,7 +42,9 @@ export const api = {
     return fetch("/api/upload", { method: "POST", body: fd }).then((r) => json<UploadedFile>(r));
   },
   startAgent: (body: {
-    project: string;
+    project?: string;
+    directory?: string;
+    runtime?: "jarvis" | "host";
     sessionPath?: string;
     name?: string;
     readOnly?: boolean;
@@ -44,7 +54,7 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    }).then((r) => json<{ id: string; project: string }>(r)),
+    }).then((r) => json<{ id: string; project: string; directory?: string; runtime?: string }>(r)),
   terminateAgent: (id: string) =>
     fetch(`/api/agents/${id}/terminate`, {
       method: "POST",
