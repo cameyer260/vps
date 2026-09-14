@@ -126,8 +126,8 @@ function AgentRow({
         <span className="agent-title">
           {title}
           {isHost && (
-            <span className="host-pill" title={agent.directory ?? "bare-metal host pi"}>
-              host
+            <span className="jarvis-off-pill" title={agent.directory ?? "bare-metal host pi"}>
+              jarvis off
             </span>
           )}
         </span>

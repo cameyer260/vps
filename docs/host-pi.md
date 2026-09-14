@@ -76,7 +76,7 @@ Enforced twice (dashboard route + supervisor, same rule):
 - `GET /api/sessions?directory=` feeds the conversation picker in host mode.
 - `/ws/agent/:id` and terminate work unchanged (runtime routes by id prefix).
 - Host agents hide the read-only toggle (no extension loaded) and show a
-  `host` pill + full-path notice instead of the container scoping line.
+  `jarvis off` pill + full-path notice instead of the container scoping line.
 
 ## Operations (as dev)
 
@@ -115,5 +115,5 @@ host agents; the dashboard list drops them via the `die`/`destroy` events.
 Jarvis: isolated container, one project mount, no host creds — the boundary
 *is* the safeguard. Host: full `dev` user — can read `~/.config/gh`,
 rewrite anything in `/home/dev`, touch services. The Agents tab marks these
-with a `host` pill; the chat shows the full directory. Don't use host mode
+with a `jarvis off` pill; the chat shows the full directory. Don't use host mode
 for untrusted tasks.

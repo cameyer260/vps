@@ -373,6 +373,11 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           aria-hidden="true"
           title={streaming ? "streaming" : exited ? "exited" : state.connected ? "idle" : "connecting"}
         />
+        {isHost && (
+          <span className="jarvis-off-pill" title={agent.directory ?? "bare-metal host pi"}>
+            jarvis off
+          </span>
+        )}
         <div className="chat-spacer" aria-hidden="true" />
         <div className="chat-controls">
           <button

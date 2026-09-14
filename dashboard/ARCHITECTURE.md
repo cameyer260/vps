@@ -165,7 +165,7 @@ is container isolation.
 - **Bare-metal pi agent option**: shipped (docs/host-pi.md) — the New Agent
   modal's Jarvis toggle spawns host agents via the supervisor socket when
   off. Host agents carry `runtime: "host"` + `directory`, hide the
-  read-only toggle, and show a `host` pill; the supervisor owns its pi
+  read-only toggle, and show a `jarvis off` pill; the supervisor owns its pi
   children so they are never orphaned.
 - **More file formats in the notes IDE** (the markdown live editor and the
   CSV grid shipped; further formats ride the same editor shell).

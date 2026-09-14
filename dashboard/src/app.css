@@ -2722,8 +2722,8 @@ html.chat-typing .composer {
   white-space: nowrap;
 }
 
-/* Host agents: warning pill in the agents list + notice text in chat. */
-.host-pill {
+/* Jarvis-off tag: marks bare-metal host agents (no container isolation). */
+.jarvis-off-pill {
   display: inline-block;
   margin-left: 8px;
   padding: 1px 8px;
