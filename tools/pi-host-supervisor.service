@@ -4,6 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
+# pi lives under nvm, which is NOT on systemd's default PATH — spawn(PI_BIN)
+# with plain "pi" fails with ENOENT (every host prompt then hangs with no
+# response). Pin the absolute path here; update it if the node version changes.
+Environment=PI_BIN=/home/dev/.nvm/versions/node/v24.19.0/bin/pi
 # bash -lc resolves node via nvm (no version pin here).
 ExecStart=/bin/bash -lc 'exec node /home/dev/vps/tools/pi-host-supervisor.mjs'
 Restart=on-failure

@@ -433,6 +433,9 @@ button {
   padding: 8px 11px;
   width: 100%;
   font: inherit;
+  /* 16px: below that iOS Safari zooms the page when the input is focused
+     (and stays zoomed) — same reason the composer textarea is 16px. */
+  font-size: 16px;
   transition: border-color 0.15s var(--ease);
 }
 
@@ -2692,6 +2695,31 @@ html.chat-typing .composer {
   background: var(--red);
   opacity: 1;
   box-shadow: 0 0 8px rgba(255, 59, 48, 0.7);
+}
+
+/* Host directory input: fixed "/home/dev/" prefix (never typed) + the
+   relative part. */
+.host-dir-row .host-prefix {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.host-dir-row .host-dir-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Directory heading row: label left, "from /home/dev" note right. */
+.start-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.start-label-note {
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 /* Host agents: warning pill in the agents list + notice text in chat. */

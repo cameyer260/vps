@@ -93,8 +93,12 @@ journalctl --user -u pi-host-supervisor.service -f
 ls /run/user/$(id -u)/pi-host-supervisor.sock
 ```
 
-Prerequisites: `pi` on `dev`'s PATH (the supervisor spawns `PI_BIN`, default
-`pi`), lingering already enabled (AGENTS.md). Stopping the service stops all
+Prerequisites: the unit pins `PI_BIN` to the absolute nvm pi path — plain
+`pi` is NOT on systemd's default PATH, and spawning without it fails every
+host agent with `ENOENT` (update the pin if the node version changes). A
+spawn whose child fails to start returns `ok: false` instead of a ghost id,
+and the service logs a `WARNING` at boot when `PI_BIN` isn't executable.
+Lingering already enabled (AGENTS.md). Stopping the service stops all
 host agents; the dashboard list drops them via the `die`/`destroy` events.
 
 ## Isolation tradeoff (explicit)

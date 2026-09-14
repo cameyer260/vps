@@ -16,9 +16,10 @@ interface Props {
  * New Agent modal: Jarvis containers by default, bare-metal host pi with the
  * Jarvis toggle off (docs/host-pi.md). Jarvis mode keeps the project picker
  * (+ new-project autocreate), read-only toggle, and conversation picker;
- * host mode swaps the project picker for an absolute directory input with
- * instant valid/invalid dot, hides read-only (no extension on the host),
- * and keeps the conversation picker (same session store, matched by cwd).
+ * host mode swaps the project picker for a /home/dev-relative directory
+ * input with instant valid/invalid dot, hides read-only (no extension on
+ * the host), and keeps the conversation picker (same session store,
+ * matched by cwd).
  */
 export function StartDialog({ initialProject, notesName, onClose, onStarted }: Props) {
   const [projects, setProjects] = useState<string[]>([]);
@@ -31,8 +32,9 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
   // pre-fills (kept for callers that deep-link with one).
   const [project, setProject] = useState<string>(initialProject ?? "");
   const [newProject, setNewProject] = useState("");
-  // Host-mode directory input + instant validation (green/red dot).
-  const [directory, setDirectory] = useState("");
+  // Host-mode directory, relative to /home/dev (the "/home/dev/" prefix
+  // is fixed UI, never typed) + instant validation (green/red dot).
+  const [relDir, setRelDir] = useState("");
   const [dirValid, setDirValid] = useState<boolean | null>(null);
   const [dirNormalized, setDirNormalized] = useState<string | null>(null);
   const [dirProject, setDirProject] = useState<string | null>(null);
@@ -74,16 +76,20 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
   }, []);
 
   // Instant directory validation for host mode (debounced): green dot when
-  // the path exists under /home/dev, red otherwise.
+  // the path exists under /home/dev, red otherwise. The input holds just
+  // the part after "/home/dev/" — join it here (tolerating a pasted
+  // absolute path or leading slashes) so the server keeps validating an
+  // absolute dir and the spawn path is unchanged.
   useEffect(() => {
     if (jarvis) return;
-    const value = directory.trim();
-    if (!value) {
+    const rel = relDir.trim().replace(/^\/+/, "").replace(/^home\/dev\//, "");
+    if (!rel) {
       setDirValid(null);
       setDirNormalized(null);
       setDirProject(null);
       return;
     }
+    const value = `/home/dev/${rel}`;
     setDirValid(null);
     const t = setTimeout(() => {
       api
@@ -106,7 +112,7 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
         });
     }, 250);
     return () => clearTimeout(t);
-  }, [directory, jarvis]);
+  }, [relDir, jarvis]);
 
   useEffect(() => {
     if (!jarvis) {
@@ -254,20 +260,26 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
 
         {!jarvis ? (
           <>
-            <label className="field-label" htmlFor="start-directory">
-              Directory
-            </label>
+            <div className="start-label-row">
+              <label className="field-label" htmlFor="start-directory">
+                Directory
+              </label>
+              <span className="dim start-label-note">from /home/dev</span>
+            </div>
             <div className="host-dir-row">
+              <span className="host-prefix" aria-hidden="true">
+                /home/dev/
+              </span>
               <input
                 id="start-directory"
-                className="input"
-                autoFocus
-                placeholder="/home/dev/notes"
-                value={directory}
-                onChange={(e) => setDirectory(e.target.value)}
-                aria-label="Host directory"
+                className="input host-dir-input"
+                value={relDir}
+                onChange={(e) => setRelDir(e.target.value)}
+                aria-label="Host directory, relative to /home/dev"
                 spellCheck={false}
                 autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
               />
               <span
                 className={`host-dot${dirValid === true ? " ok" : dirValid === false ? " bad" : ""}`}
@@ -285,9 +297,9 @@ export function StartDialog({ initialProject, notesName, onClose, onStarted }: P
               <div className="dim pad">
                 {dirProject} — {dirNormalized}
               </div>
-            ) : (
-              <div className="dim pad">absolute path under /home/dev — must already exist</div>
-            )}
+            ) : dirValid === false && relDir.trim() !== "" ? (
+              <div className="dim pad">not a directory under /home/dev</div>
+            ) : null}
             <div className="dim pad host-warn">
               Runs on the host with full dev permissions — no container isolation.
             </div>

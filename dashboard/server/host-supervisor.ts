@@ -35,8 +35,19 @@ function readLine(socket: net.Socket, timeoutMs: number): Promise<string> {
       const idx = buf.indexOf("\n");
       if (idx !== -1) {
         const line = buf.slice(0, idx).replace(/\r$/, "");
-        buf = buf.slice(idx + 1);
+        const rest = buf.slice(idx + 1);
+        buf = "";
         cleanup();
+        // The handshake line can share a TCP chunk with early pi output:
+        // push the remainder back so the attach stream keeps every byte.
+        // (Discarding it here corrupted the first JSONL frame.)
+        if (rest) {
+          try {
+            socket.unshift(Buffer.from(rest, "utf8"));
+          } catch {
+            /* ignore */
+          }
+        }
         resolve(line);
       } else if (buf.length > 256 * 1024) {
         cleanup();

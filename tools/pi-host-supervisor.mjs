@@ -13,7 +13,8 @@
  *   {"op":"ping"} → {"ok":true,...}
  *   {"op":"list"} → {"ok":true,"agents":[{id,directory,project,pid,startedAt,state}]}
  *   {"op":"spawn","cwd":"/home/dev/...","sessionPath":"/abs/...jsonl"|undefined,"name":string|undefined}
- *     → {"ok":true,"id","pid","directory","project","startedAt"} (validates whitelist)
+ *     → {"ok":true,"id","pid","directory","project","startedAt"} (validates whitelist;
+ *       an immediately-failing child returns {"ok":false} — never a ghost id)
  *   {"op":"kill","id":"host-..."} → {"ok":true} (idempotent; SIGTERM → SIGKILL, deletes entry)
  *   {"op":"logs","id":"host-..."} → {"ok":true,"stderr":[...last 200 lines]}
  * Streaming ops keep the connection open after the {"ok":true} reply:
@@ -29,7 +30,9 @@
  *   PI_HOST_SUPERVISOR_SOCK — socket path (default /run/user/1000/pi-host-supervisor.sock)
  *   HOME_DIR / HOME — whitelist root (default /home/dev)
  *   PI_SESSIONS_DIR — sessionPath root (default /home/dev/.pi/agent/sessions)
- *   PI_BIN — pi binary (default "pi")
+ *   PI_BIN — pi binary (default "pi"). NOTE: plain "pi" is NOT on the
+ *   systemd unit's PATH (nvm), so the unit pins the absolute nvm path —
+ *   without it every spawn fails async with ENOENT (see doSpawn gate).
  *   PI_HOST_STATE_DIR — pidfile dir (default ~/.local/state/pi-host-supervisor)
  *
  * Node builtins only.
@@ -167,6 +170,18 @@ async function doSpawn(req) {
   } catch (err) {
     return { ok: false, error: `spawn failed: ${String(err?.message ?? err)}` };
   }
+  // Gate on the child actually starting: an unresolvable PI_BIN (e.g. a
+  // systemd PATH without nvm) fails async with 'error' (ENOENT) while
+  // `spawn()` itself returns fine. Registering the agent anyway is what
+  // stranded dashboards on "no response for prompt" — fail the RPC instead
+  // so the UI shows the error immediately and no ghost agent lingers.
+  const spawnErr = await new Promise((resolve) => {
+    child.once("spawn", () => resolve(null));
+    child.once("error", resolve);
+  });
+  if (spawnErr) {
+    return { ok: false, error: `spawn failed (${PI_BIN}): ${String(spawnErr?.message ?? spawnErr)}` };
+  }
   const agent = {
     id,
     directory,
@@ -204,6 +219,11 @@ async function doSpawn(req) {
   });
   child.stderr.on("data", (chunk) => {
     pushStderr(agent, chunk);
+  });
+  // Writes to a dying pi's stdin surface as EPIPE 'error' events on the
+  // pipe — without a listener those become uncaughtExceptions.
+  child.stdin?.on("error", (err) => {
+    pushStderr(agent, Buffer.from(`[supervisor] stdin error: ${String(err?.message ?? err)}\n`));
   });
   child.on("close", () => {
     if (agent.state === "running") {
@@ -486,6 +506,13 @@ async function isLiveSocket(p) {
 }
 
 await sweepStalePidfiles();
+// Fail visibly, not mysteriously: PI_BIN must resolve here (the systemd
+// unit pins the absolute nvm path — plain "pi" is NOT on its PATH).
+try {
+  await fs.promises.access(PI_BIN, fs.constants.X_OK);
+} catch {
+  log(`WARNING: PI_BIN=${PI_BIN} is not executable — host spawns will fail (set PI_BIN to the absolute pi path; see docs/host-pi.md)`);
+}
 try {
   const st = await fs.promises.stat(SOCK).catch(() => null);
   if (st) {
@@ -500,7 +527,7 @@ try {
   log("socket pre-check failed:", String(err?.message ?? err));
 }
 await fs.promises.mkdir(path.dirname(SOCK), { recursive: true }).catch(() => {});
-server.listen(SOCK, () => log(`listening on ${SOCK} (pid ${process.pid})`));
+server.listen(SOCK, () => log(`listening on ${SOCK} (pid ${process.pid}, PI_BIN=${PI_BIN})`));
 server.on("error", (err) => {
   log("server error:", String(err?.message ?? err));
   process.exit(1);
