@@ -250,10 +250,30 @@ button {
 }
 
 .agent-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-weight: 500;
+}
+
+/* Title text truncates on narrow screens; the jarvis-off pill is a
+   separate flex item so it can never be ellipsis-clipped away. */
+.agent-title-text {
+  flex: 1 1 auto;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 500;
+}
+
+.agent-title .jarvis-off-pill {
+  flex-shrink: 0;
+}
+
+/* Chat header already gaps its children — no extra left margin needed. */
+.chat-head .jarvis-off-pill {
+  margin-left: 0;
+  flex-shrink: 0;
 }
 
 .agent-meta {

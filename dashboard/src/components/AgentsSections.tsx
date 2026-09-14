@@ -124,7 +124,7 @@ function AgentRow({
       <span className={`dot ${dot.cls}`} aria-hidden="true" />
       <span className="agent-main">
         <span className="agent-title">
-          {title}
+          <span className="agent-title-text">{title}</span>
           {isHost && (
             <span className="jarvis-off-pill" title={agent.directory ?? "bare-metal host pi"}>
               jarvis off
