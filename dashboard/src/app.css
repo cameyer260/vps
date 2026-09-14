@@ -508,13 +508,25 @@ button {
   flex-direction: column;
   height: var(--app-h, 100vh);
   position: relative;
+  /* Overlay layout (Grok-style): the header and composer are absolute
+     overlays floating above a full-bleed message scroll, so text slides
+     beneath the glass pills instead of clipping at bar edges. Their live
+     heights are measured in ChatView (ResizeObserver) into these vars so
+     the scroll pads its content clear; the defaults hold pre-measure. */
+  --chat-head-h: 76px;
+  --composer-h: 84px;
 }
 
-/* Floating header — no strip chrome. Transparent bar; a ::before layer
-   carries a plain top-down gradient (chrome at the top dissolving to
-   transparent) so scrolled messages fade out behind the pills. Gradient
-   only — no backdrop-filter, no mask — so there is nothing that can
-   stack over or blur the controls themselves. */
+/* headerless GC has no overlay header — no top pad needed. */
+.gc-chat {
+  --chat-head-h: 0px;
+}
+
+/* Floating header — an overlay pinned to the top of .chat, not an
+   in-flow strip. Messages scroll full-bleed beneath it; a ::before layer
+   carries a plain top-down gradient (chrome dissolving to transparent)
+   for the blend. Gradient only — no backdrop-filter, no mask. The blur
+   lives on the pills, which now blur live scrolling text (liquid glass). */
 .chat-head {
   display: flex;
   align-items: center;
@@ -525,7 +537,10 @@ button {
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 5;
 }
 
@@ -602,14 +617,15 @@ button {
   display: block;
 }
 
-/* Group C: read-only toggle floats below the header, right-aligned over
-   the messages. Transparent, no border extension, no layout height — the
+/* Group C: read-only toggle floats over the messages, right-aligned just
+   below the overlay header. Transparent, no layout height — the top
+   padding clears the header overlay (tracked via --chat-head-h) and the
    negative margin pulls the messages up underneath so this consumes zero
    vertical space. Container is click-through except the toggle itself. */
 .chat-ro-float {
   display: flex;
   justify-content: flex-end;
-  padding: 2px 14px 0;
+  padding: calc(var(--chat-head-h) + 2px) 14px 0;
   margin-bottom: -32px;
   position: relative;
   z-index: 4;
@@ -670,7 +686,9 @@ button {
 .messages-inner {
   max-width: 820px;
   margin: 0 auto;
-  padding: 22px 16px 30px;
+  /* full-bleed scroll runs under both overlays: pad content clear of
+     them (tracked via the measured vars) so nothing rests hidden. */
+  padding: calc(var(--chat-head-h) + 12px) 16px calc(var(--composer-h) + 20px);
 }
 
 .msg {
@@ -887,6 +905,10 @@ details.thinking summary {
   width: 100%;
   margin: 0 auto;
   padding: 0 16px;
+  /* transient rail paints above the composer overlay (both sit at the
+     container bottom now that the composer is absolute). */
+  position: relative;
+  z-index: 6;
 }
 
 .notice {
@@ -909,16 +931,20 @@ details.thinking summary {
   color: var(--red);
 }
 
-/* composer — floating glass controls, no bar chrome. The bar itself has
-   no background/border of its own; a ::before layer carries a plain
-   bottom-anchored gradient (transparent at top → chrome at bottom) so
-   scrolled messages fade out before sliding under the pills. Gradient
-   only — no backdrop-filter, no mask — so it can never blur or cover
-   the input: the textarea, paperclip, and send buttons sit above it
-   (z-index) with their own glass surfaces + shadows (Grok-style). */
+/* composer — a floating overlay pinned to the bottom of .chat, not an
+   in-flow strip. Messages scroll full-bleed beneath it; a ::before layer
+   carries a plain bottom-anchored gradient (transparent → chrome) for
+   the blend. Gradient only — no backdrop-filter, no mask — so it can
+   never blur or cover the input: the textarea, paperclip, and send
+   buttons sit above it (z-index) with their own glass surfaces +
+   shadows, now blurring live scrolling text (Grok-style). */
 
 .composer {
-  position: relative;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;

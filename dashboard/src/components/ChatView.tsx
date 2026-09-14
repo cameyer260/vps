@@ -70,6 +70,14 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
   // session stats live here now — the chat-head row keeps title + icons.
   const [infoOpen, setInfoOpen] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  // Overlay layout: the header and composer float above the full-bleed
+  // message scroll, so the scroll pads its content clear of them via
+  // --chat-head-h / --composer-h on the .chat root. ResizeObserver keeps
+  // the vars live across textarea growth, safe-area, and keyboard shifts;
+  // no header (GC) measures as 0.
   // While the composer is focused the software keyboard is up: flag the
   // document so the global bottom pill can hide and the composer can sit
   // right above the keyboard (Group C). Cleared on blur/unmount so the
@@ -181,6 +189,24 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
   const nearBottomRef = useRef(true);
 
   const exited = state.status === "exited";
+
+  // Overlay layout (see the --chat-head-h comment above): measure the two
+  // floating bars into CSS vars so the full-bleed scroll pads clear.
+  // Re-runs when the header/composer nodes swap (hideHeader, exited);
+  // ResizeObserver covers textarea growth, safe-area, and keyboard shifts.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const measure = () => {
+      root.style.setProperty("--chat-head-h", `${headRef.current?.offsetHeight ?? 0}px`);
+      root.style.setProperty("--composer-h", `${composerRef.current?.offsetHeight ?? 80}px`);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (headRef.current) ro.observe(headRef.current);
+    if (composerRef.current) ro.observe(composerRef.current);
+    return () => ro.disconnect();
+  }, [hideHeader, exited]);
 
   // Keep the view pinned to the bottom while streaming, unless the user
   // scrolled up to read.
@@ -333,9 +359,9 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
   };
 
   return (
-    <div className={`chat${hideHeader ? " gc-chat" : ""}`}>
+    <div ref={rootRef} className={`chat${hideHeader ? " gc-chat" : ""}`}>
       {!hideHeader && (
-      <header className="chat-head">
+      <header ref={headRef} className="chat-head">
         <button className="btn ghost chat-head-btn back" onClick={onBack} aria-label="Back">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M19 12H5m7-7-7 7 7 7" />
@@ -424,11 +450,11 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
       </div>
 
       {exited ? (
-        <div className="composer exited">
+        <div ref={composerRef} className="composer exited">
           <span className="dim">This agent has exited.</span>
         </div>
       ) : (
-        <div className="composer">
+        <div ref={composerRef} className="composer">
           {skillMatches && skillMatches.length > 0 && (
             <div className="skill-pop" role="listbox" aria-label="Skill suggestions">
               <div className="skill-pop-head">skills — Tab/Enter to insert, Esc to dismiss</div>
