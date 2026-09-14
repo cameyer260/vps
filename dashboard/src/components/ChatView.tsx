@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useChat } from "../chat";
+import { useChat, noticeTtl } from "../chat";
 import { api } from "../api";
-import type { AgentInfo, AttachmentView, SkillInfo, UploadedFile } from "../types";
+import type { AgentInfo, AttachmentView, Notice, SkillInfo, UploadedFile } from "../types";
 import type { PromptImage } from "../chat";
 import { MessageView } from "./MessageView";
 import { ReadOnlyToggle } from "./ReadOnlyToggle";
@@ -36,6 +36,24 @@ function base64ToUtf8(b64: string): string {
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new TextDecoder().decode(bytes);
+}
+
+/** Transient top toast: drops down, auto-dismisses after noticeTtl(), and
+ *  dismisses early on tap. The timer is mount-scoped (keyed by notice id),
+ *  so parent re-renders — e.g. every streamed token — never reset it. */
+function Toast({ notice, onDismiss }: { notice: Notice; onDismiss: (id: string) => void }) {
+  const { id, level, text } = notice;
+  useEffect(() => {
+    const t = setTimeout(() => onDismiss(id), noticeTtl(level));
+    return () => clearTimeout(t);
+    // Stable by construction: one timer per toast mount (key={notice.id}).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+  return (
+    <button type="button" className={`notice ${level}`} onClick={() => onDismiss(id)} title="Dismiss">
+      {text}
+    </button>
+  );
 }
 
 interface Props {
@@ -446,7 +464,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
         </div>
       </div>
 
-      <div className="notices">
+      <div className="notices" aria-live="polite">
         {/* GC hides its header and carries its own read-only toggle, so the
             transient "read-only mode is ON" notify is redundant noise there
             (Group F feedback) — agent chats keep the full rail. */}
@@ -454,9 +472,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           ? state.notices.filter((n) => !/read-only mode/i.test(n.text))
           : state.notices
         ).map((n) => (
-          <div key={n.id} className={`notice ${n.level}`}>
-            {n.text}
-          </div>
+          <Toast key={n.id} notice={n} onDismiss={chat.dismissNotice} />
         ))}
       </div>
 

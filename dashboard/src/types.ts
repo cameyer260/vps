@@ -202,4 +202,7 @@ export interface Notice {
   id: string;
   text: string;
   level: "info" | "warning" | "error";
+  /** Coalescing key: a new notice with the same key replaces the pending
+   *  one instead of stacking (e.g. rapid model / effort changes). */
+  key?: string;
 }

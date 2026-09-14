@@ -184,7 +184,8 @@ type Action =
   | { type: "models"; models: PiModel[] }
   | { type: "thinking_levels"; levels: string[] }
   | { type: "sent_local"; text: string; attachments?: AttachmentView[] }
-  | { type: "notice"; text: string; level?: Notice["level"] }
+  | { type: "notice"; text: string; level?: Notice["level"]; key?: string }
+  | { type: "dismiss_notice"; id: string }
   | { type: "exited" };
 
 function nextNoticeId(): string {
@@ -402,10 +403,31 @@ function applyEvent(state: ChatState, event: PiEvent): ChatState {
   }
 }
 
-function pushNotice(state: ChatState, text: string, level: Notice["level"]): ChatState {
-  const notice: Notice = { id: nextNoticeId(), text, level };
-  const notices = [...state.notices, notice].slice(-20);
+function pushNotice(
+  state: ChatState,
+  text: string,
+  level: Notice["level"],
+  key?: string,
+): ChatState {
+  // Keyed notices (model / thinking confirmations) coalesce: a repeat
+  // change replaces the still-visible toast instead of stacking a rail.
+  const rest = key ? state.notices.filter((n) => n.key !== key) : state.notices;
+  const notice: Notice = { id: nextNoticeId(), text, level, ...(key ? { key } : {}) };
+  const notices = [...rest, notice].slice(-20);
   return { ...state, notices };
+}
+
+/** Auto-dismiss delay per level: confirmations flash briefly, errors linger
+ *  long enough to read. Every toast also dismisses on tap. */
+export function noticeTtl(level: Notice["level"]): number {
+  switch (level) {
+    case "error":
+      return 5000;
+    case "warning":
+      return 3500;
+    default:
+      return 2000;
+  }
 }
 
 function entryToItems(state: ChatState, entry: PiEntry): { items: Item[]; id?: string } {
@@ -507,7 +529,9 @@ function reducer(state: ChatState, action: Action): ChatState {
       };
     }
     case "notice":
-      return pushNotice(state, action.text, action.level ?? "info");
+      return pushNotice(state, action.text, action.level ?? "info", action.key);
+    case "dismiss_notice":
+      return { ...state, notices: state.notices.filter((n) => n.id !== action.id) };
     case "exited":
       return { ...state, status: "exited" };
     default:
@@ -538,8 +562,11 @@ interface ChatApi {
    *  server change needed). Resolves null on any failure so the modal
    *  can render its `—` states instead of trapping the UI. */
   getSessionStats: () => Promise<SessionStats | null>;
-  /** Push a client-side notice into the chat's notice rail. */
-  notice: (text: string, level?: Notice["level"]) => void;
+  /** Push a transient toast (auto-dismissed by the notice rail; longer
+   *  for warnings/errors). `key` coalesces repeats (model / thinking). */
+  notice: (text: string, level?: Notice["level"], key?: string) => void;
+  /** Dismiss a toast early (tap or its timeout firing). */
+  dismissNotice: (id: string) => void;
 }
 
 export function useChat(agent: AgentInfo): ChatApi {
@@ -775,7 +802,7 @@ export function useChat(agent: AgentInfo): ChatApi {
           .then((resp) => {
             if (resp["success"]) {
               dispatch({ type: "state", data: { model: resp["data"] } });
-              dispatch({ type: "notice", text: `model → ${provider}/${modelId}` });
+              dispatch({ type: "notice", text: `model → ${provider}/${modelId}`, key: "model" });
             }
           })
           .catch(() => {});
@@ -785,7 +812,7 @@ export function useChat(agent: AgentInfo): ChatApi {
           .then((resp) => {
             if (resp["success"]) {
               dispatch({ type: "state", data: { thinkingLevel: level } });
-              dispatch({ type: "notice", text: `thinking → ${level}` });
+              dispatch({ type: "notice", text: `thinking → ${level}`, key: "thinking" });
             }
           })
           .catch(() => {});
@@ -801,8 +828,9 @@ export function useChat(agent: AgentInfo): ChatApi {
           })
           .catch(() => {});
       },
-      notice: (text: string, level?: Notice["level"]) =>
-        dispatch({ type: "notice", text, level }),
+      notice: (text: string, level?: Notice["level"], key?: string) =>
+        dispatch({ type: "notice", text, level, key }),
+      dismissNotice: (id: string) => dispatch({ type: "dismiss_notice", id }),
       getSessionStats: () => {
         return command({ type: "get_session_stats" })
           .then((resp) => {

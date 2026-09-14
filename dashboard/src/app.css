@@ -933,27 +933,60 @@ details.thinking summary {
   margin-bottom: 18px;
 }
 
-/* notices */
+/* notices — transient top toasts, not a bottom rail: they drop down just
+   below the floating header, float above the message scroll (never shifting
+   layout or fighting the composer / bottom pill), auto-dismiss after a
+   couple of seconds (see noticeTtl), and dismiss early on tap. */
 
 .notices {
-  max-width: 820px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 0 16px;
-  /* transient rail paints above the composer overlay (both sit at the
-     container bottom now that the composer is absolute). */
-  position: relative;
-  z-index: 6;
+  position: absolute;
+  top: calc(var(--chat-head-h) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  /* Above modal scrims (30) and dialogs (50): a confirmation fired from
+     inside the info popover must stay crisp, not blurred behind it. Only
+     the bottom pill (70) sits higher — different screen edge, no clash. */
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: min(480px, calc(100% - 32px));
+  padding: 0;
+  margin: 0;
+  pointer-events: none;
 }
 
 .notice {
+  appearance: none;
+  font: inherit;
+  text-align: center;
+  text-wrap: balance;
   font-size: 13px;
   border-radius: var(--radius-sm);
-  padding: 7px 11px;
-  margin-bottom: 6px;
-  background: var(--bg-3);
-  border: 1px solid var(--border);
+  padding: 7px 12px;
+  background: color-mix(in srgb, var(--bg-3) 88%, transparent);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-pop);
   color: var(--text-dim);
+  cursor: pointer;
+  pointer-events: auto;
+  max-width: 100%;
+  animation: toast-in 0.18s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
 }
 
 .notice.warning {
