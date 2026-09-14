@@ -206,9 +206,31 @@ api.get("/git/status", async (c) => {
 
 const UPLOAD_MAX_BYTES = 10 << 20; // 10 MiB per file
 
-/** Stateless upload: validates the size cap server-side and hands the bytes
- *  (base64) back for embedding in the RPC `prompt` (images) or the message
- *  text (text-like files). Nothing is persisted. */
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|svg)$/i;
+const MIME_TO_EXT: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/bmp": ".bmp",
+  "image/svg+xml": ".svg",
+};
+const EXT_TO_MIME: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".svg": "image/svg+xml",
+};
+
+/** Chat image uploads are persisted to the screenshots inbox (same dir the
+ *  Mac screenshot tool scps to, same host path inside every jarvis agent)
+ *  and the prompt carries the saved absolute path — the model reads the
+ *  pixels with the Read tool, exactly like a pasted Mac screenshot path.
+ *  Nothing is sent inline. Text-like files keep the old behavior: bytes
+ *  (base64) back for inlining into the message text. Pruning is the
+ *  host systemd timer's job (tools/prune-screenshots.*). */
 api.post("/upload", async (c) => {
   const declared = c.req.header("content-length");
   if (declared && Number(declared) > UPLOAD_MAX_BYTES * 1.34 + 4096) {
@@ -227,11 +249,31 @@ api.post("/upload", async (c) => {
   }
   const buf = Buffer.from(await file.arrayBuffer());
   const mimeType = file.type || "application/octet-stream";
+  const origName = file.name || "file";
+  // Server-side image truth: MIME first, safe image extension as fallback
+  // (pastes can arrive with an empty MIME but a real image name).
+  if (mimeType.startsWith("image/") || IMAGE_EXT_RE.test(origName)) {
+    const extMatch = origName.match(IMAGE_EXT_RE);
+    const ext = (extMatch ? `.${extMatch[1]!.toLowerCase().replace(/^jpeg$/, "jpg")}` : MIME_TO_EXT[mimeType]) ?? ".png";
+    const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
+    const rand = Math.random().toString(36).slice(2, 8);
+    const saved = `chat-${stamp}-${rand}${ext}`;
+    await fs.promises.mkdir(config.screenshotsDir, { recursive: true });
+    const abs = path.join(config.screenshotsDir, saved);
+    await fs.promises.writeFile(abs, buf);
+    return c.json({
+      name: origName,
+      mimeType: mimeType.startsWith("image/") ? mimeType : EXT_TO_MIME[ext]!,
+      size: file.size,
+      image: true,
+      path: abs,
+    });
+  }
   return c.json({
-    name: file.name || "file",
+    name: origName,
     mimeType,
     size: file.size,
-    image: mimeType.startsWith("image/"),
+    image: false,
     data: buf.toString("base64"),
   });
 });

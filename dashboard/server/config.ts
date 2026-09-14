@@ -12,6 +12,10 @@ export const config = {
   /** Global pi settings file — the picker's scoped tab reads `enabledModels`
    *  from here (same file pi resolves session scope from at startup). */
   piSettingsFile: process.env.PI_SETTINGS_FILE ?? "/home/dev/.pi/agent/settings.json",
+  /** Screenshots inbox: scp target for the Mac screenshot tool and the
+   *  chat image-upload destination (mounted ro into every jarvis agent at
+   *  the same host path, rw in the dashboard container). */
+  screenshotsDir: process.env.SCREENSHOTS_DIR ?? "/home/dev/screenshots",
   /** Home dir host agents are confined to (`hostDir()` whitelist root). */
   homeDir: process.env.HOME_DIR ?? process.env.HOME ?? "/home/dev",
   /** Host pi supervisor socket (see docs/host-pi.md). Overridden in tests. */

@@ -118,6 +118,7 @@ try {
       PI_SESSIONS_DIR: path.join(mockDir, "sessions"),
       AGENT_SKILLS_DIR: path.join(mockDir, "skills"),
       PI_SETTINGS_FILE: path.join(mockDir, "settings.json"),
+      SCREENSHOTS_DIR: path.join(mockDir, "screenshots"),
       // Idle-GC reaper (sweep section below): reap client-free GC agents
       // after 8s; plain agents are never touched.
       GC_IDLE_TIMEOUT_MS: "8000",
@@ -311,6 +312,26 @@ try {
   const upRes = await fetch(`${base}/api/upload`, { method: "POST", body: fd });
   const up = await upRes.json();
   check("upload round-trip", upRes.ok && up.data === Buffer.from("hello mock").toString("base64"), JSON.stringify(up).slice(0, 120));
+
+  // Images persist to the screenshots inbox and come back as a path (no
+  // inline bytes); the file on disk must match the upload byte-for-byte.
+  const pngBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  const ifd = new FormData();
+  ifd.append("file", new File([pngBytes], "shot.png", { type: "image/png" }));
+  const iupRes = await fetch(`${base}/api/upload`, { method: "POST", body: ifd });
+  const iup = await iupRes.json();
+  const shotsDir = path.join(mockDir, "screenshots");
+  check(
+    "image upload persists to inbox",
+    iupRes.ok && iup.image === true && iup.data === undefined &&
+      typeof iup.path === "string" && iup.path.startsWith(shotsDir + path.sep),
+    JSON.stringify(iup).slice(0, 160),
+  );
+  check(
+    "image file on disk matches upload",
+    fs.readFileSync(iup.path).equals(pngBytes),
+    iup.path,
+  );
 
   const status = await getJSON("/api/git/status?project=beta");
   check("beta dirty tree", status.ok === true && status.dirty === true, JSON.stringify(status));

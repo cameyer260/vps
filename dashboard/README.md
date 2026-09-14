@@ -103,10 +103,11 @@ docker run -d \
   path (jarvis resolves the extension relative to its own location).
 - `/home/dev/projects` + `/home/dev/notes` rw: git operations, project
   listing, notes viewer.
-- `/home/dev/screenshots` rw: the screenshots inbox the Mac tool scps to.
-  jarvis (running inside this container) can pre-create it as dev so Docker
-  never autocreates the host dir root-owned; agents get it read-only via
-  the jarvis mount (see [../docs/vps.md](../docs/vps.md)).
+- `/home/dev/screenshots` rw: the screenshots inbox the Mac tool scps to —
+  also the chat image-upload destination (`POST /api/upload` saves chat
+  images here; agents get it read-only via the jarvis mount, see
+  [../docs/vps.md](../docs/vps.md)). jarvis pre-creates it as dev so Docker
+  never autocreates the host dir root-owned.
 - `/home/dev/.pi/agent/sessions`: session listing + resume.
 - `/home/dev/.config/bx/bx.env` ro: Brave Search key — jarvis passes it via
   `--env-file`, which the docker CLI reads client-side, so the file must

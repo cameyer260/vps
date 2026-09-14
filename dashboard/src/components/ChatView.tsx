@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat, noticeTtl } from "../chat";
 import { api } from "../api";
 import type { AgentInfo, AttachmentView, Notice, SkillInfo, UploadedFile } from "../types";
-import type { PromptImage } from "../chat";
 import { MessageView } from "./MessageView";
 import { ReadOnlyToggle } from "./ReadOnlyToggle";
 import { SessionInfoPopover } from "./SessionInfoPopover";
@@ -123,8 +122,9 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
   const [skillIdx, setSkillIdx] = useState(0);
   const [dismissedToken, setDismissedToken] = useState<string | null>(null);
   // Attachments: picked files are uploaded on send (server enforces the size
-  // cap); images ride the RPC prompt's images field, text-like files are
-  // inlined as fenced blocks so model and UI see the same content.
+  // cap); images are saved to the screenshots inbox and the prompt carries
+  // the saved path (the model reads them with the Read tool), text-like
+  // files are inlined as fenced blocks so model and UI see the same content.
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [preparing, setPreparing] = useState(false);
   // Attachments popover: the paperclip toggles a floating panel (badge
@@ -305,12 +305,23 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           return;
         }
         const uploads = (results as PromiseFulfilledResult<UploadedFile>[]).map((r) => r.value);
-        const images: PromptImage[] = [];
+        // Images live in the screenshots inbox now: the prompt carries the
+        // saved absolute path and the model reads the pixels with the Read
+        // tool (same as a pasted Mac screenshot path). Text-like files are
+        // still inlined as decoded text.
         let message = text;
         for (const u of uploads) {
           if (u.image) {
-            images.push({ type: "image", data: u.data, mimeType: u.mimeType });
+            if (!u.path) {
+              chat.notice(`upload failed: ${u.name} — server did not return a path`, "error");
+              return;
+            }
+            message += `\n\n[attached image: ${u.name} saved to ${u.path} — read it with the Read tool]`;
           } else {
+            if (u.data == null) {
+              chat.notice(`upload failed: ${u.name} — server did not return file contents`, "error");
+              return;
+            }
             message += `\n\n[attached file: ${u.name}]\n\`\`\`\n${base64ToUtf8(u.data)}\n\`\`\``;
           }
         }
@@ -320,7 +331,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           size: u.size,
           image: u.image,
         }));
-        chat.send(message || "(see attachments)", images.length > 0 ? images : undefined, attachments);
+        chat.send(message || "(see attachments)", undefined, attachments);
         titleForFirst();
         setAttachOpen(false);
         for (const p of pendingFiles) if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
