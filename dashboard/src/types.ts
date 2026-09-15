@@ -13,13 +13,10 @@ export interface AttachmentView {
   image?: boolean;
 }
 
-/** Result of POST /api/upload. Images are persisted to the screenshots
- *  inbox and come back with `path` (no `data` — the model reads the file
- *  with the Read tool); text-like files come back with `data` (base64)
- *  for inlining into the message text. */
+/** Result of POST /api/upload (images only). The model reads the pixels
+ *  from `path` with the Read tool. */
 export interface UploadedFile extends AttachmentView {
-  data?: string; // base64 (text files only)
-  path?: string; // absolute inbox path (images only)
+  path: string; // absolute screenshots-inbox path
 }
 
 export interface AgentInfo {

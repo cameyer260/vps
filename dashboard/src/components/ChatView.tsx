@@ -13,28 +13,14 @@ interface PendingFile {
   previewUrl?: string; // object URL for images
 }
 
-const TEXT_FILE_RE = /^(text\/|application\/json|application\/xml|application\/javascript|application\/x-yaml|application\/toml)/i;
-const TEXT_EXT_RE = /\.(md|txt|json|csv|tsv|ya?ml|toml|xml|html?|css|js|jsx|ts|tsx|py|rb|go|rs|java|kt|c|h|cpp|hpp|sh|bash|zsh|sql|ini|cfg|conf|env|log|diff|patch)$/i;
-
 function isImageFile(f: File): boolean {
   return f.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(f.name);
-}
-
-function isTextFile(f: File): boolean {
-  return TEXT_FILE_RE.test(f.type) || TEXT_EXT_RE.test(f.name) || f.type === "";
 }
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1 << 20) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1 << 20)).toFixed(1)} MB`;
-}
-
-function base64ToUtf8(b64: string): string {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
 }
 
 /** Transient top toast: drops down, auto-dismisses after noticeTtl(), and
@@ -121,10 +107,9 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
   const [skills, setSkills] = useState<SkillInfo[] | null>(null);
   const [skillIdx, setSkillIdx] = useState(0);
   const [dismissedToken, setDismissedToken] = useState<string | null>(null);
-  // Attachments: picked files are uploaded on send (server enforces the size
-  // cap); images are saved to the screenshots inbox and the prompt carries
-  // the saved path (the model reads them with the Read tool), text-like
-  // files are inlined as fenced blocks so model and UI see the same content.
+  // Attachments: picked images are uploaded on send (server enforces the size
+  // cap and rejects non-images); the prompt carries the saved inbox path
+  // (the model reads them with the Read tool).
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [preparing, setPreparing] = useState(false);
   // Attachments popover: the paperclip toggles a floating panel (badge
@@ -244,14 +229,14 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
     if (!files) return;
     const next: PendingFile[] = [];
     for (const file of files) {
-      if (!isImageFile(file) && !isTextFile(file)) {
-        chat.notice(`unsupported file: ${file.name} — attach images or text files`, "error");
+      if (!isImageFile(file)) {
+        chat.notice(`unsupported file: ${file.name} — images only`, "error");
         continue;
       }
       next.push({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         file,
-        previewUrl: isImageFile(file) ? URL.createObjectURL(file) : undefined,
+        previewUrl: URL.createObjectURL(file),
       });
     }
     if (next.length === 0) return;
@@ -305,25 +290,16 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
           return;
         }
         const uploads = (results as PromiseFulfilledResult<UploadedFile>[]).map((r) => r.value);
-        // Images live in the screenshots inbox now: the prompt carries the
+        // Images live in the screenshots inbox: the prompt carries the
         // saved absolute path and the model reads the pixels with the Read
-        // tool (same as a pasted Mac screenshot path). Text-like files are
-        // still inlined as decoded text.
+        // tool (same as a pasted Mac screenshot path).
         let message = text;
         for (const u of uploads) {
-          if (u.image) {
-            if (!u.path) {
-              chat.notice(`upload failed: ${u.name} — server did not return a path`, "error");
-              return;
-            }
-            message += `\n\n[attached image: ${u.name} saved to ${u.path} — read it with the Read tool]`;
-          } else {
-            if (u.data == null) {
-              chat.notice(`upload failed: ${u.name} — server did not return file contents`, "error");
-              return;
-            }
-            message += `\n\n[attached file: ${u.name}]\n\`\`\`\n${base64ToUtf8(u.data)}\n\`\`\``;
+          if (!u.image || !u.path) {
+            chat.notice(`upload failed: ${u.name} — server did not return an image path`, "error");
+            return;
           }
+          message += `\n\n[attached image: ${u.name} saved to ${u.path} — read it with the Read tool]`;
         }
         const attachments: AttachmentView[] = uploads.map((u) => ({
           name: u.name,
@@ -514,7 +490,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
             </div>
           )}
           {attachOpen && (
-            <div className="attach-pop" ref={attachPopRef} role="dialog" aria-label="Attached files">
+            <div className="attach-pop" ref={attachPopRef} role="dialog" aria-label="Attached images">
               <div className="attach-pop-head">
                 <span>Attached · {pendingFiles.length}</span>
                 <button
@@ -557,7 +533,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
                 onClick={() => fileInputRef.current?.click()}
                 disabled={streaming || preparing}
               >
-                + Add photos or files
+                + Add photos
               </button>
             </div>
           )}
@@ -565,7 +541,7 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,.md,.txt,.json,.csv,.tsv,.yaml,.yml,.toml,.xml,.html,.css,.js,.jsx,.ts,.tsx,.py,.rb,.go,.rs,.java,.c,.h,.cpp,.sh,.sql,.log,.diff,.patch"
+            accept="image/*"
             className="visually-hidden"
             tabIndex={-1}
             onChange={(e) => {
@@ -579,8 +555,8 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
             className="btn ghost attach-btn"
             onClick={() => setAttachOpen((v) => !v)}
             disabled={streaming || preparing}
-            title="Attach images or text files"
-            aria-label={pendingFiles.length > 0 ? `Attached files, ${pendingFiles.length} attached` : "Attach files"}
+            title="Attach images"
+            aria-label={pendingFiles.length > 0 ? `Attached images, ${pendingFiles.length} attached` : "Attach images"}
             aria-haspopup="dialog"
             aria-expanded={attachOpen}
           >

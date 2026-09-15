@@ -310,8 +310,7 @@ try {
   const fd = new FormData();
   fd.append("file", new File(["hello mock"], "hi.txt", { type: "text/plain" }));
   const upRes = await fetch(`${base}/api/upload`, { method: "POST", body: fd });
-  const up = await upRes.json();
-  check("upload round-trip", upRes.ok && up.data === Buffer.from("hello mock").toString("base64"), JSON.stringify(up).slice(0, 120));
+  check("upload rejects non-images", upRes.status === 415, `got ${upRes.status}`);
 
   // Images persist to the screenshots inbox and come back as a path (no
   // inline bytes); the file on disk must match the upload byte-for-byte.
@@ -323,7 +322,7 @@ try {
   const shotsDir = path.join(mockDir, "screenshots");
   check(
     "image upload persists to inbox",
-    iupRes.ok && iup.image === true && iup.data === undefined &&
+    iupRes.ok && iup.image === true && !("data" in iup) &&
       typeof iup.path === "string" && iup.path.startsWith(shotsDir + path.sep),
     JSON.stringify(iup).slice(0, 160),
   );

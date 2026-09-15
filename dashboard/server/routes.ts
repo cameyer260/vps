@@ -224,12 +224,11 @@ const EXT_TO_MIME: Record<string, string> = {
   ".svg": "image/svg+xml",
 };
 
-/** Chat image uploads are persisted to the screenshots inbox (same dir the
+/** Chat image uploads: persisted to the screenshots inbox (same dir the
  *  Mac screenshot tool scps to, same host path inside every jarvis agent)
  *  and the prompt carries the saved absolute path — the model reads the
  *  pixels with the Read tool, exactly like a pasted Mac screenshot path.
- *  Nothing is sent inline. Text-like files keep the old behavior: bytes
- *  (base64) back for inlining into the message text. Pruning is the
+ *  Images only: anything else is rejected (415). Pruning is the
  *  host systemd timer's job (tools/prune-screenshots.*). */
 api.post("/upload", async (c) => {
   const declared = c.req.header("content-length");
@@ -252,7 +251,10 @@ api.post("/upload", async (c) => {
   const origName = file.name || "file";
   // Server-side image truth: MIME first, safe image extension as fallback
   // (pastes can arrive with an empty MIME but a real image name).
-  if (mimeType.startsWith("image/") || IMAGE_EXT_RE.test(origName)) {
+  // Anything else is rejected — this endpoint is images-only.
+  if (!mimeType.startsWith("image/") && !IMAGE_EXT_RE.test(origName)) {
+    return c.json({ error: `unsupported file (images only): ${origName}` }, 415);
+  }
     const extMatch = origName.match(IMAGE_EXT_RE);
     const ext = (extMatch ? `.${extMatch[1]!.toLowerCase().replace(/^jpeg$/, "jpg")}` : MIME_TO_EXT[mimeType]) ?? ".png";
     const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
@@ -268,14 +270,6 @@ api.post("/upload", async (c) => {
       image: true,
       path: abs,
     });
-  }
-  return c.json({
-    name: origName,
-    mimeType,
-    size: file.size,
-    image: false,
-    data: buf.toString("base64"),
-  });
 });
 
 // ---- project-scoped files (IDE backend) ------------------------------------
