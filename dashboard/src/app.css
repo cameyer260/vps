@@ -1246,31 +1246,6 @@ details.thinking summary {
   width: 100%;
 }
 
-/* Photo actions row: library picker + direct camera. The camera input
-   uses HTML Media Capture (`capture`), which iOS honors by opening the
-   camera straight away — no Apple sheet, no Choose Files row. Desktop
-   browsers ignore `capture` (same file dialog as the library button), so
-   Take Photo only shows on touch devices. */
-.attach-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.attach-actions .attach-add {
-  flex: 1;
-  width: auto;
-}
-
-.attach-actions .camera-btn {
-  display: none;
-}
-
-@media (pointer: coarse) {
-  .attach-actions .camera-btn {
-    display: inline-block;
-  }
-}
-
 .pending-file {
   display: inline-flex;
   align-items: center;

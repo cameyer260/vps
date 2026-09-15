@@ -138,12 +138,6 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
     };
   }, [attachOpen]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Dedicated camera input (HTML Media Capture): on iOS this opens the
-  // camera directly, bypassing Apple's Photo Library / Take Photo /
-  // Choose Files sheet — the only site-side way to skip that menu, which
-  // iOS draws itself with no per-row removal API. Desktop browsers ignore
-  // `capture`, so its button is coarse-pointer-only (see app.css).
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     return () => {
       for (const p of pendingFiles) if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
@@ -533,24 +527,14 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
                   ))}
                 </div>
               )}
-              <div className="attach-actions">
-                <button
-                  type="button"
-                  className="btn attach-add"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={streaming || preparing}
-                >
-                  + Add photos
-                </button>
-                <button
-                  type="button"
-                  className="btn attach-add camera-btn"
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={streaming || preparing}
-                >
-                  Take Photo
-                </button>
-              </div>
+              <button
+                type="button"
+                className="btn attach-add"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={streaming || preparing}
+              >
+                + Add photos
+              </button>
             </div>
           )}
           <input
@@ -563,18 +547,6 @@ export function ChatView({ agent, onBack, onTerminated, hideHeader, onReadOnlySt
             onChange={(e) => {
               addFiles(e.target.files);
               e.target.value = ""; // allow re-picking the same file
-            }}
-          />
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="visually-hidden"
-            tabIndex={-1}
-            onChange={(e) => {
-              addFiles(e.target.files);
-              e.target.value = "";
             }}
           />
           <button
