@@ -1,0 +1,323 @@
+@import "tailwindcss";
+
+/* Build: tailwindcss -i assets/css/input.css -o assets/css/app.css --minify
+ * (standalone CLI v4; output is committed so deploys need no build step).
+ * Sources below are the Askama templates + Rust sources. */
+
+@source "../../templates/**/*.html";
+@source "../../src/**/*.rs";
+
+/* ---- Admin Dashboard shell chrome (Phase 1) ----
+ *
+ * Design language (ported from dashboard/src/app.css): OLED-black unified
+ * canvas, hairline borders, glass floating surfaces, system font stacks,
+ * 150-200ms ease-out motion. Status colors are the Apple HIG system colors
+ * (green = done/on, orange = running, red = off/destructive, yellow =
+ * warnings); blue is non-status chrome only (links, focus, selection).
+ *
+ * Phase 1 covers the app shell only (tokens, base, tab header, overview
+ * placeholder, bottom pill). Later phases extend this file in place:
+ * agents UI (Phase 4), notes IDE (Phase 5).
+ */
+
+:root {
+  --bg: #0b0e14;
+  --bg-2: #0e1219;
+  --bg-3: #161c28;
+  --bg-4: #1c2432;
+  --border: #1c2330;
+  --border-strong: #2a3448;
+
+  --text: #e7ebf3;
+  --text-dim: #8f99ad;
+
+  --accent: #007aff;
+  --accent-strong: #0a84ff;
+  --accent-soft: rgba(0, 122, 255, 0.12);
+  --accent-border: rgba(0, 122, 255, 0.4);
+
+  --green: #34c759;
+  --orange: #ff9500;
+  --red: #ff3b30;
+  --yellow: #ffcc00;
+  --amber: #ffcc00;
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+
+  --shadow-pop: 0 16px 48px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --glass: blur(24px) saturate(1.3);
+  --glass-strong: blur(32px) saturate(1.4);
+
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+.app-shell {
+  /* 100vh, not 100%: viewport-fit=cover + black-translucent + height:100%
+     leaves a ~60px dead strip at the bottom of an iOS standalone PWA —
+     100vh is the true screen height from cold start (100dvh isn't
+     initialized until after a rotation, so it can't be the base). */
+  height: 100vh;
+  margin: 0;
+}
+
+/* PWA shell lockdown: only inner containers ever scroll. Letting the
+   document itself pan/rubber-band drags viewport-anchored chrome (bottom
+   pill) with it on iOS standalone. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+body {
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgba(0, 122, 255, 0.35);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- app shell ---- */
+
+.app-shell {
+  position: relative;
+  /* Keyboard-pan glue (see syncViewport in assets/js/app.js): `top` on
+     relative positioning is deliberate — unlike transform/translate it is
+     not a containing block, so the viewport-fixed bottom pill is
+     unaffected. */
+  top: var(--vv-top, 0px);
+  display: flex;
+  flex-direction: column;
+  /* --app-h tracks the visual viewport so the shell shrinks when the
+     mobile keyboard opens; 100vh is the fallback. */
+  height: var(--app-h, 100vh);
+  overflow: hidden;
+}
+
+/* ---- tab header ---- */
+
+.tab-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--bg-2) 85%, transparent);
+  -webkit-backdrop-filter: var(--glass-strong);
+  backdrop-filter: var(--glass-strong);
+  border-bottom: 1px solid var(--border);
+  padding-top: env(safe-area-inset-top);
+  flex-shrink: 0;
+}
+
+.tab-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 10px 16px;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.tab-header-titles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tab-home {
+  font-weight: 700;
+  font-size: 20px;
+  white-space: nowrap;
+  border-radius: 4px;
+  padding: 2px 0;
+}
+
+.tab-home:hover {
+  color: var(--accent-strong);
+}
+
+.tab-name {
+  color: var(--text-dim);
+  font-size: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- tab body ---- */
+
+.tab-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.overview {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 20px;
+  /* clearance for the floating pill (pill ~48px + tight bottom gap) */
+  padding-bottom: 96px;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.overview h1 {
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0 0 18px;
+  text-align: center;
+}
+
+.notes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dim {
+  color: var(--text-dim);
+}
+
+.pad {
+  padding: 8px;
+}
+
+/* ---- floating bottom pill (global chrome) ----
+ *
+ * Fixed to the viewport, not the shell: with the document scroll-locked
+ * there is nothing to pan it away, and a viewport anchor stays glued to
+ * the screen edge even if the JS-tracked shell height ever goes stale. */
+
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(6px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  z-index: 70;
+  pointer-events: none;
+}
+
+.bottom-pill {
+  pointer-events: auto;
+  display: flex;
+  background: color-mix(in srgb, var(--bg-4) 88%, transparent);
+  -webkit-backdrop-filter: var(--glass-strong);
+  backdrop-filter: var(--glass-strong);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.bottom-pill a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 22px;
+  min-height: 48px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-dim);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.bottom-pill a:last-child {
+  border-right: none;
+}
+
+.bottom-pill a:hover {
+  color: var(--text);
+}
+
+.bottom-pill a.active {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+/* While an input is focused (software keyboard up) hide the pill so it
+   never overlaps the keyboard; the typing classes are set by later
+   phases' chat/modal code. */
+html.chat-typing .bottom-nav,
+html.modal-typing .bottom-nav {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .tab-header-inner {
+    padding: 14px 24px;
+  }
+
+  .overview {
+    max-width: 860px;
+  }
+
+  .bottom-pill a {
+    padding: 11px 30px;
+  }
+}
