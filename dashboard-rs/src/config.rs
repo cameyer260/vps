@@ -123,11 +123,7 @@ fn resolve_www_dir(raw: Option<String>) -> PathBuf {
     match raw {
         Some(s) if !s.trim().is_empty() => {
             let p = PathBuf::from(s.trim());
-            if p.is_absolute() {
-                p
-            } else {
-                cwd.join(p)
-            }
+            if p.is_absolute() { p } else { cwd.join(p) }
         }
         _ => cwd.join("assets"),
     }

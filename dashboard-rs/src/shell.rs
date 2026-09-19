@@ -7,9 +7,9 @@
 //! `<main>` placeholders (agents UI in Phase 4, notes IDE in Phase 5).
 
 use askama::Template;
+use axum::Router;
 use axum::response::Html;
 use axum::routing::get;
-use axum::Router;
 use tower_http::services::ServeDir;
 
 use crate::config::Config;
