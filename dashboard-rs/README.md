@@ -9,6 +9,18 @@ Status: Phase 1 (scaffold). The old TypeScript dashboard in `dashboard/`
 is still the running implementation — this crate replaces it at cutover
 (Phase 8 checklist in the port plan).
 
+## Prerequisites (one-time, as dev)
+
+```bash
+# Rust toolchain (rustup installs to ~/.cargo; ~/.profile already sources it)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+rustup component add rustfmt clippy
+
+# Tailwind standalone CLI v4 (single binary, lives on PATH — never in the repo)
+curl -sL https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.12/tailwindcss-linux-x64 \
+  -o ~/.local/bin/tailwindcss && chmod +x ~/.local/bin/tailwindcss
+```
+
 ## Run
 
 ```bash
