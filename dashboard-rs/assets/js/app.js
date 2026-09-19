@@ -118,7 +118,8 @@
     }, 150);
   });
 
-  // NOTE: service-worker registration lands in Phase 6 (PWA port) with
-  // sw.js itself — registering now would cache a shell that has no
-  // offline strategy yet.
+  // NOTE: no service worker, by decision. This dashboard is
+  // connection-only (every route needs the server), so an offline shell
+  // would never be useful — the installed PWA is manifest + meta tags
+  // only (see docs/rust-port.md Phase 6).
 })();

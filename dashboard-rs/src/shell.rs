@@ -151,7 +151,7 @@ mod tests {
         assert!(page.contains("hx-boost=\"true\""), "hx-boost missing");
         for asset in [
             "/assets/js/htmx.min.js",
-            "/assets/js/sse.js",
+            "/assets/js/hx-sse.js",
             "/assets/js/_hyperscript.min.js",
             "/assets/js/app.js",
             "/assets/css/app.css",

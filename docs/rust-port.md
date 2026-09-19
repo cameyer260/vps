@@ -31,7 +31,8 @@ no's). Shared language: [CONTEXT.md](../CONTEXT.md).
 5. **Notes IDE** — tree, viewer, textarea edit swap (autosave, list
    continuation, Tab-indent, draft warning), search, CSV grid, sessions
    browser, git surface (spawned git, ceiling dirs), uploads, skills.
-6. **PWA** — icons/manifest port, sw.js port (verbatim semantics).
+6. **PWA** — icons/manifest port (no service worker: the dashboard is
+   connection-only, so an offline shell would never be useful).
 7. **Supervisor** — port pi-host-supervisor.mjs to a second binary, same
    socket protocol (`docs/host-pi.md`), swap on the VPS.
 8. **Cutover** — checklist below, on main.
@@ -48,7 +49,7 @@ ADR 0001):
 | 3 bridge | `server/{bridge,events,index,gc-reaper}.ts`, `src/chat.ts` (stream semantics only) |
 | 4 agents UI | `src/components/{StartDialog,ChatView,AgentsSections,TerminateButton}.tsx`, `server/routes.ts` |
 | 5 notes IDE | `src/components/{IdeView,MarkdownEditor,CsvEditor,TreeModal}.tsx`, `server/{files,sessions,git,skills}.ts` |
-| 6 PWA | `public/sw.js`, `public/manifest.webmanifest` |
+| 6 PWA | `public/manifest.webmanifest`, `public/icons/` (no `sw.js` — decided against a service worker, see phase list) |
 | 7 supervisor | `tools/pi-host-supervisor.mjs`, `server/{host-supervisor,runtime-host}.ts`, `docs/host-pi.md` |
 | 8 cutover | this checklist |
 
