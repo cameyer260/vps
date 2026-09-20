@@ -8,12 +8,26 @@
 use std::net::SocketAddr;
 
 use dashboard_rs::config::Config;
+use dashboard_rs::runtime;
 use dashboard_rs::shell;
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
     let config = Config::from_env();
+    // Wire the runtime seam at boot: unknown MOCK_SCENARIO names fail
+    // fast here, before the listener opens. Phase 3+ hangs routes off it;
+    // until then the boot log proves which backend is live.
+    let _runtime = match runtime::select_runtime(&config) {
+        Ok(rt) => {
+            log::info!("runtime: {}", rt.describe());
+            rt
+        }
+        Err(err) => {
+            log::error!("runtime init failed: {err}");
+            std::process::exit(1);
+        }
+    };
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     let app = shell::router(&config);
 

@@ -3,4 +3,5 @@
 //! wires them to a listener; tests target this library.
 
 pub mod config;
+pub mod runtime;
 pub mod shell;

@@ -9,10 +9,19 @@ description = "Rust port of the VPS admin dashboard (Axum + Askama + htmx)"
 
 [dependencies]
 axum = "0.8"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "sync", "io-util", "time", "process"] }
 tower-http = { version = "0.7", features = ["fs"] }
 askama = "0.16"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
 env_logger = "0.11"
+# Phase 2 (runtime seam): bollard (Docker API), thiserror (error plumbing),
+# futures-util (bollard attach/event stream pumping), time (RFC3339 mock
+# startedAt). All four are on the ADR-0005 confirmed list; futures-util is
+# the demonstrated need for driving bollard's streams without a second
+# async runtime helper.
+bollard = "0.21.1"
+thiserror = "2.0.20"
+futures-util = "0.3.34"
+time = { version = "0.3.55", features = ["formatting"] }
