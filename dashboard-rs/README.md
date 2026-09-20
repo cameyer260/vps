@@ -39,7 +39,7 @@ Defaults match the VPS layout; nothing else is needed for the scaffold.
   standalone CLI v4. The output is committed so deploys need no build step:
 
 ```bash
-tailwindcss -i assets/css/input.css -o assets/css/app.css --minify
+tailwindcss -i assets/css/input.css -o assets/css/app.css
 ```
 
 ## Validate (pre-merge gate per ADR 0005)
