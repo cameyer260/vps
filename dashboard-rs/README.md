@@ -17,7 +17,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profil
 rustup component add rustfmt clippy
 
 # Tailwind standalone CLI v4 (single binary, lives on PATH — never in the repo)
-curl -sL https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.12/tailwindcss-linux-x64 \
+curl -sL https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64 \
   -o ~/.local/bin/tailwindcss && chmod +x ~/.local/bin/tailwindcss
 ```
 
