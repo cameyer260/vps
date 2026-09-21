@@ -315,6 +315,55 @@ impl SelectedRuntime {
             ),
         }
     }
+
+    /// `GET /api/agents` rows. Delegates to whichever backend is wired so
+    /// bridge code (reaper, registries) never matches on the enum.
+    pub async fn list(&self) -> Result<Vec<AgentInfo>, RuntimeError> {
+        match self {
+            SelectedRuntime::Prod(rt) => rt.list().await,
+            SelectedRuntime::Mock(rt) => rt.list().await,
+        }
+    }
+
+    /// Chat guard: `Ok(None)` when the id is unknown (or gone).
+    pub async fn labels(&self, id: &str) -> Result<Option<HashMap<String, String>>, RuntimeError> {
+        match self {
+            SelectedRuntime::Prod(rt) => rt.labels(id).await,
+            SelectedRuntime::Mock(rt) => rt.labels(id).await,
+        }
+    }
+
+    /// Bridge stdio for one agent.
+    pub async fn attach(&self, id: &str) -> Result<AttachedAgent, RuntimeError> {
+        match self {
+            SelectedRuntime::Prod(rt) => rt.attach(id).await,
+            SelectedRuntime::Mock(rt) => rt.attach(id).await,
+        }
+    }
+
+    /// Terminate route. Idempotent: stopping a gone agent succeeds.
+    pub async fn stop_and_remove(&self, id: &str) -> Result<(), RuntimeError> {
+        match self {
+            SelectedRuntime::Prod(rt) => rt.stop_and_remove(id).await,
+            SelectedRuntime::Mock(rt) => rt.stop_and_remove(id).await,
+        }
+    }
+
+    /// Start route. Returns the new agent id.
+    pub async fn spawn(&self, opts: SpawnOptions) -> Result<String, RuntimeError> {
+        match self {
+            SelectedRuntime::Prod(rt) => rt.spawn(opts).await,
+            SelectedRuntime::Mock(rt) => rt.spawn(opts).await,
+        }
+    }
+
+    /// Global agent feed (lifecycle transitions from both backends).
+    pub fn subscribe(&self) -> broadcast::Receiver<LifecycleEvent> {
+        match self {
+            SelectedRuntime::Prod(rt) => rt.subscribe(),
+            SelectedRuntime::Mock(rt) => rt.subscribe(),
+        }
+    }
 }
 
 /// Wire the runtime from the environment. Mock mode is `MOCK_SCENARIO=name`

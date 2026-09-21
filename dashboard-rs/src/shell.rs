@@ -115,7 +115,12 @@ impl RenderOrEmpty for Shell {
 }
 
 /// Assemble the Phase 1 router: three tab pages, static assets, fallback.
-pub fn router(config: &Config) -> Router {
+/// Generic over Axum state so `main.rs` can merge the bridge routes
+/// (Phase 3) without coupling this chrome to chat state.
+pub fn router<S>(config: &Config) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
     Router::new()
         .route("/", get(agents))
         .route("/ide", get(ide))

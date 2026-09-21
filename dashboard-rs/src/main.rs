@@ -1,35 +1,48 @@
 //! dashboard-rs: Rust port of the VPS admin dashboard.
 //!
-//! Phase 1 (scaffold): config with Q12 parity, Askama app shell with
-//! hx-boost + bottom nav, static assets via ServeDir. Later phases add the
-//! runtime seam (2), bridge (3), agents UI (4), notes IDE (5), PWA (6),
-//! and the supervisor binary (7). See `docs/rust-port.md` + ADRs 0001–0005.
+//! Phase 3 (bridge): the runtime seam feeds per-agent bridges (entry
+//! state, pi RPC over attach, server-rendered Markdown, SSE chat stream,
+//! POST commands, GC reaper). Later phases add the agents UI (4), notes
+//! IDE (5), PWA (6), and the supervisor binary (7).
+//! See `docs/rust-port.md` + ADRs 0001–0005.
 
 use std::net::SocketAddr;
+use std::sync::Arc;
 
+use dashboard_rs::bridge::{AppState, BridgeRegistry};
 use dashboard_rs::config::Config;
-use dashboard_rs::runtime;
-use dashboard_rs::shell;
+use dashboard_rs::events::{EventHub, forward_lifecycle};
+use dashboard_rs::{gc, runtime, shell};
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
     let config = Config::from_env();
     // Wire the runtime seam at boot: unknown MOCK_SCENARIO names fail
-    // fast here, before the listener opens. Phase 3+ hangs routes off it;
-    // until then the boot log proves which backend is live.
-    let _runtime = match runtime::select_runtime(&config) {
+    // fast here, before the listener opens. The bridge registry hangs off
+    // it; the boot log proves which backend is live.
+    let runtime = match runtime::select_runtime(&config) {
         Ok(rt) => {
             log::info!("runtime: {}", rt.describe());
-            rt
+            Arc::new(rt)
         }
         Err(err) => {
             log::error!("runtime init failed: {err}");
             std::process::exit(1);
         }
     };
+    // Global hub: runtime lifecycle → agents_changed (Phase 4 serves it
+    // as the SSE agent feed); bridges publish status/rename onto it.
+    let hub = EventHub::new();
+    forward_lifecycle(Arc::clone(&runtime), hub.clone());
+    let registry = Arc::new(BridgeRegistry::new(Arc::clone(&runtime), hub));
+    gc::start_gc_reaper(
+        Arc::clone(&runtime),
+        Arc::clone(&registry),
+        config.gc_idle_timeout_ms,
+    );
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
-    let app = shell::router(&config);
+    let app = shell::router(&config).merge(dashboard_rs::bridge::router(AppState::new(registry)));
 
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(l) => l,

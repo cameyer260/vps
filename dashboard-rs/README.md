@@ -5,7 +5,7 @@ htmx/hyperscript frontend, SSE streams. Working plan:
 [`docs/rust-port.md`](../docs/rust-port.md); decisions: ADRs 0001–0005;
 shared language: [`CONTEXT.md`](../CONTEXT.md).
 
-Status: Phase 2 (runtime seam). The old TypeScript dashboard in `dashboard/`
+Status: Phase 3 (bridge). The old TypeScript dashboard in `dashboard/`
 is still the running implementation — this crate replaces it at cutover
 (Phase 8 checklist in the port plan).
 
@@ -37,6 +37,14 @@ Defaults match the VPS layout; nothing else is needed for the scaffold.
 `MOCK_SCENARIO=name cargo run` swaps the runtime seam for scripted fakes
 (no Docker, no jarvis, no host mounts) — the Rust replacement for the old
 dashboard's `MOCK_VPS=1` loop. Unknown names fail fast with the valid list.
+Chat smoke test against the mock (Phase 3 bridge endpoints):
+
+```bash
+MOCK_SCENARIO=chat-streaming PORT=3847 cargo run &
+curl -X POST -d "message=hello" localhost:3847/api/agents/mock-1/prompt
+curl -N localhost:3847/api/agents/mock-1/stream   # init + entry events
+curl -X POST localhost:3847/api/agents/mock-1/terminate
+```
 
 | Scenario         | Seeds                                                              |
 |------------------|--------------------------------------------------------------------|
