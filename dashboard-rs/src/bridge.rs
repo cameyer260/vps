@@ -22,8 +22,11 @@
 //! - `set_model` / `set_thinking_level` / `set_session_name` refresh the
 //!   cached state and fan out so every tab stays in sync; renames also hit
 //!   the global hub (same path as lifecycle events).
-//! - `destroy()` (dashboard-initiated stop) broadcasts `exited` first, so
-//!   chats open on other devices render the exit instead of idling forever.
+//! - `destroy()` (dashboard-initiated stop) sends chats home: it broadcasts
+//!   `exited` for the status feed, then a `terminated` event instructing
+//!   every open chat to navigate to `/`. A shut-down agent's chat exists
+//!   only in the browser — staying on it means a refresh lands on a dead
+//!   route — so viewers leave instead of idling on a husk.
 //! - Committed entries come from `get_entries` (seed at attach, reconcile
 //!   after every turn); live pi events only drive the streaming `delta`
 //!   overlay and the optimistic user echo. No provisional/committed duality
@@ -64,6 +67,12 @@ pub const EVT_ENTRY: &str = "entry";
 pub const EVT_DELTA: &str = "delta";
 pub const EVT_STATUS: &str = "status";
 pub const EVT_NOTICE: &str = "notice";
+/// Shutdown instruction: the agent is gone for good, so the chat page must
+/// navigate home (`/`). A dead chat exists only in the browser — staying on
+/// it means a refresh lands on a nonexistent route. (Phase 4 wires the
+/// navigation: hyperscript `on sse:terminated`, plus a route guard that
+/// redirects unknown agent ids to `/` on load.)
+pub const EVT_TERMINATED: &str = "terminated";
 
 /// Coalescing window for streaming deltas (ADR 0003: ~50–100ms).
 const DELTA_FLUSH_MS: u64 = 75;
@@ -713,7 +722,9 @@ impl Bridge {
     }
 
     /// Dashboard-initiated teardown (the terminate path): tell every open
-    /// chat first, then drop the attachment. Idempotent.
+    /// chat first, then drop the attachment. Idempotent. Viewers navigate
+    /// home on the `terminated` event — a dead chat must not linger in the
+    /// browser past a refresh.
     pub fn destroy(&self) {
         if self.destroyed.swap(true, Ordering::SeqCst) {
             return;
@@ -721,6 +732,10 @@ impl Bridge {
         self.broadcast(SseEvent::new(
             EVT_STATUS,
             serde_json::json!({ "status": "exited" }),
+        ));
+        self.broadcast(SseEvent::new(
+            EVT_TERMINATED,
+            serde_json::json!({ "redirect": "/" }),
         ));
         self.hub.publish(GlobalEvent::AgentStatus {
             id: self.id.clone(),
@@ -2702,6 +2717,11 @@ mod tests {
                 .any(|(e, d)| e == EVT_STATUS && d.contains("exited")),
             "{events:?}"
         );
+        // …and viewers are sent home: a dead chat must not linger in the
+        // browser past a refresh.
+        let term = events.iter().find(|(e, _)| e == EVT_TERMINATED).unwrap();
+        let data: serde_json::Value = serde_json::from_str(&term.1).unwrap();
+        assert_eq!(data["redirect"], "/");
         let hub_ev = tokio::time::timeout(Duration::from_secs(2), hub_rx.recv())
             .await
             .unwrap()
