@@ -11,10 +11,14 @@
 //! Behavior preserved from the old bridge:
 //! - Browser disconnects never stop the agent; history comes from the
 //!   server-owned entry log, so reconnects replay `init` + `entry` events.
-//! - Read-only ground truth is the extension's notifies, cached for late
-//!   joiners (`init` carries it).
-//! - Blocking dialog requests (`select`/`confirm`/`input`/`editor`) are
-//!   dropped headlessly — with a `notice` telling the chat they were.
+//! - Read-only mode is decided by the agent's extension, not the dashboard:
+//!   the extension announces each change as a transient notify event, and
+//!   the bridge caches the latest value so tabs that connect later still
+//!   learn it (via `init`) instead of showing a stale toggle.
+//! - Interactive dialog requests (`select`/`confirm`/`input`/`editor`)
+//!   would stall the agent waiting for an answer nobody can give it
+//!   headlessly, so the bridge drops them and posts a `notice` so the
+//!   chat shows what happened instead of hanging with no explanation.
 //! - `set_model` / `set_thinking_level` / `set_session_name` refresh the
 //!   cached state and fan out so every tab stays in sync; renames also hit
 //!   the global hub (same path as lifecycle events).
@@ -1327,7 +1331,9 @@ impl Bridge {
             }
             return;
         }
-        // Blocking dialog with nothing headless to answer it: drop, loudly.
+        // An interactive dialog expects an answer over RPC, but there is
+        // no UI to answer it headlessly — the agent would wait forever.
+        // Drop it, and say so in the chat.
         if matches!(method, "select" | "confirm" | "input" | "editor") {
             self.broadcast_notice(
                 Some(format!(
