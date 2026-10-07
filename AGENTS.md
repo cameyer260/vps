@@ -3,7 +3,7 @@
 Context and invariants for any AI working in this repo. The dashboard in
 particular is designed around the VPS setup described here — read this before
 making changes. Deeper reference: [docs/vps.md](docs/vps.md) (host
-environment) and [docs/jarvis.md](docs/jarvis.md) (the jarvis contract).
+environment).
 
 ## VPS
 
@@ -17,52 +17,14 @@ environment) and [docs/jarvis.md](docs/jarvis.md) (the jarvis contract).
 - Docker Engine + Compose plugin are installed; `dev` is in the `docker`
   group (no sudo needed). systemd lingering is enabled for `dev`, so any
   long-running process should be a systemd user service or a container.
-- Credentials live on the host and are mounted into containers at runtime —
-  never baked into images (table in [docs/vps.md](docs/vps.md)).
-
-## jarvis (how agents actually run)
-
-`jarvis` (`agent-images/jarvis.sh`, symlinked onto the VPS PATH at
-`~/bin/jarvis`) wraps `docker run` for pi agents (the
-`@earendil-works/pi-coding-agent` CLI) inside containers built from the
-`agent-pi` image. [docs/jarvis.md](docs/jarvis.md) is the single source of
-truth for its behavior — the dashboard shells out to it and never re-derives
-the flags. Rules:
-
-- The dashboard starts jarvis agents by shelling out to `jarvis rpc`. It
-  uses the Docker API only to list/inspect/attach/stop containers.
-  Bare-metal host agents (New Agent modal with the Jarvis toggle off) spawn
-  through the host supervisor socket instead — see [docs/host-pi.md](docs/host-pi.md).
-  Both show up as agents in the same list (`runtime: jarvis | host`).
-- Discover agents via labels — `agent.kind=pi` (all agents),
-  `agent.project=<basename>`, `agent.origin=dashboard` (dashboard-managed) —
-  **never by container name** (containers get no `--name`; multiple agents
-  can run on one project concurrently).
-- Never mount `/home/dev` wholesale or the Docker socket into agent
-  containers.
-- Workspaces mount at their real host path (not `/workspace`) and the host
-  sessions dir is mounted rw, so sessions group together and resume works
-  across dashboard and SSH/TUI runs.
-- Missing workspaces are pre-created by jarvis (`mkdir` + `git init` as
-  `dev`) before a container mounts them — plain Docker `-v` would create
-  them root-owned.
-- Dev UID/GID for `--user` resolve as `${AGENT_UID:-$(id -u dev)}`; the
-  dashboard container is deployed with `AGENT_UID`/`AGENT_GID` set (there is
-  no dev user inside it to look up) and they are inherited by every jarvis
-  invocation.
-- Models are accessed through the OpenRouter provider.
-- Agent containers hold **no GitHub credentials**. Remote git ops
-  (push/fetch/pull) go through the host-side git bridge
-  (`tools/jarvis-git-bridge.*`, systemd user socket; see docs/jarvis.md) —
-  the bridge derives the workspace from the container's own mounts, so an
-  agent can only ever act on the workspace it was launched with.
+- Credentials live on the host and are mounted in at runtime — never baked
+  into images (table in [docs/vps.md](docs/vps.md)).
 - The notes project lives at `/home/dev/notes` (a git repo synced with
   GitHub). It is the default/always-on agent's workspace.
 
 ## Validating dashboard work
 
-Agents run with no Docker socket, no jarvis, and none of the host mounts,
-so dashboard changes must never be shipped untested: drive them through the
+Dashboard changes must never be shipped untested: drive them through the
 mock harness — `MOCK_SCENARIO=… npm run dev:mock` + `npm run dev:web`, the
 scenario matching the work, and `node scripts/mock-smoke.mjs` green plus
 `npm run typecheck && npm run build` before committing. Full loop, scenario
@@ -74,7 +36,7 @@ table, and per-fix definition of done:
 - `README.md` files — orientation and operations (what it is, how to
   run/build/deploy).
 - `AGENTS.md` (this file) — invariants for AI agents.
-- `docs/` — technical reference (VPS environment, jarvis contract).
+- `docs/` — technical reference (VPS environment).
 - `dashboard/ARCHITECTURE.md` — dashboard internals (bridge, events socket,
   read-only mode, roadmap).
 - Each fact is documented in exactly one place; link instead of duplicating.

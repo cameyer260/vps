@@ -2,7 +2,7 @@
 # prune-screenshots.sh — delete screenshots older than retention.
 #
 # Inbox: ${SCREENSHOTS_DIR:-/home/dev/screenshots} (scp target for the Mac
-# screenshot tool; mounted read-only into every jarvis agent). Runs daily via
+# screenshot tool). Runs daily via
 # prune-screenshots.timer (systemd --user). Retention defaults to 7 days;
 # override with SCREENSHOTS_RETENTION_DAYS (or EnvironmentFile, see the
 # .service unit). Exits quietly when the inbox does not exist yet.
