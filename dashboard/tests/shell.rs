@@ -217,9 +217,122 @@ async fn shell_references_only_local_assets() {
     for remote in ["http://", "https://", "//cdn", "unpkg", "npm"] {
         assert!(!html.contains(remote), "shell references {remote}");
     }
-    // There is no favicon file; the empty data URI keeps the browser from
-    // requesting one and logging a 404 on every page load.
-    assert!(html.contains("rel=\"icon\" href=\"data:,\""));
+    // The icon set is declared here and served locally, at the conventional
+    // root paths (the SVG for modern browsers, the ICO for the rest, the PNGs
+    // for the sizes a browser may prefer, the 180px PNG for iOS).
+    for icon in [
+        "<link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\" />",
+        "<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"32x32\" />",
+        "<link rel=\"icon\" href=\"/favicon-32x32.png\" type=\"image/png\" sizes=\"32x32\" />",
+        "<link rel=\"icon\" href=\"/favicon-16x16.png\" type=\"image/png\" sizes=\"16x16\" />",
+        "<link rel=\"apple-touch-icon\" href=\"/apple-touch-icon.png\" sizes=\"180x180\" />",
+    ] {
+        assert!(html.contains(icon), "head is missing {icon}");
+    }
+    // Installed on a phone: the manifest supplies the home-screen icon, and
+    // `display: standalone` in it is what opens the app without browser chrome.
+    assert!(html.contains("<link rel=\"manifest\" href=\"/site.webmanifest\" />"));
+    assert!(html.contains("<meta name=\"apple-mobile-web-app-capable\" content=\"yes\" />"));
+    assert!(html.contains("<meta name=\"apple-mobile-web-app-title\" content=\"notes\" />"));
+    assert!(html.contains("<meta name=\"theme-color\" content=\"#1e1e1e\" />"));
+}
+
+#[tokio::test]
+async fn icons_are_served_at_the_root_paths_their_clients_ask_for() {
+    for (uri, expected) in [
+        ("/favicon.ico", "image/vnd.microsoft.icon"),
+        ("/favicon.svg", "image/svg+xml"),
+        ("/favicon-16x16.png", "image/png"),
+        ("/favicon-32x32.png", "image/png"),
+        ("/apple-touch-icon.png", "image/png"),
+        ("/icon-192.png", "image/png"),
+        ("/icon-512.png", "image/png"),
+    ] {
+        let response = get(&config(), uri).await;
+        assert_eq!(response.status(), StatusCode::OK, "{uri} not served");
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some(expected),
+            "{uri} served with the wrong type"
+        );
+        // Root paths cannot carry the asset fingerprint, so these are cached for
+        // an hour rather than immutably.
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CACHE_CONTROL)
+                .and_then(|value| value.to_str().ok()),
+            Some("public, max-age=3600"),
+            "{uri} cached wrongly"
+        );
+    }
+    // Nothing else is readable through that route, not even a real icon file
+    // under another name.
+    let response = get(&config(), "/icons/favicon.ico").await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn the_manifest_names_the_app_and_its_icons() {
+    let response = get(&config(), "/site.webmanifest").await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/manifest+json")
+    );
+    let json: serde_json::Value =
+        serde_json::from_str(&body_text(response).await).expect("the manifest parses as JSON");
+    assert_eq!(json["name"], "notes — admin");
+    assert_eq!(json["short_name"], "notes");
+    assert_eq!(json["start_url"], "/");
+    assert_eq!(json["scope"], "/");
+    // What makes an installed app open without browser chrome.
+    assert_eq!(json["display"], "standalone");
+    assert_eq!(json["theme_color"], "#1e1e1e");
+    assert_eq!(json["background_color"], "#1e1e1e");
+
+    let icons = json["icons"].as_array().expect("icons array");
+    assert_eq!(icons.len(), 2);
+    for (size, src) in [("192x192", "/icon-192.png"), ("512x512", "/icon-512.png")] {
+        let icon = icons
+            .iter()
+            .find(|icon| icon["sizes"] == size)
+            .unwrap_or_else(|| panic!("no {size} icon"));
+        assert_eq!(icon["src"], src);
+        assert_eq!(icon["type"], "image/png");
+        // The mark sits inside the maskable safe circle, so one file per size
+        // serves both purposes.
+        assert_eq!(icon["purpose"], "any maskable");
+        // And the file it names is really served.
+        assert_eq!(get(&config(), src).await.status(), StatusCode::OK);
+    }
+
+    // The vault's name is a filesystem name, not trusted JSON.
+    let root = temp_vault().join("odd\"name\\vault");
+    std::fs::create_dir_all(&root).unwrap();
+    let body = body_text(get(&vault_config(&root), "/site.webmanifest").await).await;
+    let json: serde_json::Value =
+        serde_json::from_str(&body).unwrap_or_else(|e| panic!("{e} in {body}"));
+    assert_eq!(json["short_name"], "odd\"name\\vault");
+}
+
+#[tokio::test]
+async fn published_pages_carry_the_same_icon_set() {
+    let root = temp_vault();
+    std::fs::create_dir_all(root.join("demo")).unwrap();
+    std::fs::write(root.join("demo/index.html"), "<p>hi</p>").unwrap();
+    let mut config = config();
+    config.published_root = root;
+    let html = body_text(get(&config, "/s/").await).await;
+    assert!(html.contains("<link rel=\"apple-touch-icon\" href=\"/apple-touch-icon.png\""));
+    assert!(html.contains("<link rel=\"manifest\" href=\"/site.webmanifest\" />"));
+    assert!(html.contains("<meta name=\"apple-mobile-web-app-title\" content=\"notes\" />"));
 }
 
 #[tokio::test]

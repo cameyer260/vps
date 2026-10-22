@@ -4,11 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
-  <!-- An empty data URI stops the browser's default /favicon.ico request. -->
-  <link rel="icon" href="data:," />
   <title>Published pages — admin</title>
   <link rel="stylesheet" href="/static/css/app.css?v={{ asset_version }}" />
   <script src="/static/js/app.js?v={{ asset_version }}" defer></script>
+  {# The same icon set, manifest and standalone metas as notes.html: this page is
+     reachable on its own, and the browser tab and the home screen carry the
+     mark either way. #}
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+  <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#1e1e1e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="{{ vault_name }}" />
 </head>
 <body>
   {# The iOS status-bar strip: see the comment in notes.html. #}

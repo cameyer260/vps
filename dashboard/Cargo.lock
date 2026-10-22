@@ -245,6 +245,7 @@ dependencies = [
  "log",
  "pulldown-cmark",
  "serde",
+ "serde_json",
  "time",
  "tokio",
  "tower",

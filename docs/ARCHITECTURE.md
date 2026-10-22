@@ -38,8 +38,8 @@ the existing Cloudflare tunnel and Access is `admin.service`, registered from
     `0.0.0.0:$PORT`, and shuts down cleanly on SIGINT/SIGTERM.
   - `lib.rs` — the router: `/` (the notes browser), `/search` (the tree filter),
     `/notes/…` and `/download/notes/…` (notes and attachments), `/s/…`
-    (published pages), `/health` (200, body `ok`), and `/static/…` served from
-    the assets directory.
+    (published pages), `/health` (200, body `ok`), `/static/…` served from
+    the assets directory, and the icon and manifest paths below.
   - `config.rs` — environment configuration: notes root, published root, port,
     log level, assets directory, and a fingerprint of the vendored assets.
     Defaults match this host; a missing notes root logs a warning and still
@@ -52,10 +52,17 @@ the existing Cloudflare tunnel and Access is `admin.service`, registered from
     `div.status-bar-backdrop` that keeps the iOS status bar solid in an
     installed app (see "Decisions and why").
   - `assets/` — `css/input.css` plus the committed Tailwind output
-    `css/app.css`, and the vendored `js/` (htmx and our `app.js`; versions and
-    sources in `assets/js/VENDORED.md`). Their URLs carry the fingerprint from
-    `config.rs` (`/static/css/app.css?v=…`), so a deploy cannot leave a stale
-    copy in a browser or at Cloudflare's edge.
+    `css/app.css`, the vendored `js/` (htmx and our `app.js`; versions and
+    sources in `assets/js/VENDORED.md`), and `icons/` — the app's mark in every
+    shape a browser or a phone asks for. The stylesheet and scripts carry the
+    fingerprint from `config.rs` (`/static/css/app.css?v=…`), so a deploy cannot
+    leave a stale copy in a browser or at Cloudflare's edge; the icons are
+    served at the site root instead, and `icons.rs` says why.
+  - `icons.rs` — the icon files at their conventional root paths
+    (`/favicon.ico`, `/favicon.svg`, `/apple-touch-icon.png`, `/icon-192.png`, …)
+    from `assets/icons/`, served from an allow-list with an hour's cache, plus
+    `/site.webmanifest`: the web app manifest, built as JSON with the vault's
+    name, the app's `#1e1e1e`, `display: standalone` and the two icon sizes.
   - `notes.rs` — hidden-entry-aware notes tree (Obsidian-shaped rows with
     chevrons and guide lines), live filename-only search that replaces just the
     tree's rows, read-only attachment serving with the pre-download dialog's
@@ -109,6 +116,14 @@ the existing Cloudflare tunnel and Access is `admin.service`, registered from
   the skill) → requests to `/s/<slug>/…` resolve under the published root and
   are served verbatim with extension-based content types → `/s/` lists valid
   page directories by directory mtime, newest first.
+- **Install the app on a phone.** Add to Home Screen → iOS reads the 180px
+  `apple-touch-icon.png` (opaque, full-bleed) and the
+  `apple-mobile-web-app-title` meta for the label; Android and Chrome read
+  `/site.webmanifest` for the name, the tile colours, `start_url: /` and the
+  192/512 icons → launching opens the site with no browser chrome
+  (`display: standalone`), and the status-bar strip that needs is the one
+  `app.js` marks the document for (see below). No service worker and no
+  offline mode: this is an installed window, not a cached app.
 - **Review a dev server.** Owner asks → if something already holds port 4173 the
   agent reports it and waits for the owner's call → agent starts the app's dev
   server on port 4173, bound to `127.0.0.1` (only cloudflared connects) over
@@ -149,14 +164,19 @@ No database, no migrations, no persistent app state. Two filesystem roots:
 - **rustup/cargo** — already installed; the release build happens on the box.
 - **Crates** (the `dashboard/` crate's list; each earns its place): axum +
   tokio (the server), tower-http (static assets), askama (templates), serde
-  (query-string decoding), pulldown-cmark + ammonia (the markdown pipeline),
-  log + env_logger (journald-friendly logging), time (published-page
-  timestamps).
+  (query-string decoding) + serde_json (the web app manifest), pulldown-cmark +
+  ammonia (the markdown pipeline), log + env_logger (journald-friendly
+  logging), time (published-page timestamps).
   Deliberately absent: no database crate, no WebSocket crate, no JS framework,
   no markdown WYSIWYG editor, no CSV crate.
 - **Vendored frontend assets** — htmx and a small `app.js` of ours, served from
   `dashboard/assets/js/`; versions and sources recorded in
   `assets/js/VENDORED.md`.
+- **The icon set** — generated once from the source image the owner supplied
+  (`~/screenshots/Minimal Blue Open Book Icon.png`) and committed, like the
+  Tailwind output; nothing at build or deploy time reads the source. The README
+  has the set and the recipe, and `favicon.svg` is the vector original to work
+  from.
 - **The notes repo itself** — a git repo synced with GitHub; the app reads it and
   never writes.
 
@@ -216,6 +236,48 @@ run it (no Node runtime, no container), and the owner maintains it directly.
   still downloads.
 - **Tailwind output committed, no CSS build on deploy.** The CLI runs only when
   styles change.
+- **The icon set is generated once and committed, and served from root paths.**
+  The mark is the owner's blue open book on the app's own `#1e1e1e` tile, at the
+  sizes each client wants: `favicon.svg` (the modern favicon), `favicon.ico`
+  (16/32/48 PNGs in an ICO container), `favicon-16x16.png` and
+  `favicon-32x32.png` (the sizes a browser may prefer as PNG),
+  `apple-touch-icon.png` (180px, opaque — iOS composites transparency onto
+  black, and it never reads the manifest), and `icon-192.png` /
+  `icon-512.png` (the installed app's tile, declared `any maskable` because the
+  mark sits inside the 80% safe circle, so one file per size serves both the
+  masked and the unmasked case).
+
+  They are served from the *site root* rather than `/static`, and cached for an
+  hour rather than immutably, because the clients that matter here do not read
+  the HTML: iOS probes `/apple-touch-icon.png` when a page is added to the home
+  screen, and a browser, a link preview or a bookmark tile with no declared
+  icon asks for `/favicon.ico`. Those paths cannot carry the asset fingerprint,
+  so the year-long immutable cache the fingerprinted assets rely on would pin a
+  replaced icon for a year. An hour is the compromise: a page load does not
+  re-fetch seven files, and a changed icon lands the same day. Undo by moving
+  the files under `/static/icons/` and versioning the links — at the cost of the
+  probes above finding nothing.
+
+  `favicon.svg` is a trace of the source raster, not the source itself: the
+  source is an AI-generated image whose silhouette is not perfectly smooth, so
+  the outline was blurred and re-traced down to 19 nodes (a 243-node trace of
+  the raw edge measured no better against the master), and the fill is the
+  source's own measured vertical gradient — five stops, `#5bc3fc` at the top of
+  the pages to `#016bfc` at the tip. The PNGs are the more faithful rasters: they
+  also carry the subtle horizontal shading where the pages curl away from the
+  light. The README has the recipe and the source of each file; nothing here is
+  generated at build time.
+- **The web app manifest is built, not a file.** It carries the vault's name —
+  `notes — admin`, with `notes` under the home-screen icon — which comes from
+  the notes root at runtime, so a checked-in JSON file would go stale the moment
+  the vault directory is renamed. It is written with `serde_json` rather than
+  formatted by hand, because the vault's name is a filesystem name and a quote
+  in it must not be able to break the document a browser has to parse (a test
+  serves one with a quote and a backslash in it). `display: standalone` is what
+  makes an installed app open without browser chrome; the two
+  `apple-mobile-web-app-*` metas in the templates cover iOS, which has read a
+  manifest of its own only since 16.4. There is deliberately no service worker:
+  the app is live notes, not something to cache offline.
 - **No database.** Notes and published pages are files; anything else is derived.
 - **Notes are read-only in v1.** Editing is the part that grows (autosave,
   drafts, conflicts, git interaction); leaving it out keeps this version small

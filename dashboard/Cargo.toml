@@ -19,6 +19,9 @@ tower-http = { version = "0.7", features = ["fs"] }
 askama = "0.16"
 # Query-string decoding (`?q=`) into a struct.
 serde = { version = "1", features = ["derive"] }
+# The web app manifest, written as JSON so that a vault name containing a quote
+# cannot break the document a browser has to parse.
+serde_json = "1"
 # Logging: log macros + the env-filtered logger on the host.
 log = "0.4"
 env_logger = "0.11"

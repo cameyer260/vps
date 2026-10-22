@@ -4,13 +4,28 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
-  <!-- An empty data URI stops the browser's default /favicon.ico request: the
-       site has no icon, and a 404 on every page load hides real console errors. -->
-  <link rel="icon" href="data:," />
   <title>{{ vault_name }} — admin</title>
   <link rel="stylesheet" href="/static/css/app.css?v={{ asset_version }}" />
   <script src="/static/js/htmx.min.js?v={{ asset_version }}" defer></script>
   <script src="/static/js/app.js?v={{ asset_version }}" defer></script>
+  <!-- The mark, in the shapes each kind of client wants: the SVG for browsers
+       that take it, the ICO and the two PNGs for the rest, the 180px PNG for
+       iOS, and the manifest for a phone that installs the site. The paths are
+       the conventional root ones on purpose — see src/icons.rs. -->
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+  <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#1e1e1e" />
+  <!-- Installed on a phone, the manifest's `display: standalone` is what makes
+       the app open without browser chrome; these two cover iOS, which has read
+       a manifest of its own only since 16.4. The title is the home-screen
+       label, so it is the vault's name rather than the page's. -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="{{ vault_name }}" />
 </head>
 {# htmx 4 inheritance is explicit: the boosted navigation and its target must be
    declared on the body with the `:inherited` suffix, or nothing is boosted. #}

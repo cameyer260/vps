@@ -42,6 +42,9 @@ struct PublishedPage {
 struct PublishIndex<'a> {
     pages: &'a [PublishedPage],
     asset_version: &'a str,
+    /// Only for the head: the icon links, the manifest and the home-screen
+    /// label, which the notes page carries too.
+    vault_name: &'a str,
 }
 
 async fn index(State(config): State<Arc<Config>>) -> Html<String> {
@@ -55,6 +58,7 @@ async fn index(State(config): State<Arc<Config>>) -> Html<String> {
     PublishIndex {
         pages: &pages,
         asset_version: &config.asset_version,
+        vault_name: &config.vault_name(),
     }
     .render()
     .map(Html)

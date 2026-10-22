@@ -6,9 +6,10 @@
 //!
 //! Built: deployment-time configuration (`config`), the notes browser
 //! (`notes`, `render`), published pages (`publish`), the `/static` asset mount,
-//! and the health endpoint.
+//! the app's icons and web app manifest (`icons`), and the health endpoint.
 
 pub mod config;
+pub mod icons;
 pub mod notes;
 pub mod publish;
 pub mod render;
@@ -40,6 +41,8 @@ pub fn app(config: &Config) -> Router {
         .route("/health", get(health))
         // Published pages are served verbatim from their confined filesystem root.
         .merge(publish::routes())
+        // The icons and the manifest, at the root paths their clients ask for.
+        .merge(icons::routes())
         // Vendored assets, served from disk. No CDN, no npm.
         .nest_service("/static", ServeDir::new(&config.assets_dir))
         // The asset URLs carry a fingerprint of their contents, so they can be

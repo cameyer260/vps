@@ -7,7 +7,7 @@ on my VPS.
 
 | Path | What it is |
 |---|---|
-| `dashboard/` | The admin site: a read-only, Obsidian-quality browser for the notes repo (tree, reading view, filename search, attachments), plus a surface for publishing throwaway pages (visuals, prototypes, demos) at `admin.christophermeyer.dev/s/<slug>/`. |
+| `dashboard/` | The admin site: a read-only, Obsidian-quality browser for the notes repo (tree, reading view, filename search, attachments), plus a surface for publishing throwaway pages (visuals, prototypes, demos) at `admin.christophermeyer.dev/s/<slug>/`. Its icon set and web app manifest are here too, so it can be installed on a phone. |
 | `skills/` | Agent skills that make the site usable from an agent session — publishing a page, and putting a dev server up for review from outside the VPS. Registered on this host. |
 | `tools/` | Host tooling that runs on the VPS itself: `tools/admin.service`, the systemd user unit for the site, and `tools/prune-screenshots.*`, a systemd user timer that prunes the screenshots inbox daily. Both in daily use. |
 | `docs/` | PRD (behavior) and ARCHITECTURE (structure and decisions). |
@@ -59,7 +59,12 @@ reading pane, `/notes/…`
 renders a note or serves an attachment (over the 1 MiB cap a download link is
 shown instead), `/download/notes/…` downloads a file, `/s/<slug>/` serves a
 published page, `/health` answers `ok`, and `/static/…` serves the vendored
-assets (no CDN, no `npm`).
+assets (no CDN, no `npm`). The icon files — `/favicon.ico`, `/favicon.svg`,
+`/favicon-16x16.png`, `/favicon-32x32.png`, `/apple-touch-icon.png`,
+`/icon-192.png`, `/icon-512.png` — and `/site.webmanifest` sit at the site root
+instead, with an hour's cache: those are the paths a browser and a phone look
+for on their own, and they cannot carry a fingerprint. See "The app icon"
+below.
 
 Configuration is environment-only, with defaults that match this host
 (`dashboard/src/config.rs` is the reference):
@@ -157,6 +162,45 @@ Registration on this host (already done):
 ln -sfn /home/dev/vps/skills/<name> ~/.agents/skills/<name>
 ln -sfn /home/dev/vps/skills/<name> ~/.claude/skills/<name>
 ```
+
+### The app icon
+
+The mark is a blue open book on the app's own `#1e1e1e`. Every file in
+`dashboard/assets/icons/` is committed, and nothing generates them at build or
+deploy time — the same deal as `app.css`.
+
+| File | What it is |
+|---|---|
+| `favicon.svg` | The mark alone on transparency, cropped tight, filled with the source's own gradient. The modern favicon, and the vector original to work from. |
+| `favicon.ico` | The mark at 16, 32 and 48px, as PNGs inside an ICO container, for browsers that ask for `/favicon.ico`. |
+| `favicon-16x16.png`, `favicon-32x32.png` | The same mark as plain PNGs, for browsers that prefer a PNG to the ICO. |
+| `apple-touch-icon.png` | 180px, opaque, the mark on the full `#1e1e1e` tile. What iOS puts on the home screen; iOS never reads the manifest, and it composites transparency onto black, so this one has none. |
+| `icon-192.png`, `icon-512.png` | The installed app's tile, full-bleed and opaque, declared `any maskable` in the manifest. |
+
+They are produced from a source image — the owner's
+`~/screenshots/Minimal Blue Open Book Icon.png`, a 1254×1254 AI-generated raster:
+a blue page pair with a vertical gradient (`#5bc3fc` at the top of the pages to
+`#016bfc` at the tip) on a dark background — `#1e1e1d`, the app's own `#1e1e1e`
+to the eye — with the mark 59% of the canvas wide and inside the maskable safe
+circle. That background is noise rather than a flat colour, and the mark's edges
+are not perfectly smooth, so the recipe
+reconstructs rather than resamples: threshold the mark out, average each row's
+*interior* (eroded) pixels for the gradient, blur the masked colour with a
+normalised convolution — `blur(colour × mask) / blur(mask)`, so the dark
+background cannot leak into the thin corners and the tip — composite it back at
+coverage-derived alpha, and downsample that master (Lanczos) to each size. The
+full-bleed icons keep the source's composition exactly; the favicons crop to the
+mark plus 4% margin. `favicon.svg` is a trace of the same mask with `potrace`
+(blur 4, `alphaMax` 1.3, `optTolerance` 1.0, its coordinates rounded to whole
+units), which is what keeps it to 19 path nodes: tracing the unblurred edge
+gives 243, and measures 0.073 against the master's alpha where the 19-node one
+measures 0.075 — no difference an eye can find, at twelve times the path.
+
+Regenerating is a one-off, host-side job with `sharp` and `potrace` (a scratch
+`npm install`; there is no Node in the app or the deploy) — the outputs are what
+the repo keeps. The source raster lives in the screenshots inbox, which is
+pruned after 7 days, so **`favicon.svg` is the durable original**: a rework
+starts from it, or from a new source image.
 
 ### Screenshots inbox
 

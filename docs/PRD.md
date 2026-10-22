@@ -123,6 +123,17 @@ Non-goals for this version:
   open sidebar closes it, exactly as tapping the toggle does. The reading pane
   is comfortable at phone width and wide tables scroll inside their own
   container.
+- The site has a mark — the blue open book on the app's own `#1e1e1e` — and it
+  is what the browser tab shows, what a phone puts on the home screen, and what
+  the installed app opens with. Every page declares the whole set: the SVG for
+  browsers that take it, the ICO and the 16/32px PNGs for the rest, the 180px
+  PNG for iOS, and the web app manifest.
+- The manifest names the app after the vault (`notes — admin`, with `notes`
+  under the home-screen icon), gives it `#1e1e1e` for its chrome and its splash,
+  and asks for a standalone window — so an installed app opens without browser
+  chrome and its status bar matches the icon's tile. Adding it to the home
+  screen needs no service worker and there is no offline mode: the notes are
+  live.
 - Installed on a phone (iOS "Add to Home Screen"), the app keeps a solid status
   bar: the top of the screen shows the page's own background, never the system
   blur band that iOS otherwise draws over an installed web app. The strip that
@@ -164,6 +175,16 @@ Non-goals for this version:
   column, 16px text, its heading scale, base palette and text tiers.
 - Both pages carry the status-bar strip element, and it is `display: none` in a
   browser: a phone-width browser render is pixel-identical to before.
+- Both pages declare the icon set and the manifest in their head. Every icon
+  path serves its file with the right content type — `/favicon.ico`,
+  `/favicon.svg`, `/favicon-16x16.png`, `/favicon-32x32.png`,
+  `/apple-touch-icon.png`, `/icon-192.png`, `/icon-512.png` — nothing else is
+  readable through that route, and each is cached for an hour rather than
+  immutably, because those paths cannot carry the asset fingerprint.
+- `/site.webmanifest` parses as JSON and carries the vault's name,
+  `display: standalone`, `#1e1e1e` for both colours, and 192px and 512px icons
+  declared `any maskable` that are themselves served; a vault name containing a
+  quote or a backslash still yields a valid manifest.
 - Attachments appear as files in the tree; PDF, PNG, JPEG, GIF and WebP are served inline with MIME types, while SVG, text, unknown and other formats download with attachment disposition. Files over 1 MiB shown through the note route instead get a size-limit message and explicit download link.
 
 ### 2. Static publishing (`/s/<slug>/`)

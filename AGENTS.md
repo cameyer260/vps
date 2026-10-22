@@ -41,7 +41,10 @@ the published-pages rules); `cargo test` needs no socket.
 - Server-rendered HTML with htmx; no client framework, no CDN —
   frontend assets are vendored into the repo.
 - Tailwind CSS is built with the standalone CLI and the output is committed,
-  so a deploy needs no CSS build step.
+  so a deploy needs no CSS build step. The icon set under
+  `dashboard/assets/icons/` is the same deal: generated once, committed, and
+  served as-is (`favicon.svg` is the vector original). The README has the set
+  and the recipe.
 - No database. The filesystem is the source of truth.
 - Gates: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` all
   green before a change is done.
