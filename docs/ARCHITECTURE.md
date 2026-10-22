@@ -54,15 +54,14 @@ the existing Cloudflare tunnel and Access is `admin.service`, registered from
   - `assets/` — `css/input.css` plus the committed Tailwind output
     `css/app.css`, the vendored `js/` (htmx and our `app.js`; versions and
     sources in `assets/js/VENDORED.md`), and `icons/` — the app's mark in every
-    shape a browser or a phone asks for. The stylesheet and scripts carry the
-    fingerprint from `config.rs` (`/static/css/app.css?v=…`), so a deploy cannot
-    leave a stale copy in a browser or at Cloudflare's edge; the icons are
-    served at the site root instead, and `icons.rs` says why.
-  - `icons.rs` — the icon files at their conventional root paths
-    (`/favicon.ico`, `/favicon.svg`, `/apple-touch-icon.png`, `/icon-192.png`, …)
-    from `assets/icons/`, served from an allow-list with an hour's cache, plus
-    `/site.webmanifest`: the web app manifest, built as JSON with the vault's
-    name, the app's `#1e1e1e`, `display: standalone` and the two icon sizes.
+    shape a browser or a phone asks for. All of it carries the fingerprint from
+    `config.rs` (`/static/css/app.css?v=…`, `/static/icons/favicon.svg?v=…`), so
+    a deploy cannot leave a stale copy in a browser or at Cloudflare's edge.
+  - `icons.rs` — `/site.webmanifest`: the web app manifest, built as JSON with
+    the vault's name, the app's `#1e1e1e`, `display: standalone` and the two
+    fingerprinted icon sizes. It also serves a second, root-path copy of the
+    icons (`/favicon.ico`, `/apple-touch-icon.png`, …) from an allow-list with
+    an hour's cache, for the clients that never read the HTML.
   - `notes.rs` — hidden-entry-aware notes tree (Obsidian-shaped rows with
     chevrons and guide lines), live filename-only search that replaces just the
     tree's rows, read-only attachment serving with the pre-download dialog's
@@ -236,7 +235,8 @@ run it (no Node runtime, no container), and the owner maintains it directly.
   still downloads.
 - **Tailwind output committed, no CSS build on deploy.** The CLI runs only when
   styles change.
-- **The icon set is generated once and committed, and served from root paths.**
+- **The icon set is generated once and committed, and served like any other
+  asset — fingerprinted, with root-path fallbacks.**
   The mark is the owner's blue open book on the app's own `#1e1e1e` tile, at the
   sizes each client wants: `favicon.svg` (the modern favicon), `favicon.ico`
   (16/32/48 PNGs in an ICO container), `favicon-16x16.png` and
@@ -247,16 +247,22 @@ run it (no Node runtime, no container), and the owner maintains it directly.
   mark sits inside the 80% safe circle, so one file per size serves both the
   masked and the unmasked case).
 
-  They are served from the *site root* rather than `/static`, and cached for an
-  hour rather than immutably, because the clients that matter here do not read
-  the HTML: iOS probes `/apple-touch-icon.png` when a page is added to the home
-  screen, and a browser, a link preview or a bookmark tile with no declared
-  icon asks for `/favicon.ico`. Those paths cannot carry the asset fingerprint,
-  so the year-long immutable cache the fingerprinted assets rely on would pin a
-  replaced icon for a year. An hour is the compromise: a page load does not
-  re-fetch seven files, and a changed icon lands the same day. Undo by moving
-  the files under `/static/icons/` and versioning the links — at the cost of the
-  probes above finding nothing.
+  The URLs the pages and the manifest declare are
+  `/static/icons/<file>?v=<fingerprint>`, so the files are cached for a year and
+  re-fetched only when one of them actually changes. That is worth more here
+  than it is for a stylesheet: an *unchanged* `apple-touch-icon` URL is exactly
+  what iOS keeps serving from its own cache, so a stable URL is how a replaced
+  icon fails to appear on a home screen, and a versioned one is the standard
+  cure.
+
+  The same files also answer at the site root (`/favicon.ico`,
+  `/apple-touch-icon.png`, …), cached for an hour, for the clients that never
+  read the HTML: iOS falls back to probing those paths when a page declares no
+  icon, and a browser, a link preview or a bookmark tile that is given no icon
+  asks for `/favicon.ico`. Both copies are cheap — seven small files and one
+  handler — and the fallback is what keeps a future head that loses a link from
+  ending up with no icon at all. Undo by dropping `icons::routes` and serving
+  the set from `/static` alone.
 
   `favicon.svg` is a trace of the source raster, not the source itself: the
   source is an AI-generated image whose silhouette is not perfectly smooth, so

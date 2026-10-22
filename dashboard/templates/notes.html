@@ -10,14 +10,18 @@
   <script src="/static/js/app.js?v={{ asset_version }}" defer></script>
   <!-- The mark, in the shapes each kind of client wants: the SVG for browsers
        that take it, the ICO and the two PNGs for the rest, the 180px PNG for
-       iOS, and the manifest for a phone that installs the site. The paths are
-       the conventional root ones on purpose — see src/icons.rs. -->
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="icon" href="/favicon.ico" sizes="32x32" />
-  <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
-  <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
-  <link rel="manifest" href="/site.webmanifest" />
+       iOS, and the manifest for a phone that installs the site. Every one of
+       these URLs carries the asset fingerprint, so the file is cached until it
+       changes and no longer — which is also what iOS needs: an unchanged
+       apple-touch-icon URL is exactly what it keeps serving from its own cache.
+       The same files also answer at the site root, for the clients that never
+       read this head; src/icons.rs has that side of it. -->
+  <link rel="icon" href="/static/icons/favicon.svg?v={{ asset_version }}" type="image/svg+xml" />
+  <link rel="icon" href="/static/icons/favicon.ico?v={{ asset_version }}" sizes="32x32" />
+  <link rel="icon" href="/static/icons/favicon-32x32.png?v={{ asset_version }}" type="image/png" sizes="32x32" />
+  <link rel="icon" href="/static/icons/favicon-16x16.png?v={{ asset_version }}" type="image/png" sizes="16x16" />
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png?v={{ asset_version }}" sizes="180x180" />
+  <link rel="manifest" href="/site.webmanifest?v={{ asset_version }}" />
   <meta name="theme-color" content="#1e1e1e" />
   <!-- Installed on a phone, the manifest's `display: standalone` is what makes
        the app open without browser chrome; these two cover iOS, which has read

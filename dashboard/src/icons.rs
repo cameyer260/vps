@@ -1,14 +1,21 @@
 //! The app's icons and its web app manifest.
 //!
-//! The icon files live in `assets/icons/` with the other vendored assets, but
-//! they are served from the *site root* (`/favicon.ico`, `/apple-touch-icon.png`,
-//! …) rather than from `/static`, because the clients that need them most do not
-//! read the HTML: iOS probes `/apple-touch-icon.png` when a page is added to the
-//! home screen, a browser with no declared icon asks for `/favicon.ico`, and a
-//! link preview or a bookmark tile does the same. Root URLs cannot carry the
-//! asset fingerprint, so these are cached for an hour instead of a year — the
-//! same files under `/static/icons/` would be cached forever and could never be
-//! replaced. See "Decisions and why" in `docs/ARCHITECTURE.md`.
+//! The files live in `assets/icons/` with the other vendored assets, and the
+//! head and the manifest point at them through `/static/icons/…?v=<fingerprint>`
+//! — so they are cached for a year like every other asset and re-fetched only
+//! when a file actually changes. That matters more here than for a stylesheet:
+//! an *unchanged* `apple-touch-icon` URL is exactly what iOS keeps serving from
+//! its own cache, so a stable URL is how a replaced icon fails to appear on a
+//! home screen.
+//!
+//! The same files also answer at the site root (`/favicon.ico`,
+//! `/apple-touch-icon.png`, …), for the clients that never read the HTML: iOS
+//! falls back to probing those paths when a page declares no icon, and a
+//! browser, a link preview or a bookmark tile that is given no icon asks for
+//! `/favicon.ico`. Those URLs cannot carry the fingerprint, so that copy is
+//! cached for an hour — long enough that the fallback is not re-fetched on
+//! every page load, short enough that a replaced icon still lands the same day.
+//! See "Decisions and why" in `docs/ARCHITECTURE.md`.
 //!
 //! `/site.webmanifest` is built here rather than served from disk because it
 //! carries the vault's name.
@@ -23,9 +30,12 @@ use axum::routing::get;
 
 use crate::config::Config;
 
-/// The icon files and the content type each one is served with.
+/// The icon files, for the root-path fallback above, and the content type each
+/// is served with. `image/x-icon` rather than the IANA `image/vnd.microsoft.icon`
+/// so that this copy and the `/static` one — which takes its type from the file
+/// extension — cannot disagree.
 const ICONS: [(&str, &str); 7] = [
-    ("favicon.ico", "image/vnd.microsoft.icon"),
+    ("favicon.ico", "image/x-icon"),
     ("favicon.svg", "image/svg+xml"),
     ("favicon-16x16.png", "image/png"),
     ("favicon-32x32.png", "image/png"),
@@ -34,9 +44,10 @@ const ICONS: [(&str, &str); 7] = [
     ("icon-512.png", "image/png"),
 ];
 
-/// How long a browser may keep an icon without asking again. Short enough that
-/// a changed icon lands the same day, long enough that a page load does not
-/// re-fetch seven files.
+/// How long a client may keep an icon fetched through a root path without
+/// asking again. Short enough that a changed icon lands the same day, long
+/// enough that the fallback is not re-fetched on every page load. The icons the
+/// pages actually declare are under `/static` and cached for a year instead.
 const ICON_CACHE: &str = "public, max-age=3600";
 
 /// The app's background, for the browser chrome and the install splash. The
@@ -53,9 +64,9 @@ pub(crate) fn routes() -> Router<Arc<Config>> {
     router
 }
 
-/// `GET /favicon.ico`, `/apple-touch-icon.png`, … — one handler for the set,
-/// keyed by the path it was reached by. Only the names above are readable, so
-/// no request path can reach a file of its choosing.
+/// `GET /favicon.ico`, `/apple-touch-icon.png`, … — the root-path copy of the
+/// set, one handler keyed by the path it was reached by. Only the names above
+/// are readable, so no request path can reach a file of its choosing.
 async fn icon(State(config): State<Arc<Config>>, request: Request) -> Response {
     let name = request.uri().path().trim_start_matches('/');
     let Some((_, content_type)) = ICONS.iter().find(|(file, _)| *file == name) else {
@@ -82,6 +93,10 @@ async fn icon(State(config): State<Arc<Config>>, request: Request) -> Response {
 /// the colours, the standalone window, and the two icon sizes.
 async fn manifest(State(config): State<Arc<Config>>) -> Response {
     let vault = config.vault_name();
+    // The manifest names the icons by their fingerprinted URLs, so a browser
+    // that re-reads it after a deploy fetches the new files and not a year-old
+    // cached copy of the old ones.
+    let version = &config.asset_version;
     // Written by a JSON library, not formatted by hand: the vault's name is a
     // filesystem name, and a quote or a backslash in it must not be able to
     // break the document the browser has to parse.
@@ -99,13 +114,13 @@ async fn manifest(State(config): State<Arc<Config>>) -> Response {
         // to crop and the "any" case needs no second, padded icon.
         "icons": [
             {
-                "src": "/icon-192.png",
+                "src": format!("/static/icons/icon-192.png?v={version}"),
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any maskable",
             },
             {
-                "src": "/icon-512.png",
+                "src": format!("/static/icons/icon-512.png?v={version}"),
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any maskable",

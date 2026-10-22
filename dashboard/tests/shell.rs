@@ -217,21 +217,23 @@ async fn shell_references_only_local_assets() {
     for remote in ["http://", "https://", "//cdn", "unpkg", "npm"] {
         assert!(!html.contains(remote), "shell references {remote}");
     }
-    // The icon set is declared here and served locally, at the conventional
-    // root paths (the SVG for modern browsers, the ICO for the rest, the PNGs
-    // for the sizes a browser may prefer, the 180px PNG for iOS).
+    // The icon set is declared here and served locally (the SVG for modern
+    // browsers, the ICO for the rest, the PNGs for the sizes a browser may
+    // prefer, the 180px PNG for iOS). These are the declared URLs, so they are
+    // the fingerprinted, immutably cached ones — an unchanged apple-touch-icon
+    // URL is what iOS would otherwise keep serving from its own cache.
     for icon in [
-        "<link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\" />",
-        "<link rel=\"icon\" href=\"/favicon.ico\" sizes=\"32x32\" />",
-        "<link rel=\"icon\" href=\"/favicon-32x32.png\" type=\"image/png\" sizes=\"32x32\" />",
-        "<link rel=\"icon\" href=\"/favicon-16x16.png\" type=\"image/png\" sizes=\"16x16\" />",
-        "<link rel=\"apple-touch-icon\" href=\"/apple-touch-icon.png\" sizes=\"180x180\" />",
+        "<link rel=\"icon\" href=\"/static/icons/favicon.svg?v=",
+        "<link rel=\"icon\" href=\"/static/icons/favicon.ico?v=",
+        "<link rel=\"icon\" href=\"/static/icons/favicon-32x32.png?v=",
+        "<link rel=\"icon\" href=\"/static/icons/favicon-16x16.png?v=",
+        "<link rel=\"apple-touch-icon\" href=\"/static/icons/apple-touch-icon.png?v=",
     ] {
         assert!(html.contains(icon), "head is missing {icon}");
     }
     // Installed on a phone: the manifest supplies the home-screen icon, and
     // `display: standalone` in it is what opens the app without browser chrome.
-    assert!(html.contains("<link rel=\"manifest\" href=\"/site.webmanifest\" />"));
+    assert!(html.contains("<link rel=\"manifest\" href=\"/site.webmanifest?v="));
     assert!(html.contains("<meta name=\"apple-mobile-web-app-capable\" content=\"yes\" />"));
     assert!(html.contains("<meta name=\"apple-mobile-web-app-title\" content=\"notes\" />"));
     assert!(html.contains("<meta name=\"theme-color\" content=\"#1e1e1e\" />"));
@@ -240,7 +242,7 @@ async fn shell_references_only_local_assets() {
 #[tokio::test]
 async fn icons_are_served_at_the_root_paths_their_clients_ask_for() {
     for (uri, expected) in [
-        ("/favicon.ico", "image/vnd.microsoft.icon"),
+        ("/favicon.ico", "image/x-icon"),
         ("/favicon.svg", "image/svg+xml"),
         ("/favicon-16x16.png", "image/png"),
         ("/favicon-32x32.png", "image/png"),
@@ -258,8 +260,8 @@ async fn icons_are_served_at_the_root_paths_their_clients_ask_for() {
             Some(expected),
             "{uri} served with the wrong type"
         );
-        // Root paths cannot carry the asset fingerprint, so these are cached for
-        // an hour rather than immutably.
+        // This is the copy for clients that never read the HTML, so it cannot
+        // carry the asset fingerprint and gets an hour rather than a year.
         assert_eq!(
             response
                 .headers()
@@ -273,6 +275,46 @@ async fn icons_are_served_at_the_root_paths_their_clients_ask_for() {
     // under another name.
     let response = get(&config(), "/icons/favicon.ico").await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    // The copy the pages actually declare is the fingerprinted one under
+    // /static, cached for a year like every other asset.
+    let html = body_text(get(&config(), "/").await).await;
+    let version = html
+        .split("/static/icons/favicon.svg?v=")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .expect("the head declares a fingerprinted favicon")
+        .to_string();
+    assert!(!version.is_empty());
+    for (path, expected) in [
+        ("/static/icons/favicon.ico", "image/x-icon"),
+        ("/static/icons/favicon.svg", "image/svg+xml"),
+        ("/static/icons/favicon-16x16.png", "image/png"),
+        ("/static/icons/favicon-32x32.png", "image/png"),
+        ("/static/icons/apple-touch-icon.png", "image/png"),
+        ("/static/icons/icon-192.png", "image/png"),
+        ("/static/icons/icon-512.png", "image/png"),
+    ] {
+        let uri = format!("{path}?v={version}");
+        let response = get(&config(), &uri).await;
+        assert_eq!(response.status(), StatusCode::OK, "{uri} not served");
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some(expected),
+            "{uri} served with the wrong type"
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CACHE_CONTROL)
+                .and_then(|value| value.to_str().ok()),
+            Some("public, max-age=31536000, immutable"),
+            "{uri} is not cached immutably"
+        );
+    }
 }
 
 #[tokio::test]
@@ -299,17 +341,25 @@ async fn the_manifest_names_the_app_and_its_icons() {
 
     let icons = json["icons"].as_array().expect("icons array");
     assert_eq!(icons.len(), 2);
-    for (size, src) in [("192x192", "/icon-192.png"), ("512x512", "/icon-512.png")] {
+    for (size, path) in [
+        ("192x192", "/static/icons/icon-192.png"),
+        ("512x512", "/static/icons/icon-512.png"),
+    ] {
         let icon = icons
             .iter()
             .find(|icon| icon["sizes"] == size)
             .unwrap_or_else(|| panic!("no {size} icon"));
-        assert_eq!(icon["src"], src);
         assert_eq!(icon["type"], "image/png");
         // The mark sits inside the maskable safe circle, so one file per size
         // serves both purposes.
         assert_eq!(icon["purpose"], "any maskable");
-        // And the file it names is really served.
+        // The src is the fingerprinted URL — what a browser re-reads the
+        // manifest to learn, so a replaced icon is not a year-old cached one —
+        // and the file it names is really served.
+        let src = icon["src"].as_str().expect("src is a string");
+        let (named, version) = src.split_once("?v=").expect("src carries the fingerprint");
+        assert_eq!(named, path);
+        assert!(!version.is_empty());
         assert_eq!(get(&config(), src).await.status(), StatusCode::OK);
     }
 
@@ -330,8 +380,12 @@ async fn published_pages_carry_the_same_icon_set() {
     let mut config = config();
     config.published_root = root;
     let html = body_text(get(&config, "/s/").await).await;
-    assert!(html.contains("<link rel=\"apple-touch-icon\" href=\"/apple-touch-icon.png\""));
-    assert!(html.contains("<link rel=\"manifest\" href=\"/site.webmanifest\" />"));
+    assert!(
+        html.contains(
+            "<link rel=\"apple-touch-icon\" href=\"/static/icons/apple-touch-icon.png?v="
+        )
+    );
+    assert!(html.contains("<link rel=\"manifest\" href=\"/site.webmanifest?v="));
     assert!(html.contains("<meta name=\"apple-mobile-web-app-title\" content=\"notes\" />"));
 }
 

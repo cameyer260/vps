@@ -59,12 +59,14 @@ reading pane, `/notes/…`
 renders a note or serves an attachment (over the 1 MiB cap a download link is
 shown instead), `/download/notes/…` downloads a file, `/s/<slug>/` serves a
 published page, `/health` answers `ok`, and `/static/…` serves the vendored
-assets (no CDN, no `npm`). The icon files — `/favicon.ico`, `/favicon.svg`,
+assets (no CDN, no `npm`). The icons are vendored assets too, under
+`/static/icons/`, and the pages and the manifest name them with the fingerprint
+(`/static/icons/favicon.svg?v=…`) like everything else. The same seven files
+also answer at the site root — `/favicon.ico`, `/favicon.svg`,
 `/favicon-16x16.png`, `/favicon-32x32.png`, `/apple-touch-icon.png`,
-`/icon-192.png`, `/icon-512.png` — and `/site.webmanifest` sit at the site root
-instead, with an hour's cache: those are the paths a browser and a phone look
-for on their own, and they cannot carry a fingerprint. See "The app icon"
-below.
+`/icon-192.png`, `/icon-512.png` — with an hour's cache, for the clients that
+look for those paths on their own without reading the head, and
+`/site.webmanifest` serves the manifest. See "The app icon" below.
 
 Configuration is environment-only, with defaults that match this host
 (`dashboard/src/config.rs` is the reference):
@@ -195,6 +197,16 @@ mark plus 4% margin. `favicon.svg` is a trace of the same mask with `potrace`
 units), which is what keeps it to 19 path nodes: tracing the unblurred edge
 gives 243, and measures 0.073 against the master's alpha where the 19-node one
 measures 0.075 — no difference an eye can find, at twelve times the path.
+
+The pages and the manifest point at them as
+`/static/icons/<file>?v=<fingerprint>`, so a browser caches them for a year and
+fetches them again only when a file changes — which matters most for the
+`apple-touch-icon`, where an unchanged URL is what iOS serves from its own cache
+and a replaced icon fails to appear. The same files answer at the site root
+(`/favicon.ico`, `/apple-touch-icon.png`, …) with an hour's cache for the
+clients that never read the head: iOS falls back to probing those paths when a
+page declares no icon, and a browser or a link preview given no icon asks for
+`/favicon.ico`.
 
 Regenerating is a one-off, host-side job with `sharp` and `potrace` (a scratch
 `npm install`; there is no Node in the app or the deploy) — the outputs are what
