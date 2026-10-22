@@ -39,7 +39,8 @@ pub fn app(config: &Config) -> Router {
         .route("/notes/{*path}", get(note))
         // Liveness for the service check (systemd) and for a curl.
         .route("/health", get(health))
-        // Published pages are served verbatim from their confined filesystem root.
+        // Published pages are served from their confined filesystem root, with
+        // the page navigation injected into the HTML documents among them.
         .merge(publish::routes())
         // The icons and the manifest, at the root paths their clients ask for.
         .merge(icons::routes())

@@ -58,7 +58,9 @@ at the Cloudflare edge. `/` serves the app shell with the notes tree and the
 reading pane, `/notes/…`
 renders a note or serves an attachment (over the 1 MiB cap a download link is
 shown instead), `/download/notes/…` downloads a file, `/s/<slug>/` serves a
-published page, `/health` answers `ok`, and `/static/…` serves the vendored
+published page (an HTML document among them carries the injected back-arrow to
+`/s/`; everything else is served as-is), `/health` answers `ok`, and
+`/static/…` serves the vendored
 assets (no CDN, no `npm`). The icons are vendored assets too, under
 `/static/icons/`, and the pages and the manifest name them with the fingerprint
 (`/static/icons/favicon.svg?v=…`) like everything else. The same seven files
@@ -114,7 +116,9 @@ waits for his call rather than killing it on its own).
 
 **Published pages.** Throwaway pages live in `/home/dev/throwaway-pages/<slug>/`
 (`PUBLISHED_DIR` overrides): an `index.html` in a slug directory is served at
-`/s/<slug>/`, sibling assets from the same directory, as-is. Slugs are 1–64
+`/s/<slug>/`, sibling assets from the same directory. An HTML document gets the
+back-arrow to `/s/` injected as it is served — nothing on disk changes — while
+fragments and non-HTML files go out byte-for-byte. Slugs are 1–64
 characters of `[a-z0-9][a-z0-9-]*`; other entries in the root are ignored. `/s/`
 lists what is published, newest first by directory mtime, and deleting a
 directory unpublishes it. These pages are throwaway: they never enter git, and

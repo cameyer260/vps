@@ -19,4 +19,6 @@ Use this when the owner wants to see a visual, prototype, demo, or page in a bro
 
 The URL is behind Cloudflare Access for the owner's account, but this is still a public-facing host: put no secrets in the page. `/s/` lists published pages newest first by directory modification time. The app reads the directory per request, so publishing or changing files needs no restart; deleting the directory unpublishes the page and removes it from the index.
 
+Every HTML document served under the slug — `index.html` and any other `.html` file — is served with a back arrow at the top left that returns to `/s/`, added by the app, not written into the page: don't add one yourself. The page's own content is untouched, and HTML fragments and non-HTML files (scripts, stylesheets, images) are served byte-for-byte.
+
 These pages are throwaway artifacts outside git. They are never committed and can be overwritten or deleted freely. Root entries that are not valid slug directories are ignored.

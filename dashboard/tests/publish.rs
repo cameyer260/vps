@@ -49,10 +49,12 @@ async fn text(response: Response) -> String {
 }
 
 #[tokio::test]
-async fn page_and_sibling_assets_are_served_as_is_with_content_types() {
+async fn fragments_and_sibling_assets_are_served_as_is_with_content_types() {
     let fixture = Fixture::new();
     let page = fixture.0.join("demo");
     fs::create_dir_all(&page).unwrap();
+    // A fragment, not a document: the navigation is injected into documents
+    // only, so this is served byte for byte.
     fs::write(page.join("index.html"), "<script>window.ran=true</script>").unwrap();
     fs::write(page.join("app.js"), "window.asset=true").unwrap();
     fs::write(page.join("style.css"), "body { color: red }").unwrap();
@@ -140,6 +142,87 @@ async fn index_uses_the_site_stylesheet_and_local_time_markup() {
         "the index is missing the iOS status-bar strip"
     );
     assert!(!body.contains("<style"), "inline styles are gone");
+}
+
+#[tokio::test]
+async fn html_documents_are_served_with_the_back_link_to_the_index() {
+    let fixture = Fixture::new();
+    let page = fixture.0.join("demo");
+    let sub = page.join("sub");
+    fs::create_dir_all(&sub).unwrap();
+    let document = "<!doctype html>\n<html>\n<head><title>demo</title></head>\n<body>\n<main>content marker</main>\n</body>\n</html>\n";
+    fs::write(page.join("index.html"), document).unwrap();
+    fs::write(sub.join("page.html"), document).unwrap();
+    fs::write(page.join("fragment.html"), "<div>a fragment</div>").unwrap();
+
+    for uri in ["/s/demo/", "/s/demo/sub/page.html"] {
+        let body = text(get(&fixture.config(), uri).await).await;
+        assert!(
+            body.contains("href=\"/s/\""),
+            "{uri} has no link back to the index"
+        );
+        assert!(
+            body.contains("aria-label=\"Back to published pages\""),
+            "{uri} has no accessible label"
+        );
+        assert!(
+            body.contains("<main>content marker</main>"),
+            "{uri} lost page content"
+        );
+        let nav = body.find("class=\"published-nav\"").expect("no navigation");
+        assert!(
+            body.find("<body>").unwrap() < nav && nav < body.find("<main>").unwrap(),
+            "{uri} put the navigation somewhere other than the body's top"
+        );
+        assert_eq!(
+            body.matches("href=\"/s/\"").count(),
+            1,
+            "{uri} has more than one link"
+        );
+    }
+
+    assert_eq!(
+        text(get(&fixture.config(), "/s/demo/fragment.html").await).await,
+        "<div>a fragment</div>",
+        "an HTML fragment was rewritten"
+    );
+}
+
+#[tokio::test]
+async fn a_document_without_a_body_tag_is_served_with_the_link_appended() {
+    let fixture = Fixture::new();
+    let page = fixture.0.join("minimal");
+    fs::create_dir_all(&page).unwrap();
+    let document = "<!doctype html>\n<meta charset=\"utf-8\">\n<main>orbit</main>\n";
+    fs::write(page.join("index.html"), document).unwrap();
+
+    let body = text(get(&fixture.config(), "/s/minimal/").await).await;
+    assert!(
+        body.starts_with(document),
+        "the page itself changed: {body}"
+    );
+    assert!(body.contains("href=\"/s/\""), "no link back to the index");
+}
+
+#[tokio::test]
+async fn a_non_utf8_html_document_is_served_byte_for_byte() {
+    let fixture = Fixture::new();
+    let page = fixture.0.join("latin1");
+    fs::create_dir_all(&page).unwrap();
+    let document: &[u8] = b"<html><body>\xe9</body></html>";
+    fs::write(page.join("index.html"), document).unwrap();
+
+    let body = to_bytes(
+        get(&fixture.config(), "/s/latin1/").await.into_body(),
+        1 << 20,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        body.to_vec(),
+        document,
+        "a non-UTF-8 document was rewritten"
+    );
 }
 
 #[tokio::test]

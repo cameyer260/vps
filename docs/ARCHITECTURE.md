@@ -72,7 +72,8 @@ the existing Cloudflare tunnel and Access is `admin.service`, registered from
     and the notes' anchor tags.
   - `publish.rs` — `/s/` index and static serving from `/home/dev/throwaway-pages` (or
     `PUBLISHED_DIR`), with slug validation, MIME types, local-time publish
-    stamps and canonical confinement.
+    stamps, canonical confinement, and the back-arrow navigation injected into
+    every HTML document it serves.
 - **Cloudflare tunnel and Access** — existing, outside this repo. The tunnel
   routes a hostname to a localhost port and Access gates it to the owner's
   account. Each hostname has to be attached to an Access application — a tunnel
@@ -113,8 +114,10 @@ the existing Cloudflare tunnel and Access is `admin.service`, registered from
   keeps its focus and text. Contents are never read and there is no index.
 - **Publish a page.** An agent writes files into `/home/dev/throwaway-pages/<slug>` (via
   the skill) → requests to `/s/<slug>/…` resolve under the published root and
-  are served verbatim with extension-based content types → `/s/` lists valid
-  page directories by directory mtime, newest first.
+  are served with extension-based content types: an HTML document gets the
+  back-arrow navigation injected as it is served, everything else is served
+  verbatim → `/s/` lists valid page directories by directory mtime, newest
+  first.
 - **Install the app on a phone.** Add to Home Screen → iOS reads the 180px
   `apple-touch-icon.png` (opaque, full-bleed) and the
   `apple-mobile-web-app-title` meta for the label; Android and Chrome read
@@ -302,9 +305,31 @@ run it (no Node runtime, no container), and the owner maintains it directly.
   newest-first order, styled by the shared stylesheet and carrying a boxed link
   back to the notes site, and renders each publish time in the reader's own
   timezone (the markup keeps the UTC instant and spells it out for readers
-  without JavaScript) — no preview/sanitization layer, and published pages
-  themselves are still served verbatim. Undo by changing the MIME mapping or the
-  index template.
+  without JavaScript) — no preview/sanitization layer, and the only thing the
+  app adds to a published document is the back arrow, below. Undo by changing
+  the MIME mapping or the index template.
+- **The back arrow on a published page is injected at serve time, not written
+  into the page.** A page is written by an agent or by hand and brings its own
+  design, with no shared template, so a snippet in the publishing skill would
+  reach only future pages and could be forgotten or duplicated; serving is the
+  one place every page passes through, so a page published months ago gets the
+  navigation the moment the new binary is deployed. Only documents are touched
+  — a doctype or an `<html>`, `<head>` or `<body>` tag — so fragments, scripts,
+  stylesheets and images stay byte-for-byte, and non-UTF-8 HTML is left alone
+  (the app already declares its HTML UTF-8). The markup goes immediately after
+  `<body>`, so the fixed-position button has no ancestor between it and the
+  body: `transform`, `filter` or `contain: paint` on an ancestor would make
+  `fixed` measure against that ancestor instead of the viewport. A document
+  with no body tag — the `<!doctype html><main>…` shape — gets it before
+  `</html>` instead, the same top level of the implied body. The button is
+  self-contained (its own small `<style>`, the site's theme variables with the
+  site's values as fallbacks) because linking `app.css` would drag Tailwind's
+  preflight into arbitrary page designs; it copies the notes page's sidebar
+  toggle so the two read as the same chrome, with a back arrow in place of the
+  file-tree glyph. There is no duplicate check and no per-page opt-out: every
+  document served gets exactly one arrow. Rejected: an HTML-rewriting parser
+  crate (`lol_html`) that would rewrite documents we do not own for a ~1 KB
+  insertion. Undo by removing the injection from `publish.rs`.
 - **One fixed dev-review port (4173) instead of on-demand tunnels or
   subdomains.** No Cloudflare credentials are needed on the host, there is
   nothing to set up per use, and one at a time is acceptable. The cost is the

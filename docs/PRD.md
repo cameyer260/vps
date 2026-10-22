@@ -202,7 +202,14 @@ Non-goals for this version:
 2. The page is live at `https://admin.christophermeyer.dev/s/<slug>/`, with
    `index.html` served at the directory URL and sibling assets served from the
    same directory.
-3. `/s/` lists published pages — slug, publish time (directory mtime), newest
+3. Every HTML document under the slug — `index.html` or any other page — is
+   served with a back arrow at the top left of the screen that returns to
+   `/s/`. It is a boxed button styled like the notes page's sidebar toggle,
+   with a back arrow in place of the file-tree icon; it floats over the page
+   (`position: fixed`, 8px in from the top and left plus the safe-area insets,
+   above the page's own content) and takes no part in the page's layout. The
+   page's own content is untouched.
+4. `/s/` lists published pages — slug, publish time (directory mtime), newest
    first, each linking to the page. Deleting the directory removes both the
    page and its index entry. Nothing expires automatically. The index is
    dressed like the notes pages — same dark theme, same reading column, same
@@ -216,8 +223,11 @@ Non-goals for this version:
 - Slugs are 1–64 ASCII characters matching `[a-z0-9][a-z0-9-]*`; validation is
   enforced because a slug is a URL segment. Invalid names and non-directory
   entries in the root are ignored, never served or listed.
-- Published pages are served as-is, including scripts — no sanitization. They
-  are inside the Access boundary.
+- Published files are served as-is, including scripts — no sanitization —
+  with one addition: the back arrow is injected into every HTML document (one
+  carrying a doctype or an `<html>`, `<head>` or `<body>` tag) as it is served.
+  Nothing on disk is written, and HTML fragments and non-HTML files are served
+  byte-for-byte. They are all inside the Access boundary.
 - The server never exposes a raw filesystem listing; `/s/` is the only index.
 - Path traversal and symlink escapes are rejected, same as the notes side.
 - The app never writes to the published root: publishing, updating and
@@ -237,6 +247,10 @@ Non-goals for this version:
   column, a "Notes" boxed link back to `/`, and each page's time in the
   reader's local timezone.
 - A `<script>` in a published page executes (as-is serving).
+- A published page's HTML carries exactly one back arrow, right after its
+  `<body>` tag (or at the end of a document that has no body tag), and the
+  page's own content is otherwise unchanged; an HTML fragment, a script, a
+  stylesheet or an image under the slug is served byte-for-byte.
 
 ### 3. Dev-server review skill
 
