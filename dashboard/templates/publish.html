@@ -11,6 +11,8 @@
   <script src="/static/js/app.js?v={{ asset_version }}" defer></script>
 </head>
 <body>
+  {# The iOS status-bar strip: see the comment in notes.html. #}
+  <div class="status-bar-backdrop" aria-hidden="true"></div>
   <main class="reading-pane">
     <div class="pane-actions"><a class="box-link" href="/">Notes</a></div>
     <article class="note">

@@ -121,6 +121,12 @@ Non-goals for this version:
   open sidebar closes it, exactly as tapping the toggle does. The reading pane
   is comfortable at phone width and wide tables scroll inside their own
   container.
+- Installed on a phone (iOS "Add to Home Screen"), the app keeps a solid status
+  bar: the top of the screen shows the page's own background, never the system
+  blur band that iOS otherwise draws over an installed web app. Both the notes
+  page and the published-pages index carry the element that does it, and it is
+  hidden everywhere the blur cannot appear — in every browser, and in a
+  desktop-installed app — so the browser rendering is unchanged.
 - The filter and the navigation work without JavaScript: the form submits to
   `/search`, which answers with the filtered tree on a full page.
 - Clicking a link to a non-markdown file inside a note still downloads or opens
@@ -151,6 +157,8 @@ Non-goals for this version:
   no write endpoints, and that reads are read-only).
 - Typography and color come from Obsidian's documented values: 700px readable
   column, 16px text, its heading scale, base palette and text tiers.
+- Both pages carry the status-bar strip element, and it is `display: none` in a
+  browser: a phone-width browser render is pixel-identical to before.
 - Attachments appear as files in the tree; PDF, PNG, JPEG, GIF and WebP are served inline with MIME types, while SVG, text, unknown and other formats download with attachment disposition. Files over 1 MiB shown through the note route instead get a size-limit message and explicit download link.
 
 ### 2. Static publishing (`/s/<slug>/`)

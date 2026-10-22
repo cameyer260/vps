@@ -48,7 +48,9 @@ the existing Cloudflare tunnel and Access is `admin.service`, registered from
     notes browser (sidebar, reading pane, attachment dialog) and the
     published-pages index. The notes page is a full document; `hx-boost`
     navigation keeps it and swaps only the reading pane, so there is no client
-    router and no client state.
+    router and no client state. Both carry the empty
+    `div.status-bar-backdrop` that keeps the iOS status bar solid in an
+    installed app (see "Decisions and why").
   - `assets/` — `css/input.css` plus the committed Tailwind output
     `css/app.css`, and the vendored `js/` (htmx and our `app.js`; versions and
     sources in `assets/js/VENDORED.md`). Their URLs carry the fingerprint from
@@ -266,6 +268,24 @@ run it (no Node runtime, no container), and the owner maintains it directly.
   from Cloudflare's edge, which looked exactly like unimplemented work on the
   owner's phone. Undo by dropping `Config::asset_version` and the middleware in
   `lib.rs` — at the cost of manual cache purges after every deploy.
+- **A fixed 8px strip gives the iOS status bar a solid colour.** Since iOS 26
+  the installed (home-screen) app renders fullscreen, and iOS 27 draws a system
+  blur over its top strip — a faint band over even a flat background, and it
+  washes over content near the top. `theme-color` and
+  `apple-mobile-web-app-status-bar-style` are ignored, and a `background-color`
+  on `body` colours the bar but leaves the blur below it. The one thing that
+  works: a `position: fixed` element within 4px of the top, at least ~6px tall
+  and 80% of the screen wide, with a background colour — the bar then takes that
+  colour with no blur. `.status-bar-backdrop` in both templates is that element,
+  painted `--background-primary`, so the bar goes solid `#1e1e1e` and the app
+  looks the same. It renders only in an installed app on a touch device
+  (`@media (display-mode: standalone) and (hover: none) and (pointer: coarse)`,
+  with `html.is-standalone` set by `app.js` from `navigator.standalone` as a
+  second trigger, since iOS has reported the display mode inconsistently), so a
+  browser render is untouched — including the desktop-installed case, where
+  the strip would otherwise paint over the sidebar's top edge. Undo by deleting
+  the element and the `.status-bar-backdrop` rules, at the cost of the blur.
+  Revisit when Apple changes this again; it has changed twice in two releases.
 - **No ADR files.** Decisions and their reasons live here.
 
 ## Invariants & constraints

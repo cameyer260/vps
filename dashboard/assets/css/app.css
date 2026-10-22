@@ -184,6 +184,10 @@
     border-style: var(--tw-border-style);
     border-width: 1px;
   }
+  .blur {
+    --tw-blur: blur(8px);
+    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
+  }
   .filter {
     filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
   }
@@ -560,6 +564,25 @@ a {
   .reading-pane {
     padding: 0 16px 96px;
   }
+}
+.status-bar-backdrop {
+  display: none;
+  position: fixed;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: var(--background-primary);
+  pointer-events: none;
+}
+@media (display-mode: standalone) and (hover: none) and (pointer: coarse) {
+  .status-bar-backdrop {
+    display: block;
+  }
+}
+html.is-standalone .status-bar-backdrop {
+  display: block;
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

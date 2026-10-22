@@ -15,6 +15,10 @@
 {# htmx 4 inheritance is explicit: the boosted navigation and its target must be
    declared on the body with the `:inherited` suffix, or nothing is boosted. #}
 <body hx-boost:inherited="true" hx-target:inherited="#note-pane">
+  {# iOS draws a system blur over the top of an installed web app unless a
+     fixed, near-full-width element gives the status bar a solid colour to take.
+     Invisible in a browser: the CSS only renders it in an installed app. #}
+  <div class="status-bar-backdrop" aria-hidden="true"></div>
   <div class="app-shell">
     <button class="sidebar-toggle" type="button" aria-label="Toggle notes sidebar" aria-expanded="false">☰</button>
     <aside class="sidebar">

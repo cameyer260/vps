@@ -74,6 +74,12 @@ async fn shell_renders_the_sidebar_and_reading_pane() {
         "boost target not declared"
     );
     assert!(html.contains("notes"), "vault label missing");
+    // The status-bar strip iOS needs before it stops blurring the app's top
+    // edge; hidden by CSS everywhere except an installed phone app.
+    assert!(
+        html.contains("<div class=\"status-bar-backdrop\" aria-hidden=\"true\"></div>"),
+        "no iOS status-bar strip"
+    );
 }
 
 #[tokio::test]
@@ -109,6 +115,10 @@ async fn htmx_requests_get_the_pane_and_history_restores_get_the_page() {
         "a fragment must not be a whole page"
     );
     assert!(!html.contains("id=\"reading-pane\""));
+    assert!(
+        !html.contains("status-bar-backdrop"),
+        "a fragment must not carry the shell's status-bar strip"
+    );
 
     let restore = get_with(
         &config,

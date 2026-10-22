@@ -135,6 +135,10 @@ async fn index_uses_the_site_stylesheet_and_local_time_markup() {
         "no machine-readable datetime"
     );
     assert!(body.contains("UTC"), "no fallback text");
+    assert!(
+        body.contains("class=\"status-bar-backdrop\""),
+        "the index is missing the iOS status-bar strip"
+    );
     assert!(!body.contains("<style"), "inline styles are gone");
 }
 

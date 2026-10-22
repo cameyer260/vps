@@ -11,6 +11,24 @@
   var DIALOG_TIMEOUT_MS = 5000;
   var dialogTimer = null;
 
+  // Installed on a phone: mark the document so the CSS shows the status-bar
+  // strip. `@media (display-mode: standalone)` is the first trigger; iOS has
+  // reported the display mode inconsistently for home-screen apps, so
+  // `navigator.standalone` backs it up. Touch-only, because a desktop-installed
+  // app has no status bar and the strip would cover the sidebar's top edge.
+  function markInstalled() {
+    var media = window.matchMedia;
+    var installed =
+      window.navigator.standalone === true ||
+      (media && media("(display-mode: standalone)").matches);
+    var touch = media && media("(hover: none) and (pointer: coarse)").matches;
+    if (installed && touch) {
+      document.documentElement.classList.add("is-standalone");
+    }
+  }
+
+  markInstalled();
+
   function closest(event, selector) {
     return event.target && event.target.closest
       ? event.target.closest(selector)

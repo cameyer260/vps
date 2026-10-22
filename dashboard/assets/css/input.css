@@ -323,6 +323,42 @@ a {
   }
 }
 
+/* ---- installed app (iOS) ----
+ *
+ * iOS 27 renders the status bar of an installed web app (Add to Home Screen)
+ * as a system blur washed over the top of the page, so the top strip of even a
+ * flat dark background shows as a faint band. It cannot be switched off from
+ * the page — theme-color and apple-mobile-web-app-status-bar-style are ignored
+ * since iOS 26. What does work: a fixed element within 4px of the top, at
+ * least ~6px tall and 80% of the screen wide, with a background colour, makes
+ * the status bar take that solid colour with no blur.
+ *
+ * `.status-bar-backdrop` is that element. It paints the page's own background
+ * over the strip the blur would occupy, so the bar goes solid #1e1e1e and the
+ * look of the app is unchanged. It never renders outside an installed app on a
+ * touch device: a normal browser has no blur to hide, and in a desktop-installed
+ * app it would paint over the sidebar's top edge. */
+.status-bar-backdrop {
+  display: none;
+  position: fixed;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: var(--background-primary);
+  /* The strip is decoration; taps belong to whatever is under it. */
+  pointer-events: none;
+}
+
+@media (display-mode: standalone) and (hover: none) and (pointer: coarse) {
+  .status-bar-backdrop { display: block; }
+}
+
+/* Second trigger: iOS has reported the display mode inconsistently for
+ * home-screen apps across 26 and 27, so `app.js` sets the class too. */
+html.is-standalone .status-bar-backdrop { display: block; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
