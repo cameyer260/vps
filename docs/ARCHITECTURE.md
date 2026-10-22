@@ -286,6 +286,20 @@ run it (no Node runtime, no container), and the owner maintains it directly.
   the strip would otherwise paint over the sidebar's top edge. Undo by deleting
   the element and the `.status-bar-backdrop` rules, at the cost of the blur.
   Revisit when Apple changes this again; it has changed twice in two releases.
+- **The status-bar strip is reserved space, not an overlay.** The layout starts
+  below the status bar, so an element at `position: fixed; top: 0` sits at the
+  top of the *reading pane*, not under the bar — overlaid, an 8px strip clips
+  the pane's first row (the boxed link's top border) and paints a lighter band
+  across the top of the phone sidebar, which is exactly what the first version
+  did. So one custom property drives the whole thing: `--status-bar-strip` is
+  `0px` by default and `8px` in the installed contexts. `body` pads by it,
+  `.app-shell` subtracts it from its height (`calc(100dvh - var(--status-bar-strip))`,
+  so the page still never scrolls), `.sidebar-toggle` offsets by it (it is fixed
+  to the viewport), and the strip is only as tall as it. `.app-shell` is
+  `position: relative` so the phone's sidebar overlay anchors to the shell and
+  starts below the strip too; the shell covers the viewport exactly, so that
+  changes nothing in a browser. Net effect in an installed app: everything moves
+  down 8px, the strip covers empty background, and no content is clipped.
 - **No ADR files.** Decisions and their reasons live here.
 
 ## Invariants & constraints

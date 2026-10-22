@@ -123,9 +123,12 @@ Non-goals for this version:
   container.
 - Installed on a phone (iOS "Add to Home Screen"), the app keeps a solid status
   bar: the top of the screen shows the page's own background, never the system
-  blur band that iOS otherwise draws over an installed web app. Both the notes
-  page and the published-pages index carry the element that does it, and it is
-  hidden everywhere the blur cannot appear — in every browser, and in a
+  blur band that iOS otherwise draws over an installed web app. The strip that
+  does it is reserved space rather than an overlay — the shell starts 8px below
+  the top of the screen in that mode — so no content is ever clipped or covered
+  by it: the boxed link, the sidebar toggle and the sidebar overlay all sit
+  clear of it. Both the notes page and the published-pages index carry it, and
+  it is absent everywhere the blur cannot appear — in every browser, and in a
   desktop-installed app — so the browser rendering is unchanged.
 - The filter and the navigation work without JavaScript: the form submits to
   `/search`, which answers with the filtered tree on a full page.

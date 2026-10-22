@@ -42,6 +42,10 @@
   --file-line-width: 700px;
 
   --sidebar-width: 260px;
+
+  /* How much of the top of the screen an installed iOS app reserves for the
+   * system status bar. Zero everywhere else; see the installed-app section. */
+  --status-bar-strip: 0px;
 }
 
 /* ---- base ---- */
@@ -53,6 +57,9 @@ body {
 }
 
 body {
+  /* The strip is reserved, not overlaid: the shell starts below it, so nothing
+   * the app draws can end up underneath it. Zero outside an installed app. */
+  padding-top: var(--status-bar-strip);
   background: var(--background-primary);
   color: var(--text-normal);
   font: var(--font-text-size) / var(--line-height-normal) var(--font-text);
@@ -81,9 +88,13 @@ a {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   /* 100dvh where supported (mobile browser chrome), 100vh otherwise. */
-  height: 100vh;
-  height: 100dvh;
+  height: calc(100vh - var(--status-bar-strip));
+  height: calc(100dvh - var(--status-bar-strip));
   overflow: hidden;
+  /* Anchors the phone's sidebar overlay, so it too starts below the strip
+   * instead of under it. The shell fills the viewport exactly, so this changes
+   * nothing in a browser. */
+  position: relative;
 }
 
 .sidebar {
@@ -284,7 +295,8 @@ a {
   display: none;
   position: fixed;
   z-index: 4;
-  top: 8px;
+  /* Fixed to the viewport, so it takes the same offset the shell does. */
+  top: calc(8px + var(--status-bar-strip));
   left: 8px;
   min-width: 40px;
   min-height: 40px;
@@ -333,11 +345,16 @@ a {
  * least ~6px tall and 80% of the screen wide, with a background colour, makes
  * the status bar take that solid colour with no blur.
  *
- * `.status-bar-backdrop` is that element. It paints the page's own background
- * over the strip the blur would occupy, so the bar goes solid #1e1e1e and the
- * look of the app is unchanged. It never renders outside an installed app on a
- * touch device: a normal browser has no blur to hide, and in a desktop-installed
- * app it would paint over the sidebar's top edge. */
+ * `.status-bar-backdrop` is that element: it paints the page's own background
+ * across that strip, so the bar goes solid #1e1e1e and the app looks unchanged.
+ *
+ * The strip is *reserved*, not overlaid — `--status-bar-strip` pads the body by
+ * the strip's height and shortens the shell to match, so no content ever sits
+ * under it. Without that, an 8px element at the top of the layout would clip the
+ * reading pane's first row (the boxed link) and paint a lighter band across the
+ * top of the phone sidebar. Nothing here renders outside an installed app on a
+ * touch device: a browser has no blur to hide, and in a desktop-installed app
+ * the strip would paint over the sidebar's top edge. */
 .status-bar-backdrop {
   display: none;
   position: fixed;
@@ -345,18 +362,20 @@ a {
   top: 0;
   left: 0;
   right: 0;
-  height: 8px;
+  height: var(--status-bar-strip);
   background: var(--background-primary);
   /* The strip is decoration; taps belong to whatever is under it. */
   pointer-events: none;
 }
 
 @media (display-mode: standalone) and (hover: none) and (pointer: coarse) {
+  :root { --status-bar-strip: 8px; }
   .status-bar-backdrop { display: block; }
 }
 
 /* Second trigger: iOS has reported the display mode inconsistently for
  * home-screen apps across 26 and 27, so `app.js` sets the class too. */
+html.is-standalone { --status-bar-strip: 8px; }
 html.is-standalone .status-bar-backdrop { display: block; }
 
 @media (prefers-reduced-motion: reduce) {

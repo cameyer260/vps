@@ -215,12 +215,14 @@
   --line-height-normal: 1.5;
   --file-line-width: 700px;
   --sidebar-width: 260px;
+  --status-bar-strip: 0px;
 }
 html, body {
   height: 100%;
   margin: 0;
 }
 body {
+  padding-top: var(--status-bar-strip);
   background: var(--background-primary);
   color: var(--text-normal);
   font: var(--font-text-size) / var(--line-height-normal) var(--font-text);
@@ -242,9 +244,10 @@ a {
 .app-shell {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  height: 100vh;
-  height: 100dvh;
+  height: calc(100vh - var(--status-bar-strip));
+  height: calc(100dvh - var(--status-bar-strip));
   overflow: hidden;
+  position: relative;
 }
 .sidebar {
   display: flex;
@@ -527,7 +530,7 @@ a {
   display: none;
   position: fixed;
   z-index: 4;
-  top: 8px;
+  top: calc(8px + var(--status-bar-strip));
   left: 8px;
   min-width: 40px;
   min-height: 40px;
@@ -572,14 +575,20 @@ a {
   top: 0;
   left: 0;
   right: 0;
-  height: 8px;
+  height: var(--status-bar-strip);
   background: var(--background-primary);
   pointer-events: none;
 }
 @media (display-mode: standalone) and (hover: none) and (pointer: coarse) {
+  :root {
+    --status-bar-strip: 8px;
+  }
   .status-bar-backdrop {
     display: block;
   }
+}
+html.is-standalone {
+  --status-bar-strip: 8px;
 }
 html.is-standalone .status-bar-backdrop {
   display: block;
