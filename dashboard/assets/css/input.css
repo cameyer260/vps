@@ -46,6 +46,11 @@
   /* How much of the top of the screen an installed iOS app reserves for the
    * system status bar. Zero everywhere else; see the installed-app section. */
   --status-bar-strip: 0px;
+
+  /* The phone's sidebar toggle: a fixed button that the open sidebar's header
+   * has to clear, above and below. */
+  --sidebar-toggle-size: 40px;
+  --sidebar-toggle-offset: 8px;
 }
 
 /* ---- base ---- */
@@ -296,10 +301,10 @@ a {
   position: fixed;
   z-index: 4;
   /* Fixed to the viewport, so it takes the same offset the shell does. */
-  top: calc(8px + var(--status-bar-strip));
-  left: 8px;
-  min-width: 40px;
-  min-height: 40px;
+  top: calc(var(--sidebar-toggle-offset) + var(--status-bar-strip));
+  left: var(--sidebar-toggle-offset);
+  min-width: var(--sidebar-toggle-size);
+  min-height: var(--sidebar-toggle-size);
   border: 1px solid var(--background-modifier-border);
   border-radius: 5px;
   color: var(--text-normal);
@@ -322,9 +327,16 @@ a {
     display: none;
   }
 
-  /* The fixed toggle sits at 8,8 and is 40px wide; clear it. */
+  /* The fixed toggle sits over the header, so the header clears it to the left
+   * and is tall enough to leave the button the same room above it as below —
+   * otherwise the button is flush with the header's bottom border. */
   .sidebar-header {
-    padding-left: 56px;
+    padding-left: calc(
+      var(--sidebar-toggle-offset) + var(--sidebar-toggle-size) + 8px
+    );
+    min-height: calc(
+      var(--sidebar-toggle-offset) * 2 + var(--sidebar-toggle-size)
+    );
   }
 
   .app-shell.sidebar-open { grid-template-columns: minmax(0, 1fr); }

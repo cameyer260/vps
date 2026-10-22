@@ -216,6 +216,8 @@
   --file-line-width: 700px;
   --sidebar-width: 260px;
   --status-bar-strip: 0px;
+  --sidebar-toggle-size: 40px;
+  --sidebar-toggle-offset: 8px;
 }
 html, body {
   height: 100%;
@@ -530,10 +532,10 @@ a {
   display: none;
   position: fixed;
   z-index: 4;
-  top: calc(8px + var(--status-bar-strip));
-  left: 8px;
-  min-width: 40px;
-  min-height: 40px;
+  top: calc(var(--sidebar-toggle-offset) + var(--status-bar-strip));
+  left: var(--sidebar-toggle-offset);
+  min-width: var(--sidebar-toggle-size);
+  min-height: var(--sidebar-toggle-size);
   border: 1px solid var(--background-modifier-border);
   border-radius: 5px;
   color: var(--text-normal);
@@ -552,7 +554,8 @@ a {
     display: none;
   }
   .sidebar-header {
-    padding-left: 56px;
+    padding-left: calc( var(--sidebar-toggle-offset) + var(--sidebar-toggle-size) + 8px );
+    min-height: calc( var(--sidebar-toggle-offset) * 2 + var(--sidebar-toggle-size) );
   }
   .app-shell.sidebar-open {
     grid-template-columns: minmax(0, 1fr);

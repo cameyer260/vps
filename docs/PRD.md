@@ -117,7 +117,9 @@ Non-goals for this version:
 - Non-UTF-8 Markdown is decoded lossily and never panics. PDF, PNG, JPEG, GIF and WebP attachments are served inline with their MIME types; SVG, text, unknown types and other non-image attachments download with `Content-Disposition: attachment` (unknown types use `application/octet-stream`).
 - Rendered HTML is sanitized. Markdown-generated elements remain, as do note anchor links, task-list checkboxes and code classes. Scripts, event-handler attributes, `javascript:` URLs, `style` and other raw HTML do not survive sanitization.
 - Mobile: the sidebar collapses behind a toggle button; the sidebar header
-  clears that button, so it never covers the vault name. Tapping outside the
+  clears that button both to the left and vertically, so the button never covers
+  the vault name and has the same room above it as below it — it is centred in
+  the header, not flush with its bottom border. Tapping outside the
   open sidebar closes it, exactly as tapping the toggle does. The reading pane
   is comfortable at phone width and wide tables scroll inside their own
   container.
