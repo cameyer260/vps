@@ -1,0 +1,26 @@
+[Unit]
+Description=Admin site (notes browser and published pages)
+Documentation=file:///home/dev/vps/README.md
+After=network-online.target
+
+[Service]
+Type=simple
+# The deploy checkout owns both the binary and the vendored assets.
+# WorkingDirectory stays at dashboard/ so ASSETS_DIR (default <cwd>/assets)
+# resolves to the assets in the checkout.
+WorkingDirectory=/home/dev/vps/dashboard
+ExecStart=/home/dev/vps/dashboard/target/release/dashboard
+# Deployment defaults. ~/.config/admin/env is read last, so it can override
+# any config.rs knob (NOTES_DIR, PUBLISHED_DIR, PORT, LOG_LEVEL, ASSETS_DIR).
+Environment=PORT=3000
+Environment=LOG_LEVEL=info
+EnvironmentFile=-%h/.config/admin/env
+Restart=on-failure
+RestartSec=5
+# Logs go to journald (env_logger writes to stderr); no log files on disk.
+SyslogIdentifier=admin
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,334 @@
+/* Site stylesheet.
+ *
+ * Build (from dashboard/):
+ *   tailwindcss -i assets/css/input.css -o assets/css/app.css
+ * The output is committed, so a deploy needs no CSS build step and the CLI
+ * only runs when styles change.
+ *
+ * Tailwind supplies the preflight and the utility layer; the layout and the
+ * reading view are written here against Obsidian's theme variables, so the
+ * reading pane can match how the notes look in Obsidian.
+ */
+@import "tailwindcss";
+
+@source "../../templates/**/*.html";
+@source "../../src/**/*.rs";
+
+/* ---- Theme variables ----
+ * Obsidian's dark-theme values. The shell uses the same set the reading view
+ * will, so chrome and notes cannot drift apart; the reading view adds its
+ * heading scale, code, callouts and the 700px column on top of these. */
+:root {
+  color-scheme: dark;
+
+  --background-primary: #1e1e1e;
+  --background-secondary: #161616;
+  --background-modifier-border: #333333;
+  --background-modifier-hover: rgba(255, 255, 255, 0.055);
+
+  --text-normal: #dcddde;
+  --text-muted: #b3b3b3;
+  --text-faint: #666666;
+  --text-accent: #7f6df2;
+
+  --font-text:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-monospace:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  --font-text-size: 16px;
+  --line-height-normal: 1.5;
+  --file-line-width: 700px;
+
+  --sidebar-width: 260px;
+}
+
+/* ---- base ---- */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font: var(--font-text-size) / var(--line-height-normal) var(--font-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgba(127, 109, 242, 0.35);
+}
+
+/* ---- app shell ---- */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  /* 100dvh where supported (mobile browser chrome), 100vh otherwise. */
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--background-secondary);
+  border-right: 1px solid var(--background-modifier-border);
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.vault-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vault-name:hover {
+  color: var(--text-accent);
+}
+
+.tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.tree-empty {
+  margin: 8px;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+.reading-pane {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 0 24px 120px;
+}
+
+.note {
+  max-width: var(--file-line-width);
+  margin: 0 auto;
+}
+
+.note-title {
+  margin: 0 0 16px;
+  font-size: 1.6em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.note-empty {
+  color: var(--text-faint);
+}
+
+/* Reading-pane chrome. The boxed links sit in the flow at the screen's top
+ * right — the pane's first row is the same height as the sidebar's header, so
+ * the box lines up with the vault name (desktop) and the toggle (phone) — and
+ * scroll away with the note. The box mirrors the frontmatter properties. */
+.pane-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 48px;
+  margin-bottom: 20px;
+}
+
+.box-link {
+  display: inline-block;
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-size: 14px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 7px;
+}
+
+.box-link:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+/* The published-pages index reuses the reading pane's column. */
+.page-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.page-list a {
+  color: var(--text-accent);
+}
+
+.page-list time {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+/* Reading view and Obsidian syntax. */
+.note h1 { font-size: 1.8em; }
+.note h2 { font-size: 1.6em; }
+.note h3 { font-size: 1.4em; }
+.note h4 { font-size: 1.2em; }
+.note h5 { font-size: 1.1em; }
+.note h6 { font-size: 1em; }
+.note h1, .note h2, .note h3, .note h4, .note h5, .note h6 { margin: 1.6em 0 .65em; line-height: 1.3; }
+.note p, .note ul, .note ol, .note blockquote { margin: .8em 0; }
+.note a { color: var(--text-accent); text-decoration: underline; text-underline-offset: 2px; }
+.note pre, .note table { max-width: 100%; overflow-x: auto; }
+.note pre { padding: 16px; border-radius: 6px; background: var(--background-secondary); }
+.note code { font-family: var(--font-monospace); font-size: .9em; }
+.note :not(pre) > code { padding: 2px 4px; background: var(--background-secondary); border-radius: 4px; }
+.note table { display: block; border-collapse: collapse; }
+.note th, .note td { border: 1px solid var(--background-modifier-border); padding: 6px 10px; }
+.note th { background: var(--background-secondary); }
+.note mark { background: rgba(255, 220, 0, .28); color: inherit; }
+.note .tag { color: var(--text-accent); }
+.note .properties { display: grid; grid-template-columns: minmax(100px, 180px) 1fr; gap: 5px 16px; margin: 0 0 24px; padding: 12px 16px; border: 1px solid var(--background-modifier-border); border-radius: 7px; }
+.note .properties dt { color: var(--text-muted); }
+.note .properties dd { margin: 0; }
+.note .callout { border-left: 3px solid var(--text-accent); padding: 4px 16px; background: var(--background-secondary); }
+ .note .callout-title { margin: 0 0 .5em; color: var(--text-accent); font-weight: 700; }
+/* The notes tree follows Obsidian's file explorer: top-level rows are flush
+ * with the folder chevrons, a folder's children hang off a vertical guide line
+ * dropped from that chevron, and only the chevron changes on open. */
+.tree-filter { padding: 0 4px 10px; }
+.tree-filter input { width: 100%; padding: 8px; color: var(--text-normal); background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 5px; }
+
+.tree-row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 4px; cursor: pointer; }
+.tree-row:hover { background: var(--background-modifier-hover); }
+.tree-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.tree-folder > summary { list-style: none; color: var(--text-muted); }
+.tree-folder > summary::-webkit-details-marker { display: none; }
+
+.chev { flex: none; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translate(-2px, -1px) rotate(-45deg); transition: transform .12s ease; }
+.tree-folder[open] > summary .chev { transform: translate(-1px, -2px) rotate(45deg); }
+
+.tree-children { margin-left: 12px; padding-left: 8px; border-left: 1px solid var(--background-modifier-border); }
+
+.tree-file.active { background: rgba(127, 109, 242, .2); color: var(--text-accent); }
+.note a.unresolved { color: #e06c75; text-decoration-style: wavy; }
+/* A non-markdown file cannot open in the reading pane: the tree asks first.
+ * `margin: auto` is what centres a modal dialog — Tailwind's preflight zeroes
+ * the UA margin that does it, which pinned this one to the top-left corner. */
+.attach-dialog {
+  margin: auto;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 20px 22px 18px;
+  color: var(--text-normal);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .5);
+}
+
+.attach-dialog::backdrop { background: rgba(0, 0, 0, .55); }
+
+.attach-dialog-message { margin: 0 26px 16px 0; }
+
+.attach-dialog-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  background: none;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.attach-dialog-close:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  z-index: 4;
+  top: 8px;
+  left: 8px;
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  color: var(--text-normal);
+  background: var(--background-secondary);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* The phone gets the reading pane full width; the sidebar can be toggled. */
+@media (max-width: 768px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar-toggle {
+    display: block;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  /* The fixed toggle sits at 8,8 and is 40px wide; clear it. */
+  .sidebar-header {
+    padding-left: 56px;
+  }
+
+  .app-shell.sidebar-open { grid-template-columns: minmax(0, 1fr); }
+  .app-shell.sidebar-open .sidebar { display: flex; position: absolute; z-index: 2; inset: 0 20% 0 0; box-shadow: 8px 0 30px rgba(0,0,0,.45); }
+
+  .reading-pane {
+    padding: 0 16px 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,34 @@
+[package]
+name = "dashboard"
+version = "0.1.0"
+edition = "2024"
+description = "The admin site: a read-only notes browser and published pages for admin.christophermeyer.dev"
+publish = false
+
+# The dependency list from docs/ARCHITECTURE.md ("External dependencies").
+# Each crate is here for a named feature; a new one needs a demonstrated
+# need, not convenience.
+
+[dependencies]
+# HTTP server and routing.
+axum = "0.8"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+# Static assets under /static.
+tower-http = { version = "0.7", features = ["fs"] }
+# Server-rendered templates.
+askama = "0.16"
+# Query-string decoding (`?q=`) into a struct.
+serde = { version = "1", features = ["derive"] }
+# Logging: log macros + the env-filtered logger on the host.
+log = "0.4"
+env_logger = "0.11"
+# The markdown pipeline of the notes browser: GFM rendering, then
+# sanitization.
+pulldown-cmark = "0.13"
+ammonia = "4"
+# Published-page timestamps (directory mtimes).
+time = { version = "0.3", features = ["formatting"] }
+
+[dev-dependencies]
+# ServiceExt::oneshot, to boot the router in tests without a socket.
+tower = { version = "0.5", features = ["util"] }

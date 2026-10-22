@@ -1,7 +1,9 @@
 node_modules/
 dist/
 dist-server/
+/dashboard/target/
 .pi/tmp/
+.playwright-cli/
 *.log
 .DS_Store
 /scratch/

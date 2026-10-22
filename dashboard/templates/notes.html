@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <!-- An empty data URI stops the browser's default /favicon.ico request: the
+       site has no icon, and a 404 on every page load hides real console errors. -->
+  <link rel="icon" href="data:," />
+  <title>{{ vault_name }} — admin</title>
+  <link rel="stylesheet" href="/static/css/app.css?v={{ asset_version }}" />
+  <script src="/static/js/htmx.min.js?v={{ asset_version }}" defer></script>
+  <script src="/static/js/app.js?v={{ asset_version }}" defer></script>
+</head>
+{# htmx 4 inheritance is explicit: the boosted navigation and its target must be
+   declared on the body with the `:inherited` suffix, or nothing is boosted. #}
+<body hx-boost:inherited="true" hx-target:inherited="#note-pane">
+  <div class="app-shell">
+    <button class="sidebar-toggle" type="button" aria-label="Toggle notes sidebar" aria-expanded="false">☰</button>
+    <aside class="sidebar">
+      <header class="sidebar-header" title="{{ notes_root }}"><a class="vault-name" href="/">{{ vault_name }}</a></header>
+      {{ tree|safe }}
+    </aside>
+    <main class="reading-pane" id="reading-pane">
+      <div class="pane-actions"><a class="box-link" href="/s/" hx-boost="false">Published pages</a></div>
+      <article class="note" id="note-pane">{{ pane|safe }}</article>
+    </main>
+  </div>
+  <dialog class="attach-dialog" id="attach-dialog" aria-labelledby="attach-dialog-message">
+    <form method="dialog"><button class="attach-dialog-close" type="submit" aria-label="Close">×</button></form>
+    <p class="attach-dialog-message" id="attach-dialog-message"><span class="attach-dialog-type">This file</span> can't be opened in this editor. Download instead?</p>
+    <a class="box-link attach-dialog-download" href="#" download hx-boost="false">Download</a>
+  </dialog>
+</body>
+</html>
