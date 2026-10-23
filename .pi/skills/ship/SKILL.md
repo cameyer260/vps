@@ -41,11 +41,14 @@ git -C /home/dev/vps rev-parse --short HEAD   # must equal the pushed commit
 cd /home/dev/vps/dashboard && cargo build --release
 systemctl --user restart admin.service
 systemctl --user is-active admin.service   # active
-curl -fsS localhost:3000/health            # ok
+# the unit can report active before the listener binds, so retry the check
+curl -fsS --retry 20 --retry-delay 1 --retry-all-errors localhost:3000/health   # ok
 ```
 
-If a check fails, read `journalctl --user -u admin.service -n 50 --no-pager`,
-report it, and stop.
+`is-active` goes green the moment the unit starts, which can be before the port
+is listening — so the health check retries for up to ~20s rather than failing on
+the first refused connection. If it still fails, read
+`journalctl --user -u admin.service -n 50 --no-pager`, report it, and stop.
 
 ## Rules
 
