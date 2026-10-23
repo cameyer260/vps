@@ -221,6 +221,24 @@ run it (no Node runtime, no container), and the owner maintains it directly.
   reads in, with the extension kept so a row still says what it is. Undo by
   changing the tree markup in `notes.rs` and the `.tree-*` rules in
   `input.css`.
+- **The tree expands the chain down to the open note, and the highlight alone is
+  not enough.** A link inside a note can point anywhere in the vault, so without
+  the expansion the active row is highlighted deep inside collapsed folders and
+  the tree says nothing about where the reader is. Two halves do it: a whole-page
+  render (first load, refresh, htmx history restore) asks the server, where
+  `tree_level` emits `open` on every folder that prefixes the active path; an
+  in-page navigation swaps only the reading pane, so the tree is not re-rendered
+  at all and `app.js` opens the row's ancestors from the DOM on the same
+  `htmx:after:swap` / history event that moves the highlight. Only that chain is
+  touched, so folders opened by hand stay open (the reader's open/closed state
+  exists only in the DOM — which is why the alternative, answering a note
+  navigation with an out-of-band re-render of `#tree-list`, was rejected: it
+  would collapse everything the reader had opened and ship the whole row markup
+  on every click). The filter box is deliberately left alone: while a query is
+  active the rows are a flat result list with no folders to open, and clearing
+  the query under the reader would be a worse surprise than the highlight being
+  absent from a filtered list. Undo by dropping `reveal()` from `app.js` and the
+  `open` test in `tree_level`.
 - **The filter is live and replaces only the tree's rows.** A short debounce
   (`input changed delay:250ms`) keeps a keystroke from firing a request per
   character, the swapped region excludes the filter box so focus and text

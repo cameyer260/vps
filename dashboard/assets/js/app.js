@@ -55,8 +55,27 @@
     if (link) link.classList.add("active");
   }
 
+  // An in-page navigation swaps only the reading pane, so the tree keeps
+  // whatever was open when the link was clicked. The link can point anywhere in
+  // the vault, so the folders above the open note are opened here — otherwise
+  // the highlighted row sits inside collapsed folders and the tree says nothing
+  // about where the reader is. Only that chain is touched: folders the reader
+  // opened themselves stay open.
+  function reveal(link) {
+    if (!link || !link.closest) return;
+    var folder = link.closest("details.tree-folder");
+    while (folder) {
+      folder.open = true;
+      folder = folder.parentElement
+        ? folder.parentElement.closest("details.tree-folder")
+        : null;
+    }
+  }
+
   // The filtered tree is re-rendered server-side, so the highlight is reapplied
-  // from the URL whenever the rows or the pane are swapped.
+  // from the URL whenever the rows or the pane are swapped; the row's folders
+  // are opened with it, and the server renders the same chain open for a whole
+  // page (`notes.rs`).
   function refreshActive() {
     var path = window.location.pathname;
     var match = null;
@@ -66,6 +85,7 @@
         if (row.getAttribute("href") === path) match = row;
       });
     setActive(match);
+    reveal(match);
   }
 
   // Phone sidebar toggle.

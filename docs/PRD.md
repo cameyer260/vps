@@ -65,8 +65,11 @@ Non-goals for this version:
 2. Folders expand and collapse; clicking a `.md` file opens it in the reading
    pane. In-site navigation swaps the reading pane rather than reloading the
    page: the URL updates, the sidebar keeps its scroll, its filter text and its
-   open folders, and the tree keeps the open note highlighted. The vault name
-   in the sidebar header is a link home, back to the empty first screen.
+   open folders, and the tree keeps the open note highlighted. A link can point
+   anywhere in the vault, so the folders above the note it opens are expanded
+   too, and the highlighted row is never left hidden inside a collapsed folder.
+   Only that chain is expanded — folders opened by hand stay open. The vault
+   name in the sidebar header is a link home, back to the empty first screen.
 3. The reading pane renders the note with Obsidian's reading-view look:
    - frontmatter renders as a properties block (`file`, `last_updated`), not
      raw YAML;
@@ -177,6 +180,10 @@ Non-goals for this version:
 - A page of the tree keeps its filter text and open folders across an in-page
   navigation, and a link to a non-markdown file inside a note still downloads
   it.
+- Following a link to a note inside collapsed folders expands the folders above
+  it, leaves the folders the reader opened alone, and ends with the note
+  highlighted in the tree — on a whole page load and on an in-page navigation
+  alike.
 - No request can modify anything under the notes root (tests assert there are
   no write endpoints, and that reads are read-only).
 - Typography and color come from Obsidian's documented values: 700px readable
