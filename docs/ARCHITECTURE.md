@@ -69,7 +69,7 @@ the existing Cloudflare tunnel and Access is `admin.service`, registered from
     fallback and canonical-path confinement.
   - `render.rs` — frontmatter properties, pulldown-cmark GFM, ammonia
     sanitization, relative note links, wikilinks, callouts, `==highlight==`, tags
-    and the notes' anchor tags.
+    and anchor tags written in raw HTML.
   - `publish.rs` — `/s/` index and static serving from `/home/dev/throwaway-pages` (or
     `PUBLISHED_DIR`), with slug validation, MIME types, local-time publish
     stamps, canonical confinement, and the back-arrow navigation injected into

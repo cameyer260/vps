@@ -73,10 +73,15 @@ Non-goals for this version:
    - headings, paragraphs, lists, task lists, tables, blockquotes, code blocks
      and inline code, links, images, footnotes, `==highlight==`, `#tags`,
      callouts, wikilinks;
-   - the notes' own anchors (`<a id="context-001"></a>`) survive rendering, so
-     links such as `[Context 001](#context-001)` jump to them;
-   - relative links to other notes (e.g. `[focus-framework.md](focus-framework.md)`)
-     navigate within the site rather than pointing at a file path;
+   - anchor tags written into raw HTML (`<a id="section"></a>`) survive
+     rendering, so a same-note link such as `[jump](#section)` still reaches
+     its anchor;
+   - relative links to other notes navigate within the site rather than
+     pointing at a file path — wherever they point relative to the note:
+     `main.md`'s `[Context 013](extended-context/013-centene-interview-prep.md)`
+     into the `extended-context/` folder, or that note's
+     `[centene-interview-prep.md](../internship/company-specific/centene-interview-prep.md)`
+     back out of it;
    - wikilinks resolve to notes in the repo where a target exists, and render
      visibly distinct where it does not.
 4. Non-markdown files in the notes directory (PDFs, PNGs, CSVs, text) appear in
@@ -153,7 +158,7 @@ Non-goals for this version:
 
 **Acceptance criteria**
 
-- `main.md` renders with its headings and lists styled; every `Context 00X` anchor present in `main.md` appears in the DOM; `[Context 001](#context-001)` jumps to the anchor.
+- `main.md` renders with its headings and lists styled; a `Context` link such as `[Context 013](extended-context/013-centene-interview-prep.md)` renders as an in-site `/notes/extended-context/…` link and the linked note renders rather than 404ing.
 - A note with frontmatter shows a properties block with `file` and
   `last_updated`, not raw `---` YAML.
 - GFM task lists render as non-interactive checkboxes; a GFM table renders as
