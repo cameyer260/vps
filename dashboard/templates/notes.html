@@ -41,7 +41,11 @@
   <div class="app-shell">
     <button class="sidebar-toggle" type="button" aria-label="Toggle notes sidebar" aria-expanded="false">☰</button>
     <aside class="sidebar">
-      <header class="sidebar-header" title="{{ notes_root }}"><a class="vault-name" href="/">{{ vault_name }}</a></header>
+      {# The vault name is a link home, and deliberately a whole-page load:
+         going home should reset everything (the tree's filter text and open
+         folders, the pane's scroll, htmx's history state), not swap another
+         pane. #}
+      <header class="sidebar-header" title="{{ notes_root }}"><a class="vault-name" href="/" hx-boost="false">{{ vault_name }}</a></header>
       {{ tree|safe }}
     </aside>
     <main class="reading-pane" id="reading-pane">

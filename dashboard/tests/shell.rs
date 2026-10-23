@@ -85,9 +85,12 @@ async fn shell_renders_the_sidebar_and_reading_pane() {
 #[tokio::test]
 async fn shell_links_home_from_the_vault_name_and_to_published_pages() {
     let html = body_text(get(&config(), "/").await).await;
+    // The opt-out is deliberate: the vault name is a whole-page load, so going
+    // home resets the tree's filter text and open folders, the pane's scroll and
+    // htmx's history state instead of swapping another pane in.
     assert!(
-        html.contains("<a class=\"vault-name\" href=\"/\">notes</a>"),
-        "the vault name is not a link home"
+        html.contains("<a class=\"vault-name\" href=\"/\" hx-boost=\"false\">notes</a>"),
+        "the vault name is not a full-page link home"
     );
     assert!(
         html.contains("class=\"box-link\" href=\"/s/\" hx-boost=\"false\""),

@@ -210,10 +210,15 @@ run it (no Node runtime, no container), and the owner maintains it directly.
   inheritance, so the boosted navigation is declared on the body as
   `hx-boost:inherited` + `hx-target:inherited`, and the links that must not be
   swapped (published pages, attachments, downloads) opt out with
-  `hx-boost="false"`. Navigation answers with the reading pane alone; a
-  history restore asks for the page and gets it whole. htmx 4 reports the
-  swapped element on the request context (`detail.ctx.target`), not on
-  `event.target`, which is the element that started the request — the phone
+  `hx-boost="false"`. The vault name opts out too, on purpose: going home
+  should be a genuine reset — the tree's filter text and open folders, the
+  pane's scroll and htmx's history all clear — so it reloads the document
+  instead of swapping the pane. The trade-off is that Back from there goes
+  through the browser's own cache rather than htmx's snapshot, so the sidebar
+  state is not preserved on that one hop. Navigation answers with the reading
+  pane alone; a history restore asks for the page and gets it whole. htmx 4
+  reports the swapped element on the request context (`detail.ctx.target`), not
+  on `event.target`, which is the element that started the request — the phone
   sidebar close and the pane's scroll reset key off that context.
 - **The tree copies Obsidian's file explorer.** Top-level rows are flush with
   the folder chevrons, children hang off a vertical guide line dropped from the

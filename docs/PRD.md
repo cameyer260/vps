@@ -69,7 +69,10 @@ Non-goals for this version:
    anywhere in the vault, so the folders above the note it opens are expanded
    too, and the highlighted row is never left hidden inside a collapsed folder.
    Only that chain is expanded — folders opened by hand stay open. The vault
-   name in the sidebar header is a link home, back to the empty first screen.
+   name in the sidebar header is a link home, back to the empty first screen —
+   the one navigation that is a whole-page load rather than a pane swap, so it
+   starts over clean: no filter text, no open folders, no pane scroll, no htmx
+   history to go back into.
 3. The reading pane renders the note with Obsidian's reading-view look:
    - frontmatter renders as a properties block (`file`, `last_updated`), not
      raw YAML;
@@ -175,8 +178,9 @@ Non-goals for this version:
   tree is not reloaded between keystrokes.
 - Clicking a CSV row shows the dialog naming its type, and its Download button
   downloads the file; a PNG or PDF row still opens inline.
-- Clicking the vault name returns to the empty first screen, and the boxed link
-  at the top right of the pane opens `/s/`.
+- Clicking the vault name returns to the empty first screen with a whole-page
+  load, resetting the sidebar's filter text and open folders and the pane's
+  scroll; the boxed link at the top right of the pane opens `/s/`.
 - A page of the tree keeps its filter text and open folders across an in-page
   navigation, and a link to a non-markdown file inside a note still downloads
   it.

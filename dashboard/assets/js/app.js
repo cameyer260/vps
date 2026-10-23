@@ -131,7 +131,9 @@
   });
 
   // htmx pushes the new URL after the swap, so the highlight is settled here
-  // too (this is what clears it when the vault name returns home).
+  // too — this is what clears it when a history entry with no active row comes
+  // back (Back/Forward, or a boosted link to a page without a note open). The
+  // vault name is a whole-page load, so it never arrives through this path.
   ["htmx:after:history:push", "htmx:after:history:replace"].forEach(
     function (name) {
       document.addEventListener(name, refreshActive);
